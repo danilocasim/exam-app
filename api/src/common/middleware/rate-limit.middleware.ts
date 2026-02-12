@@ -42,10 +42,7 @@ export class RateLimitMiddleware implements NestMiddleware {
       'X-RateLimit-Remaining',
       String(Math.max(0, this.maxRequests - entry.count)),
     );
-    res.setHeader(
-      'X-RateLimit-Reset',
-      String(Math.ceil(entry.resetAt / 1000)),
-    );
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(entry.resetAt / 1000)));
 
     if (entry.count > this.maxRequests) {
       this.logger.warn(`Rate limit exceeded for ${ip}`);

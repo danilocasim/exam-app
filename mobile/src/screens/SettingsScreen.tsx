@@ -143,7 +143,14 @@ export const SettingsScreen: React.FC = () => {
               <Text
                 style={[
                   styles.rowValue,
-                  { color: isOnline === null ? colors.textMuted : isOnline ? colors.success : colors.error },
+                  {
+                    color:
+                      isOnline === null
+                        ? colors.textMuted
+                        : isOnline
+                          ? colors.success
+                          : colors.error,
+                  },
                 ]}
               >
                 {isOnline === null ? 'Checking...' : isOnline ? 'Online' : 'Offline'}
@@ -171,14 +178,23 @@ export const SettingsScreen: React.FC = () => {
             <View style={styles.row}>
               <Clock size={20} color={colors.textMuted} />
               <Text style={styles.rowLabel}>Last Sync</Text>
-              <Text style={styles.rowValue}>
-                {lastSyncAt ? formatDate(lastSyncAt) : 'Never'}
-              </Text>
+              <Text style={styles.rowValue}>{lastSyncAt ? formatDate(lastSyncAt) : 'Never'}</Text>
             </View>
             {needsSync && (
               <>
                 <View style={styles.divider} />
-                <View style={[styles.row, { backgroundColor: 'rgba(255, 153, 0, 0.1)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginTop: 4 }]}>
+                <View
+                  style={[
+                    styles.row,
+                    {
+                      backgroundColor: 'rgba(255, 153, 0, 0.1)',
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      marginTop: 4,
+                    },
+                  ]}
+                >
                   <RefreshCw size={16} color={colors.primaryOrange} />
                   <Text style={[styles.rowLabel, { color: colors.primaryOrange, fontSize: 13 }]}>
                     Sync recommended — new content may be available
@@ -198,9 +214,7 @@ export const SettingsScreen: React.FC = () => {
             ) : (
               <RefreshCw size={18} color="#fff" />
             )}
-            <Text style={styles.syncButtonText}>
-              {isSyncing ? 'Syncing...' : 'Sync Now'}
-            </Text>
+            <Text style={styles.syncButtonText}>{isSyncing ? 'Syncing...' : 'Sync Now'}</Text>
           </TouchableOpacity>
         </View>
 

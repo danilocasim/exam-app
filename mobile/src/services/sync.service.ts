@@ -97,8 +97,7 @@ export interface SyncResult {
 /**
  * Wait for a specified duration
  */
-const delay = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Execute an async function with exponential backoff retry
@@ -130,7 +129,9 @@ const withRetry = async <T>(
           RETRY_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt),
           RETRY_CONFIG.MAX_DELAY_MS,
         );
-        console.warn(`[SyncService] ${label} attempt ${attempt + 1} failed, retrying in ${backoff}ms...`);
+        console.warn(
+          `[SyncService] ${label} attempt ${attempt + 1} failed, retrying in ${backoff}ms...`,
+        );
         await delay(backoff);
       }
     }
