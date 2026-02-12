@@ -23,11 +23,19 @@ export function DashboardPage() {
   }, [selectedExamType]);
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>Loading stats...</div>;
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
+        Loading stats...
+      </div>
+    );
   }
 
   if (!stats) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>No data available</div>;
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
+        No data available
+      </div>
+    );
   }
 
   return (
@@ -37,22 +45,38 @@ export function DashboardPage() {
       </h1>
 
       <div style={styles.statsGrid}>
-        <StatCard label="Total Questions" value={stats.totalQuestions} color="#1677ff" />
+        <StatCard
+          label="Total Questions"
+          value={stats.totalQuestions}
+          color="#1677ff"
+        />
         <StatCard label="Draft" value={stats.byStatus.draft} color="#999" />
-        <StatCard label="Pending Review" value={stats.byStatus.pending} color="#d48806" />
-        <StatCard label="Approved" value={stats.byStatus.approved} color="#389e0d" />
-        <StatCard label="Archived" value={stats.byStatus.archived} color="#cf1322" />
+        <StatCard
+          label="Pending Review"
+          value={stats.byStatus.pending}
+          color="#d48806"
+        />
+        <StatCard
+          label="Approved"
+          value={stats.byStatus.approved}
+          color="#389e0d"
+        />
+        <StatCard
+          label="Archived"
+          value={stats.byStatus.archived}
+          color="#cf1322"
+        />
       </div>
 
       <h2 style={styles.sectionTitle}>Questions by Domain</h2>
       <div style={styles.domainGrid}>
         {Object.entries(stats.byDomain).map(([domain, count]) => {
-          const domainInfo = currentExamType?.domains.find((d) => d.id === domain);
+          const domainInfo = currentExamType?.domains.find(
+            (d) => d.id === domain,
+          );
           return (
             <div key={domain} style={styles.domainCard}>
-              <div style={styles.domainName}>
-                {domainInfo?.name || domain}
-              </div>
+              <div style={styles.domainName}>{domainInfo?.name || domain}</div>
               <div style={styles.domainCount}>{count}</div>
               {domainInfo && (
                 <div style={styles.domainTarget}>

@@ -19,12 +19,15 @@ export function Layout({ children }: LayoutProps) {
   const [selectedExamType, setSelectedExamType] = useState<string>('');
 
   useEffect(() => {
-    api.getExamTypes().then((types) => {
-      setExamTypes(types);
-      if (types.length > 0 && !selectedExamType) {
-        setSelectedExamType(types[0].id);
-      }
-    }).catch(() => {});
+    api
+      .getExamTypes()
+      .then((types) => {
+        setExamTypes(types);
+        if (types.length > 0 && !selectedExamType) {
+          setSelectedExamType(types[0].id);
+        }
+      })
+      .catch(() => {});
   }, [selectedExamType]);
 
   return (
@@ -42,17 +45,28 @@ export function Layout({ children }: LayoutProps) {
         />
 
         <nav style={styles.nav}>
-          <NavLink to="/" active={location.pathname === '/portal' || location.pathname === '/portal/'}>
+          <NavLink
+            to="/"
+            active={
+              location.pathname === '/portal' ||
+              location.pathname === '/portal/'
+            }
+          >
             Dashboard
           </NavLink>
-          <NavLink to="/questions" active={location.pathname.startsWith('/portal/questions')}>
+          <NavLink
+            to="/questions"
+            active={location.pathname.startsWith('/portal/questions')}
+          >
             Questions
           </NavLink>
         </nav>
 
         <div style={styles.userSection}>
           <div style={styles.userName}>{admin?.name || admin?.email}</div>
-          <button onClick={logout} style={styles.logoutBtn}>Sign Out</button>
+          <button onClick={logout} style={styles.logoutBtn}>
+            Sign Out
+          </button>
         </div>
       </aside>
 

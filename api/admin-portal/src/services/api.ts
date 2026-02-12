@@ -13,10 +13,7 @@ function clearAuth() {
   window.location.href = '/portal/login';
 }
 
-async function request<T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -98,7 +95,12 @@ export interface ExamType {
   name: string;
   displayName: string;
   description: string | null;
-  domains: { id: string; name: string; weight: number; questionCount: number }[];
+  domains: {
+    id: string;
+    name: string;
+    weight: number;
+    questionCount: number;
+  }[];
   passingScore: number;
   timeLimit: number;
   questionCount: number;

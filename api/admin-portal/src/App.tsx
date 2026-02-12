@@ -25,8 +25,14 @@ export function App() {
                 <Routes>
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/questions" element={<QuestionListPage />} />
-                  <Route path="/questions/new" element={<QuestionDetailPage />} />
-                  <Route path="/questions/:id" element={<QuestionDetailPage />} />
+                  <Route
+                    path="/questions/new"
+                    element={<QuestionDetailPage />}
+                  />
+                  <Route
+                    path="/questions/:id"
+                    element={<QuestionDetailPage />}
+                  />
                 </Routes>
               </Layout>
             </ProtectedRoute>

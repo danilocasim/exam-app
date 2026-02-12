@@ -68,7 +68,11 @@ export function QuestionDetailPage() {
   );
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>Loading...</div>;
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
+        Loading...
+      </div>
+    );
   }
 
   // Create mode
@@ -145,7 +149,9 @@ export function QuestionDetailPage() {
               {actionLoading === 'approve' ? 'Approving...' : '✓ Approve'}
             </button>
           )}
-          {(question.status === 'APPROVED' || question.status === 'PENDING' || question.status === 'DRAFT') && (
+          {(question.status === 'APPROVED' ||
+            question.status === 'PENDING' ||
+            question.status === 'DRAFT') && (
             <button
               onClick={() => handleAction('archive')}
               disabled={!!actionLoading}
@@ -193,7 +199,9 @@ export function QuestionDetailPage() {
               >
                 <span style={styles.optionId}>{opt.id}</span>
                 <span>{opt.text}</span>
-                {isCorrect && <span style={styles.correctBadge}>✓ Correct</span>}
+                {isCorrect && (
+                  <span style={styles.correctBadge}>✓ Correct</span>
+                )}
               </div>
             );
           })}

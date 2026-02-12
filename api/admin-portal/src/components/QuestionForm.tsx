@@ -21,14 +21,16 @@ export function QuestionForm({
   onCancel,
   submitLabel = 'Save',
 }: QuestionFormProps) {
-  const examType = examTypes.find((et) => et.id === (initialValues?.examTypeId || selectedExamType));
+  const examType = examTypes.find(
+    (et) => et.id === (initialValues?.examTypeId || selectedExamType),
+  );
   const domains = examType?.domains || [];
 
   const [formData, setFormData] = useState<QuestionInput>({
     examTypeId: initialValues?.examTypeId || selectedExamType,
     text: initialValues?.text || '',
     type: initialValues?.type || 'SINGLE_CHOICE',
-    domain: initialValues?.domain || (domains[0]?.id || ''),
+    domain: initialValues?.domain || domains[0]?.id || '',
     difficulty: initialValues?.difficulty || 'MEDIUM',
     options: initialValues?.options || [
       { id: 'A', text: '' },
@@ -180,7 +182,14 @@ export function QuestionForm({
       </label>
 
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
           <span style={{ fontSize: 13, fontWeight: 500 }}>
             Options (check correct answers)
           </span>

@@ -47,16 +47,15 @@ export function QuestionCard({ question, onClick }: QuestionCardProps) {
           {question.difficulty}
         </span>
         <span style={styles.domain}>{question.domain}</span>
-        <span style={styles.type}>
-          {question.type.replace(/_/g, ' ')}
-        </span>
+        <span style={styles.type}>{question.type.replace(/_/g, ' ')}</span>
       </div>
 
       <p style={styles.text}>{question.text}</p>
 
       <div style={styles.footer}>
         <span style={styles.meta}>
-          v{question.version} · {question.options.length} options · {question.correctAnswers.length} correct
+          v{question.version} · {question.options.length} options ·{' '}
+          {question.correctAnswers.length} correct
         </span>
         <span style={styles.meta}>
           {new Date(question.createdAt).toLocaleDateString()}
