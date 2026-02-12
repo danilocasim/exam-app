@@ -3,8 +3,10 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter, PrismaExceptionFilter } from './common/filters';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -12,6 +14,14 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
 
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT') || 3000;
+  const logger = new Logger('Bootstrap');
+
+  // Global filters
+  app.useGlobalFilters(new AllExceptionsFilter(), new PrismaExceptionFilter());
+
+  // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -22,6 +32,7 @@ async function bootstrap() {
 
   app.enableCors();
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+  await app.listen(port, '0.0.0.0');
+  logger.log(`Application running on: http://localhost:${port}`);
 }
 bootstrap();

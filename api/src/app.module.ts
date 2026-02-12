@@ -1,9 +1,19 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PrismaModule } from './prisma';
+import { ExamTypesModule } from './exam-types';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env.local', '.env'],
+    }),
+    PrismaModule,
+    ExamTypesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

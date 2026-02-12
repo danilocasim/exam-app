@@ -1,14 +1,99 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// CloudPrep Mobile - Prisma Schema
+// Multi-tenant exam question bank
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  ARCHIVED
+}
+
+// Multi-tenant exam type (e.g., AWS CCP, Solutions Architect)
+model ExamType {
+  id            String   @id // e.g., "aws-ccp", "aws-saa"
+  name          String // e.g., "AWS Cloud Practitioner"
+  displayName   String // e.g., "AWS CCP"
+  description   String?
+  domains       Json // [{id, name, weight, questionCount}]
+  passingScore  Int      @default(70) // Percentage (0-100)
+  timeLimit     Int      @default(90) // Minutes
+  questionCount Int      @default(65) // Questions per exam
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  questions    Question[]
+  syncVersions SyncVersion[]
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+
+  createdQuestions  Question[] @relation("CreatedBy")
+  approvedQuestions Question[] @relation("ApprovedBy")
+}
+
+model Question {
+  id             String         @id @default(uuid())
+  examTypeId     String // FK to ExamType
+  text           String
+  type           QuestionType
+  domain         String // Domain ID from ExamType.domains
+  difficulty     Difficulty
+  options        Json // [{id: string, text: string}]
+  correctAnswers String[] // Array of option IDs
+  explanation    String
+  status         QuestionStatus @default(DRAFT)
+  version        Int            @default(1)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+  approvedAt DateTime?
+
+  examType     ExamType @relation(fields: [examTypeId], references: [id])
+  createdBy    Admin?   @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById  String?
+  approvedBy   Admin?   @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById String?
+
+  @@index([examTypeId])
+  @@index([domain])
+  @@index([status])
+  @@index([version])
+  @@index([examTypeId, status])
+}
+
+// Tracks sync version per exam type (multi-tenant)
+model SyncVersion {
+  id         Int      @id @default(autoincrement())
+  examTypeId String   @unique
+  version    Int      @default(1)
+  updatedAt  DateTime @updatedAt
+
+  examType ExamType @relation(fields: [examTypeId], references: [id])
 }

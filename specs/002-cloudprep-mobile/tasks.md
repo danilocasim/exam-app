@@ -29,10 +29,10 @@
 - [x] T002 [P] Install mobile dependencies: expo-sqlite, react-navigation, zustand, nativewind, axios in mobile/package.json
 - [x] T003 [P] Initialize NestJS project in api/ with Fastify adapter
 - [x] T004 [P] Install api dependencies: prisma, @nestjs/config, class-validator, @nestjs/jwt, passport, bcrypt in api/package.json
-- [ ] T005 [P] Configure ESLint and Prettier for mobile/ and api/
-- [ ] T006 [P] Create mobile project structure: mobile/src/{screens,components,services,stores,storage,config,navigation}/
-- [ ] T007 [P] Create api project structure: api/src/{exam-types,questions,admin,prisma,common}/
-- [ ] T008 Setup Prisma with PostgreSQL in api/prisma/schema.prisma per data-model.md
+- [x] T005 [P] Configure ESLint and Prettier for mobile/ and api/
+- [x] T006 [P] Create mobile project structure: mobile/src/{screens,components,services,stores,storage,config,navigation}/
+- [x] T007 [P] Create api project structure: api/src/{exam-types,questions,admin,prisma,common}/
+- [x] T008 Setup Prisma with PostgreSQL in api/prisma/schema.prisma per data-model.md
 
 ---
 
@@ -44,17 +44,17 @@
 
 ### Backend Foundation
 
-- [ ] T009 Create ExamType model in api/prisma/schema.prisma with domains JSON field
-- [ ] T010 [P] Create Admin model in api/prisma/schema.prisma with email and passwordHash
-- [ ] T011 [P] Create Question model in api/prisma/schema.prisma with examTypeId FK and status enum
-- [ ] T012 [P] Create SyncVersion model in api/prisma/schema.prisma with examTypeId unique constraint
-- [ ] T013 Run initial Prisma migration: npx prisma migrate dev --name init
-- [ ] T014 Create PrismaService in api/src/prisma/prisma.service.ts and PrismaModule in api/src/prisma/prisma.module.ts
-- [ ] T015 [P] Create seed script for AWS CCP exam type in api/prisma/seed.ts
-- [ ] T016 [P] Create global validation pipe and error filters in api/src/common/
-- [ ] T017 [P] Create base DTOs for pagination and error responses in api/src/common/dto/
-- [ ] T018 Implement ExamTypesModule with GET /exam-types/{id} endpoint in api/src/exam-types/
-- [ ] T019 Configure environment variables and app config in api/src/config/
+- [x] T009 Create ExamType model in api/prisma/schema.prisma with domains JSON field
+- [x] T010 [P] Create Admin model in api/prisma/schema.prisma with email and passwordHash
+- [x] T011 [P] Create Question model in api/prisma/schema.prisma with examTypeId FK and status enum
+- [x] T012 [P] Create SyncVersion model in api/prisma/schema.prisma with examTypeId unique constraint
+- [x] T013 Run initial Prisma migration: npx prisma migrate dev --name init
+- [x] T014 Create PrismaService in api/src/prisma/prisma.service.ts and PrismaModule in api/src/prisma/prisma.module.ts
+- [x] T015 [P] Create seed script for AWS CCP exam type in api/prisma/seed.ts
+- [x] T016 [P] Create global validation pipe and error filters in api/src/common/
+- [x] T017 [P] Create base DTOs for pagination and error responses in api/src/common/dto/
+- [x] T018 Implement ExamTypesModule with GET /exam-types/{id} endpoint in api/src/exam-types/
+- [x] T019 Configure environment variables and app config in api/src/config/
 
 ### Mobile Foundation
 
