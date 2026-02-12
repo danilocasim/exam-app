@@ -65,13 +65,13 @@ export function LoginPage() {
         <button type="submit" disabled={loading} style={styles.button}>
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
+        <div style={styles.poweredBy}>
+          Powered by{' '}
+          <span style={{ color: colors.primary, fontWeight: 600 }}>
+            Tutorials Dojo
+          </span>
+        </div>
       </form>
-      <div style={styles.poweredBy}>
-        Powered by{' '}
-        <span style={{ color: colors.primary, fontWeight: 600 }}>
-          Tutorials Dojo
-        </span>
-      </div>
     </div>
   );
 }
