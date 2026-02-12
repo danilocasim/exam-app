@@ -180,6 +180,7 @@ As an admin, I want to create, edit, and manage exam questions so that the quest
 - **Practice Session**: A focused practice activity including domain/difficulty filters, questions answered, and performance metrics; stored locally.
 - **Domain**: One of four AWS Cloud Practitioner exam domains used for categorization and analytics.
 - **Analytics Record**: Aggregated performance data per user including scores over time, domain breakdowns, and study statistics; stored locally.
+- **ExamType**: Backend entity representing a certification exam (e.g., AWS CCP, Solutions Architect); contains exam metadata (name, passing score, time limit, domain weights); questions are associated with an ExamType; mobile apps filter by their exam type.
 
 ## Success Criteria _(mandatory)_
 
@@ -205,6 +206,20 @@ As an admin, I want to create, edit, and manage exam questions so that the quest
 - Q: How should user data and progress be identified and persisted across device changes or reinstalls? → A: Device-only storage; no cross-device sync; data lost on reinstall.
 - Q: What backend architecture supports question bank updates while keeping user data local? → A: Simple cloud API serves question bank snapshots; no user data stored remotely; content delivery only.
 - Q: What are the performance targets for app responsiveness? → A: App launch under 3 seconds; screen transitions under 300ms; question rendering under 100ms.
+- Q: What database technology should power the backend question bank API and admin portal? → A: PostgreSQL with Prisma ORM.
+- Q: What is the business model and monetization strategy? → A: One-time purchase on Play Store (₱149–₱299); no subscriptions; single exam per app; content quality is the competitive moat; replicable architecture for future certifications.
+- Q: How should the backend support multiple exam types (e.g., AWS CCP, Solutions Architect)? → A: Multi-tenant backend with ExamType entity; one shared REST API serves all exams; one admin portal manages all question banks; each mobile app requests questions filtered by its exam type.
+- Q: How should each mobile app identify its exam type when calling the API? → A: Hardcoded exam type ID in app config (e.g., `EXAM_TYPE=aws-ccp`); each app is published separately with its own config.
+- Q: How should domain categories be handled across different exam types? → A: Domains defined per ExamType; each exam has its own domain list (names, weights, question quotas) stored in the ExamType entity; mobile app receives domain config during sync.
+- Q: What are the minimum character counts for question quality validation (FR-025)? → A: Question text minimum 20 characters; explanation minimum 50 characters; at least 4 answer options for choice questions.
+- Q: What happens on first app launch before question bank is cached? → A: App ships with bundled question bank for immediate offline use; background sync fetches updates when online.
+- Q: What is the practice session question ordering and limit? → A: Questions presented in random order; sessions are unlimited (user ends manually).
+- Q: How is "time spent studying" calculated? → A: Sum of active exam time (start to submit) plus practice session durations; tracked per session.
+- Q: What does analytics show when user has zero completed exams? → A: Empty state message encouraging user to take first exam; no charts displayed.
+- Q: Is the 24-hour exam resumption window from exam start or last activity? → A: From exam start time (expiresAt = startedAt + 24 hours).
+- Q: What are the domain strength thresholds? → A: Strong = 80%+; Moderate = 70-79%; Weak = below 70%.
+- Q: What happens if user tries to start new exam while one is in-progress? → A: App prompts to resume existing exam or abandon it; cannot have two concurrent exams.
+- Q: How is duplicate question detection implemented? → A: Exact text match (case-insensitive) on question text field; admin is warned before saving.
 
 ## Assumptions
 
@@ -217,10 +232,13 @@ As an admin, I want to create, edit, and manage exam questions so that the quest
 - User progress and exam history are stored locally on device only; reinstalling the app resets all user data.
 - Question bank updates are delivered via a lightweight cloud API; the app polls for updates when online.
 - No user-identifiable information is transmitted to or stored on remote servers.
+- Backend API and admin portal use PostgreSQL as the database with Prisma ORM for data access.
+- Backend is multi-tenant: one shared API and admin portal manages questions for all certification exams; each mobile app filters questions by its exam type.
+- Future exam apps (e.g., AWS Solutions Architect) will share the same backend infrastructure.
 
 ## Out of Scope
 
-- Multiple exam types beyond AWS Cloud Practitioner
+- Multiple exam types within a single mobile app (each app is dedicated to one certification)
 - Subscription or in-app purchase monetization models
 - Social features (leaderboards, sharing, multiplayer)
 - User account creation or authentication (app purchase = full access)
@@ -228,3 +246,7 @@ As an admin, I want to create, edit, and manage exam questions so that the quest
 - Integration with external learning management systems
 - Flashcard or study note features
 - Audio or video content
+- Accessibility features (screen readers, high contrast) - future enhancement
+- Internationalization/localization - English only for v1
+- Adaptive question ordering based on user performance
+- Encryption of local SQLite database (device security is sufficient)

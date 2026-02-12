@@ -153,18 +153,93 @@
 - Maestro: Newer, but Detox is more established for React Native
 - Manual testing only: Insufficient for exam-critical features
 
+### 9. Backend API Framework
+
+**Context**: API serves question bank content; admin portal manages questions. PostgreSQL + Prisma ORM already decided.
+
+**Decision**: NestJS with Fastify adapter.
+
+**Rationale**:
+
+- **Module structure**: Clean separation for questions API, admin portal, and content delivery
+- **Prisma integration**: First-class support via `@prisma/client` with NestJS patterns
+- **TypeScript native**: Full type safety with decorators for validation
+- **Fastify performance**: Better throughput than Express for content delivery
+- **Unified deployment**: API + admin portal in single service
+
+**Alternatives Considered**:
+
+- Express: Less structure; would need manual organization for admin + API
+- Fastify standalone: Fewer conventions; more setup required
+- Hono: Lightweight but smaller ecosystem for admin features
+
+### 10. Admin Portal Implementation
+
+**Context**: Web-based admin portal for question management (create, edit, approve, archive).
+
+**Decision**: React SPA served by NestJS static module.
+
+**Rationale**:
+
+- **TypeScript alignment**: Shares types with API and potentially mobile
+- **Single deployment**: NestJS serves both API and static React build
+- **Simple auth**: Basic authentication or API key (no complex user system)
+- **Familiar stack**: React components for forms, tables, workflows
+
+**Alternatives Considered**:
+
+- Next.js separate app: Adds deployment complexity for small admin team
+- Server-rendered views (Handlebars): Less interactive for form-heavy workflows
+- No-code admin (Retool, AdminJS): External dependency; less customization
+
+### 11. Multi-Tenant Backend Architecture
+
+**Context**: Support multiple certification exams (AWS CCP, Solutions Architect, etc.) from a single backend codebase.
+
+**Decision**: Multi-tenant backend with ExamType entity; one shared REST API; one admin portal managing all exam types.
+
+**Rationale**:
+
+- **Single codebase**: One API and admin portal for all exams reduces maintenance
+- **Exam-specific config**: ExamType entity stores domains, weights, passing scores, time limits
+- **App isolation**: Each mobile app is configured with hardcoded EXAM_TYPE ID
+- **Scalable**: Adding new exam types requires only seed data, not code changes
+- **Consistent admin experience**: Manage all question banks from one portal
+
+**Implementation Details**:
+
+- ExamType.domains is JSON array: `[{id, name, weight, questionCount}]`
+- Question.domain is string (validated against ExamType.domains)
+- SyncVersion is per ExamType (tracks versions independently)
+- Mobile app calls `/exam-types/{id}` on first launch to get domain config
+- Mobile app calls `/exam-types/{id}/questions` filtered by its exam type
+
+**Alternatives Considered**:
+
+- Separate backends per exam: More isolation but more infrastructure overhead
+- Microservices: Overkill for question delivery; adds latency
+- Single exam hardcoded: Doesn't scale; would need fork per exam
+
 ## Technology Stack Summary
 
-| Layer      | Technology                | Justification                    |
-| ---------- | ------------------------- | -------------------------------- |
-| Framework  | React Native 0.73+ / Expo | Cross-platform, managed workflow |
-| Language   | TypeScript 5.x            | Type safety, IDE support         |
-| Navigation | React Navigation 6.x      | Standard for RN, performant      |
-| State      | Zustand                   | Lightweight, simple API          |
-| Storage    | expo-sqlite               | Relational local storage         |
-| Styling    | NativeWind                | Utility-first, fast              |
-| HTTP       | Axios                     | Reliable, well-tested            |
-| Testing    | Jest, RNTL, Detox         | Comprehensive coverage           |
+| Layer       | Technology                | Justification                    |
+| ----------- | ------------------------- | -------------------------------- |
+| **Mobile**  |                           |                                  |
+| Framework   | React Native 0.73+ / Expo | Cross-platform, managed workflow |
+| Language    | TypeScript 5.x            | Type safety, IDE support         |
+| Navigation  | React Navigation 6.x      | Standard for RN, performant      |
+| State       | Zustand                   | Lightweight, simple API          |
+| Storage     | expo-sqlite               | Relational local storage         |
+| Styling     | NativeWind                | Utility-first, fast              |
+| HTTP        | Axios                     | Reliable, well-tested            |
+| Testing     | Jest, RNTL, Detox         | Comprehensive coverage           |
+| **Backend** |                           |                                  |
+| Framework   | NestJS + Fastify          | Structured, performant           |
+| Language    | TypeScript 5.x            | Type safety, shared types        |
+| ORM         | Prisma                    | Type-safe DB access              |
+| Database    | PostgreSQL 15+            | Relational, reliable             |
+| Admin       | React SPA                 | Interactive forms                |
+| Testing     | Jest, Supertest           | Unit + integration               |
 
 ## Open Questions Resolved
 

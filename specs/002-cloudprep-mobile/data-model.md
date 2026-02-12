@@ -2,9 +2,218 @@
 
 **Feature**: 002-cloudprep-mobile  
 **Date**: February 12, 2026  
-**Storage**: SQLite (expo-sqlite)
+**Storage**: SQLite (mobile), PostgreSQL (backend)
 
-## Entity Relationship Diagram
+## Overview
+
+This document defines data models for both:
+
+1. **Mobile Local Storage (SQLite)**: User data, exam attempts, cached questions
+2. **Backend Database (PostgreSQL/Prisma)**: Question bank, admin management
+
+---
+
+## Backend Database (PostgreSQL + Prisma)
+
+### Entity Relationship Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           BACKEND (PostgreSQL)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────────┐                                                       │
+│  │    ExamType      │                                                       │
+│  ├──────────────────┤                                                       │
+│  │ id (PK, TEXT)    │ ◀─────────────────┐                                   │
+│  │ name             │                   │                                   │
+│  │ displayName      │                   │                                   │
+│  │ description      │                   │                                   │
+│  │ domains (JSON)   │                   │                                   │
+│  │ passingScore     │                   │                                   │
+│  │ timeLimit        │                   │                                   │
+│  │ questionCount    │                   │                                   │
+│  │ isActive         │                   │                                   │
+│  │ createdAt        │                   │                                   │
+│  │ updatedAt        │                   │                                   │
+│  └──────────────────┘                   │                                   │
+│                                         │                                   │
+│  ┌──────────────────┐       ┌──────────────────┐                           │
+│  │     Question     │       │      Admin       │                           │
+│  ├──────────────────┤       ├──────────────────┤                           │
+│  │ id (PK, UUID)    │       │ id (PK, UUID)    │                           │
+│  │ examTypeId (FK)  │───────┤ email            │                           │
+│  │ text             │       │ passwordHash     │                           │
+│  │ type             │       │ name             │                           │
+│  │ domain           │       │ createdAt        │                           │
+│  │ difficulty       │       └──────────────────┘                           │
+│  │ options (JSON)   │                │                                      │
+│  │ correctAnswers   │                │ createdBy/approvedBy                 │
+│  │ explanation      │◀───────────────┘                                      │
+│  │ status           │                                                       │
+│  │ version          │                                                       │
+│  │ createdAt        │                                                       │
+│  │ updatedAt        │                                                       │
+│  │ archivedAt       │                                                       │
+│  │ createdById (FK) │                                                       │
+│  │ approvedById(FK) │                                                       │
+│  │ approvedAt       │                                                       │
+│  └──────────────────┘                                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Prisma Schema
+
+```prisma
+// api/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  ARCHIVED
+}
+
+// Multi-tenant exam type (e.g., AWS CCP, Solutions Architect)
+model ExamType {
+  id            String     @id                    // e.g., "aws-ccp", "aws-saa"
+  name          String                            // e.g., "AWS Cloud Practitioner"
+  displayName   String                            // e.g., "AWS CCP"
+  description   String?
+  domains       Json                              // [{id, name, weight, questionCount}]
+  passingScore  Int        @default(70)           // Percentage (0-100)
+  timeLimit     Int        @default(90)           // Minutes
+  questionCount Int        @default(65)           // Questions per exam
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  questions     Question[]
+  syncVersions  SyncVersion[]
+}
+
+model Admin {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime   @default(now())
+
+  createdQuestions  Question[] @relation("CreatedBy")
+  approvedQuestions Question[] @relation("ApprovedBy")
+}
+
+model Question {
+  id             String         @id @default(uuid())
+  examTypeId     String                              // FK to ExamType
+  text           String
+  type           QuestionType
+  domain         String                              // Domain ID from ExamType.domains
+  difficulty     Difficulty
+  options        Json           // [{id: string, text: string}]
+  correctAnswers String[]       // Array of option IDs
+  explanation    String
+  status         QuestionStatus @default(DRAFT)
+  version        Int            @default(1)
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  archivedAt     DateTime?
+  approvedAt     DateTime?
+
+  examType       ExamType       @relation(fields: [examTypeId], references: [id])
+  createdBy      Admin?         @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById    String?
+  approvedBy     Admin?         @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById   String?
+
+  @@index([examTypeId])
+  @@index([domain])
+  @@index([status])
+  @@index([version])
+  @@index([examTypeId, status])
+}
+
+// Tracks sync version per exam type (multi-tenant)
+model SyncVersion {
+  id         Int      @id @default(autoincrement())
+  examTypeId String   @unique
+  version    Int      @default(1)
+  updatedAt  DateTime @updatedAt
+
+  examType   ExamType @relation(fields: [examTypeId], references: [id])
+}
+```
+
+### ExamType.domains JSON Structure
+
+```json
+[
+  {
+    "id": "cloud-concepts",
+    "name": "Cloud Concepts",
+    "weight": 24,
+    "questionCount": 16
+  },
+  {
+    "id": "security",
+    "name": "Security and Compliance",
+    "weight": 30,
+    "questionCount": 20
+  },
+  {
+    "id": "technology",
+    "name": "Technology",
+    "weight": 34,
+    "questionCount": 22
+  },
+  {
+    "id": "billing",
+    "name": "Billing and Pricing",
+    "weight": 12,
+    "questionCount": 7
+  }
+]
+```
+
+### Backend Validation Rules
+
+| Field          | Rule                                       |
+| -------------- | ------------------------------------------ |
+| text           | Min 20 characters                          |
+| explanation    | Min 50 characters                          |
+| options        | Min 4 options (for choice types)           |
+| correctAnswers | Single-choice: exactly 1; Multiple: 2+     |
+| status         | Only APPROVED questions served to mobile   |
+| domain         | Must match a domain ID in ExamType.domains |
+
+---
+
+## Mobile Local Storage (SQLite)
+
+### Entity Relationship Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐

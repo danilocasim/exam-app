@@ -1,21 +1,23 @@
 # Tasks: CloudPrep Mobile
 
-**Input**: Design documents from `/specs/002-cloudprep-mobile/`  
-**Prerequisites**: plan.md ✓, spec.md ✓, research.md ✓, data-model.md ✓, contracts/ ✓
+**Input**: Design documents from `/specs/002-cloudprep-mobile/`
+**Prerequisites**: plan.md ✓, spec.md ✓, research.md ✓, data-model.md ✓, contracts/api.yaml ✓
 
-## Format: `[ID] [P?] [Story?] Description`
+**Tests**: Not explicitly requested - test tasks omitted. Add TDD tasks if needed.
+
+**Organization**: Tasks grouped by user story for independent implementation and testing.
+
+## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (US1, US2, US3, US4, US5)
-- Exact file paths included in descriptions
+- **[Story]**: Which user story this task belongs to (US1-US5)
+- Include exact file paths in descriptions
 
 ## Path Conventions
 
-Based on plan.md structure:
-
-- **Mobile app**: `app/src/`
-- **API**: `api/src/`
-- **Contracts**: `contracts/`
+- **api/**: Backend (NestJS + Prisma + PostgreSQL)
+- **mobile/**: Mobile app (React Native + Expo)
+- **api/admin-portal/**: Admin SPA (React)
 
 ---
 
@@ -23,290 +25,325 @@ Based on plan.md structure:
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create Expo project with TypeScript template in app/
-- [ ] T002 Initialize API project with Express/TypeScript in api/
-- [ ] T003 [P] Configure ESLint and Prettier for app/ with React Native rules
-- [ ] T004 [P] Configure ESLint and Prettier for api/ with Node.js rules
-- [ ] T005 [P] Create shared contracts directory with question-bank.schema.json
-- [ ] T006 Install core dependencies: expo-sqlite, zustand, react-navigation, nativewind in app/
-- [ ] T007 [P] Install API dependencies: express, cors, helmet in api/
-- [ ] T008 Configure NativeWind (Tailwind CSS) in app/tailwind.config.js
-- [ ] T009 Create directory structure per plan.md in app/src/
+- [x] T001 Initialize Expo mobile project in mobile/ with TypeScript template
+- [x] T002 [P] Install mobile dependencies: expo-sqlite, react-navigation, zustand, nativewind, axios in mobile/package.json
+- [x] T003 [P] Initialize NestJS project in api/ with Fastify adapter
+- [x] T004 [P] Install api dependencies: prisma, @nestjs/config, class-validator, @nestjs/jwt, passport, bcrypt in api/package.json
+- [ ] T005 [P] Configure ESLint and Prettier for mobile/ and api/
+- [ ] T006 [P] Create mobile project structure: mobile/src/{screens,components,services,stores,storage,config,navigation}/
+- [ ] T007 [P] Create api project structure: api/src/{exam-types,questions,admin,prisma,common}/
+- [ ] T008 Setup Prisma with PostgreSQL in api/prisma/schema.prisma per data-model.md
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Core infrastructure that MUST be complete before ANY user story
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Define TypeScript interfaces in app/src/models/types.ts (Question, ExamAttempt, ExamAnswer, PracticeSession, PracticeAnswer, Domain, Difficulty enums)
-- [ ] T011 Implement database schema creation in app/src/services/storage/schema.ts
-- [ ] T012 Implement DatabaseService with connection management in app/src/services/storage/database.ts
-- [ ] T013 Implement QuestionRepository CRUD operations in app/src/services/storage/questionRepository.ts
-- [ ] T014 [P] Create domain constants (labels, weights, quotas) in app/src/utils/constants.ts
-- [ ] T015 [P] Create UUID generation utility in app/src/utils/uuid.ts
-- [ ] T016 Configure React Navigation stack in app/src/navigation/AppNavigator.tsx
-- [ ] T017 Create base screen layout component in app/src/components/ScreenLayout.tsx
-- [ ] T018 Implement SyncMetaRepository for version tracking in app/src/services/storage/syncMetaRepository.ts
-- [ ] T019 Bundle seed question data (minimum viable set) in app/assets/seed-questions.json
-- [ ] T020 Implement database initialization with seed data loading in app/src/services/storage/initDatabase.ts
+### Backend Foundation
+
+- [ ] T009 Create ExamType model in api/prisma/schema.prisma with domains JSON field
+- [ ] T010 [P] Create Admin model in api/prisma/schema.prisma with email and passwordHash
+- [ ] T011 [P] Create Question model in api/prisma/schema.prisma with examTypeId FK and status enum
+- [ ] T012 [P] Create SyncVersion model in api/prisma/schema.prisma with examTypeId unique constraint
+- [ ] T013 Run initial Prisma migration: npx prisma migrate dev --name init
+- [ ] T014 Create PrismaService in api/src/prisma/prisma.service.ts and PrismaModule in api/src/prisma/prisma.module.ts
+- [ ] T015 [P] Create seed script for AWS CCP exam type in api/prisma/seed.ts
+- [ ] T016 [P] Create global validation pipe and error filters in api/src/common/
+- [ ] T017 [P] Create base DTOs for pagination and error responses in api/src/common/dto/
+- [ ] T018 Implement ExamTypesModule with GET /exam-types/{id} endpoint in api/src/exam-types/
+- [ ] T019 Configure environment variables and app config in api/src/config/
+
+### Mobile Foundation
+
+- [ ] T020 Setup SQLite database initialization in mobile/src/storage/database.ts
+- [ ] T021 [P] Create mobile app config with EXAM_TYPE_ID in mobile/src/config/app.config.ts
+- [ ] T022 Create SQLite schema for Question table in mobile/src/storage/schema.ts
+- [ ] T023 [P] Create SQLite schema for ExamAttempt and ExamAnswer tables in mobile/src/storage/schema.ts
+- [ ] T024 [P] Create SQLite schema for PracticeSession and PracticeAnswer tables in mobile/src/storage/schema.ts
+- [ ] T025 [P] Create SQLite schema for SyncMeta and UserStats tables in mobile/src/storage/schema.ts
+- [ ] T026 Setup React Navigation with NavigationContainer in mobile/src/navigation/
+- [ ] T027 Configure NativeWind/Tailwind in mobile/tailwind.config.js
+- [ ] T028 [P] Create Axios API client with base URL config in mobile/src/services/api.ts
+- [ ] T029 Implement SyncService for fetching exam type config and questions in mobile/src/services/sync.service.ts
+- [ ] T030 Create initial question bank bundle for offline-first in mobile/assets/questions/
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
 ---
 
-## Phase 3: User Story 1 - Timed Exam Simulation (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Take Timed Exam Simulation (Priority: P1) 🎯 MVP
 
-**Goal**: Users can take a full 65-question timed exam with auto-save, navigation, and scoring
+**Goal**: Generate and take a full 65-question timed exam with AWS domain weighting, auto-save, and pass/fail scoring
 
-**Independent Test**: Launch exam → answer questions → submit → see pass/fail score with domain breakdown
+**Independent Test**: Launch exam → answer 65 questions → see pass/fail result with domain breakdown
 
-### Implementation for User Story 1
+### Backend Tasks (US1)
 
-- [ ] T021 [US1] Implement ExamAttemptRepository CRUD in app/src/services/storage/examAttemptRepository.ts
-- [ ] T022 [US1] Implement ExamAnswerRepository CRUD in app/src/services/storage/examAnswerRepository.ts
-- [ ] T023 [US1] Implement exam generation service with domain weighting in app/src/services/exam/examGenerator.ts
-- [ ] T024 [US1] Implement exam scoring service with pass/fail logic in app/src/services/exam/examScorer.ts
-- [ ] T025 [US1] Implement exam state persistence service in app/src/services/exam/examPersistence.ts
-- [ ] T026 [US1] Create Zustand exam store in app/src/stores/examStore.ts
-- [ ] T027 [P] [US1] Create QuestionCard component in app/src/components/questions/QuestionCard.tsx
-- [ ] T028 [P] [US1] Create OptionButton component in app/src/components/questions/OptionButton.tsx
-- [ ] T029 [P] [US1] Create CountdownTimer component in app/src/components/navigation/CountdownTimer.tsx
-- [ ] T030 [P] [US1] Create QuestionNavigator component (prev/next/jump) in app/src/components/navigation/QuestionNavigator.tsx
-- [ ] T031 [P] [US1] Create FlagButton component in app/src/components/navigation/FlagButton.tsx
-- [ ] T032 [P] [US1] Create ProgressIndicator component in app/src/components/navigation/ProgressIndicator.tsx
-- [ ] T033 [US1] Implement HomeScreen with exam start button in app/src/screens/HomeScreen.tsx
-- [ ] T034 [US1] Implement ExamScreen with timer, question display, navigation in app/src/screens/ExamScreen.tsx
-- [ ] T035 [US1] Implement ExamResultScreen with score and domain breakdown in app/src/screens/ExamResultScreen.tsx
-- [ ] T036 [US1] Add exam resumption logic (check for in-progress exam on app launch) in app/src/services/exam/examResumption.ts
-- [ ] T037 [US1] Implement expired exam cleanup (mark abandoned after 24h) in app/src/services/exam/examCleanup.ts
-- [ ] T038 [US1] Add auto-save on answer selection and navigation in examStore.ts
-- [ ] T039 [US1] Implement timer expiry handling with auto-submit in ExamScreen.tsx
+- [ ] T031 [P] [US1] Implement GET /exam-types/{examTypeId}/questions endpoint in api/src/exam-types/exam-types.controller.ts
+- [ ] T032 [P] [US1] Implement GET /exam-types/{examTypeId}/questions/version endpoint in api/src/exam-types/exam-types.controller.ts
+- [ ] T033 [US1] Create QuestionBankResponse and VersionResponse DTOs in api/src/exam-types/dto/
 
-**Checkpoint**: User Story 1 complete - users can take full timed exams with all core features
+### Mobile Tasks (US1)
+
+- [ ] T034 [US1] Create QuestionRepository for SQLite CRUD in mobile/src/storage/repositories/question.repository.ts
+- [ ] T035 [P] [US1] Create ExamAttemptRepository for SQLite CRUD in mobile/src/storage/repositories/exam-attempt.repository.ts
+- [ ] T036 [P] [US1] Create ExamAnswerRepository for SQLite CRUD in mobile/src/storage/repositories/exam-answer.repository.ts
+- [ ] T037 [US1] Implement ExamGeneratorService (weighted random selection by domain) in mobile/src/services/exam-generator.service.ts
+- [ ] T038 [US1] Implement ExamSessionService (start, save answer, navigate, submit) in mobile/src/services/exam-session.service.ts
+- [ ] T039 [US1] Implement ScoringService (calculate score, pass/fail, domain breakdown) in mobile/src/services/scoring.service.ts
+- [ ] T040 [US1] Create examStore using Zustand for exam state management in mobile/src/stores/exam.store.ts
+- [ ] T041 [US1] Create HomeScreen with "Start Exam" button in mobile/src/screens/HomeScreen.tsx
+- [ ] T042 [US1] Create ExamScreen with question display, options, navigation in mobile/src/screens/ExamScreen.tsx
+- [ ] T043 [P] [US1] Create QuestionCard component with option selection in mobile/src/components/QuestionCard.tsx
+- [ ] T044 [P] [US1] Create Timer component with countdown display in mobile/src/components/Timer.tsx
+- [ ] T045 [P] [US1] Create QuestionNavigator component (flag, jump to question) in mobile/src/components/QuestionNavigator.tsx
+- [ ] T046 [US1] Create ExamResultsScreen with score and domain breakdown in mobile/src/screens/ExamResultsScreen.tsx
+- [ ] T047 [US1] Implement exam resumption logic (check for in-progress exam on app launch) in mobile/src/services/exam-session.service.ts
+- [ ] T048 [US1] Handle exam expiration (24h limit) and mark as abandoned in mobile/src/services/exam-session.service.ts
+
+**Checkpoint**: User Story 1 complete - users can take full timed exams with scoring
 
 ---
 
 ## Phase 4: User Story 2 - Practice by Domain (Priority: P1) 🎯 MVP
 
-**Goal**: Users can practice questions filtered by domain and difficulty with immediate feedback
+**Goal**: Take untimed practice sessions filtered by domain and/or difficulty with immediate feedback
 
-**Independent Test**: Select domain → answer questions → see immediate feedback with explanations
+**Independent Test**: Select domain → answer questions → see instant feedback with explanations
 
-### Implementation for User Story 2
+### Mobile Tasks (US2)
 
-- [ ] T040 [US2] Implement PracticeSessionRepository CRUD in app/src/services/storage/practiceSessionRepository.ts
-- [ ] T041 [US2] Implement PracticeAnswerRepository CRUD in app/src/services/storage/practiceAnswerRepository.ts
-- [ ] T042 [US2] Implement practice question fetcher with filters in app/src/services/practice/practiceQuestionService.ts
-- [ ] T043 [US2] Create Zustand practice store in app/src/stores/practiceStore.ts
-- [ ] T044 [P] [US2] Create DomainSelector component in app/src/components/practice/DomainSelector.tsx
-- [ ] T045 [P] [US2] Create DifficultySelector component in app/src/components/practice/DifficultySelector.tsx
-- [ ] T046 [P] [US2] Create FeedbackOverlay component (correct/incorrect + explanation) in app/src/components/questions/FeedbackOverlay.tsx
-- [ ] T047 [P] [US2] Create SessionSummary component in app/src/components/practice/SessionSummary.tsx
-- [ ] T048 [US2] Implement PracticeSetupScreen with domain/difficulty selection in app/src/screens/PracticeSetupScreen.tsx
-- [ ] T049 [US2] Implement PracticeScreen with immediate feedback flow in app/src/screens/PracticeScreen.tsx
-- [ ] T050 [US2] Implement PracticeSummaryScreen with session results in app/src/screens/PracticeSummaryScreen.tsx
-- [ ] T051 [US2] Add practice mode entry point to HomeScreen.tsx
-- [ ] T052 [US2] Implement end-session-anytime functionality in practiceStore.ts
+- [ ] T049 [P] [US2] Create PracticeSessionRepository in mobile/src/storage/repositories/practice-session.repository.ts
+- [ ] T050 [P] [US2] Create PracticeAnswerRepository in mobile/src/storage/repositories/practice-answer.repository.ts
+- [ ] T051 [US2] Implement PracticeService (start session, submit answer, end session) in mobile/src/services/practice.service.ts
+- [ ] T052 [US2] Create practiceStore using Zustand in mobile/src/stores/practice.store.ts
+- [ ] T053 [US2] Create PracticeSetupScreen (domain/difficulty selection) in mobile/src/screens/PracticeSetupScreen.tsx
+- [ ] T054 [US2] Create PracticeScreen with immediate feedback display in mobile/src/screens/PracticeScreen.tsx
+- [ ] T055 [P] [US2] Create FeedbackCard component (correct/incorrect, explanation) in mobile/src/components/FeedbackCard.tsx
+- [ ] T056 [P] [US2] Create DomainSelector component in mobile/src/components/DomainSelector.tsx
+- [ ] T057 [P] [US2] Create DifficultySelector component in mobile/src/components/DifficultySelector.tsx
+- [ ] T058 [US2] Create PracticeSummaryScreen (session results) in mobile/src/screens/PracticeSummaryScreen.tsx
 
-**Checkpoint**: User Story 2 complete - users can practice with filtered questions and immediate feedback
+**Checkpoint**: User Story 2 complete - users can practice by domain with feedback
 
 ---
 
 ## Phase 5: User Story 3 - Review Exam Results (Priority: P2)
 
-**Goal**: Users can review completed exams with explanations and filter by correctness
+**Goal**: Review completed exams with explanations for each question
 
-**Independent Test**: Complete exam → enter review → see all questions with answers and explanations → filter by incorrect
+**Independent Test**: Complete exam → enter review mode → see each question with correct answer and explanation
 
-### Implementation for User Story 3
+### Mobile Tasks (US3)
 
-- [ ] T053 [US3] Implement exam history query service in app/src/services/review/examHistoryService.ts
-- [ ] T054 [US3] Implement exam detail loader with answers in app/src/services/review/examDetailService.ts
-- [ ] T055 [US3] Create Zustand review store in app/src/stores/reviewStore.ts
-- [ ] T056 [P] [US3] Create ExamHistoryCard component in app/src/components/review/ExamHistoryCard.tsx
-- [ ] T057 [P] [US3] Create ReviewQuestionCard component (shows user answer, correct answer, explanation) in app/src/components/review/ReviewQuestionCard.tsx
-- [ ] T058 [P] [US3] Create CorrectIncorrectFilter component in app/src/components/review/CorrectIncorrectFilter.tsx
-- [ ] T059 [P] [US3] Create DomainBreakdownCard component in app/src/components/review/DomainBreakdownCard.tsx
-- [ ] T060 [US3] Implement ExamHistoryScreen with list of completed exams in app/src/screens/ExamHistoryScreen.tsx
-- [ ] T061 [US3] Implement ReviewScreen with question review and filtering in app/src/screens/ReviewScreen.tsx
-- [ ] T062 [US3] Add review entry point to ExamResultScreen.tsx and HomeScreen.tsx
-- [ ] T063 [US3] Implement domain breakdown calculation in examDetailService.ts
+- [ ] T059 [US3] Implement ReviewService (fetch exam attempt with answers, filter logic) in mobile/src/services/review.service.ts
+- [ ] T060 [US3] Create reviewStore using Zustand in mobile/src/stores/review.store.ts
+- [ ] T061 [US3] Create ExamHistoryScreen (list of completed exams) in mobile/src/screens/ExamHistoryScreen.tsx
+- [ ] T062 [US3] Create ReviewScreen (question list with correct/incorrect indicators) in mobile/src/screens/ReviewScreen.tsx
+- [ ] T063 [P] [US3] Create ReviewQuestionCard component (shows answer, correct answer, explanation) in mobile/src/components/ReviewQuestionCard.tsx
+- [ ] T064 [P] [US3] Create ReviewFilter component (all/incorrect only) in mobile/src/components/ReviewFilter.tsx
+- [ ] T065 [US3] Add domain breakdown section to ReviewScreen in mobile/src/screens/ReviewScreen.tsx
 
-**Checkpoint**: User Story 3 complete - users can review past exams with full explanations
+**Checkpoint**: User Story 3 complete - users can review exams with explanations
 
 ---
 
-## Phase 6: User Story 4 - Performance Analytics (Priority: P2)
+## Phase 6: User Story 4 - Track Performance Over Time (Priority: P2)
 
-**Goal**: Users can see performance trends, domain averages, and study statistics
+**Goal**: View analytics dashboard with score trends, domain performance, and study stats
 
-**Independent Test**: Take multiple exams → view analytics → see score trends and weak domains highlighted
+**Independent Test**: Take multiple exams → view analytics → see trends and weak domain identification
 
-### Implementation for User Story 4
+### Mobile Tasks (US4)
 
-- [ ] T064 [US4] Implement UserStatsRepository CRUD in app/src/services/storage/userStatsRepository.ts
-- [ ] T065 [US4] Implement analytics calculation service in app/src/services/analytics/analyticsService.ts
-- [ ] T066 [US4] Implement domain performance aggregator in app/src/services/analytics/domainPerformanceService.ts
-- [ ] T067 [US4] Implement weak domain identifier (below 70%) in app/src/services/analytics/weakDomainService.ts
-- [ ] T068 [US4] Create Zustand analytics store in app/src/stores/analyticsStore.ts
-- [ ] T069 [P] [US4] Create ScoreTrendChart component in app/src/components/analytics/ScoreTrendChart.tsx
-- [ ] T070 [P] [US4] Create DomainPerformanceCard component in app/src/components/analytics/DomainPerformanceCard.tsx
-- [ ] T071 [P] [US4] Create StudyStatsCard component in app/src/components/analytics/StudyStatsCard.tsx
-- [ ] T072 [P] [US4] Create WeakDomainAlert component in app/src/components/analytics/WeakDomainAlert.tsx
-- [ ] T073 [P] [US4] Create StrengthIndicator component (strong/moderate/weak) in app/src/components/analytics/StrengthIndicator.tsx
-- [ ] T074 [US4] Implement AnalyticsScreen with all dashboard components in app/src/screens/AnalyticsScreen.tsx
-- [ ] T075 [US4] Add analytics entry point to HomeScreen.tsx
-- [ ] T076 [US4] Implement time tracking (update totalTimeSpent on exam/practice completion) in userStatsRepository.ts
+- [ ] T066 [P] [US4] Create UserStatsRepository in mobile/src/storage/repositories/user-stats.repository.ts
+- [ ] T067 [US4] Implement AnalyticsService (calculate trends, domain averages, weak areas) in mobile/src/services/analytics.service.ts
+- [ ] T068 [US4] Create analyticsStore using Zustand in mobile/src/stores/analytics.store.ts
+- [ ] T069 [US4] Create AnalyticsScreen (dashboard layout) in mobile/src/screens/AnalyticsScreen.tsx
+- [ ] T070 [P] [US4] Create ScoreTrendChart component in mobile/src/components/analytics/ScoreTrendChart.tsx
+- [ ] T071 [P] [US4] Create DomainPerformanceCard component (strong/moderate/weak) in mobile/src/components/analytics/DomainPerformanceCard.tsx
+- [ ] T072 [P] [US4] Create StudyStatsCard component (total exams, questions, time) in mobile/src/components/analytics/StudyStatsCard.tsx
+- [ ] T073 [US4] Create WeakDomainsSection with practice recommendations in mobile/src/screens/AnalyticsScreen.tsx
+- [ ] T074 [US4] Implement UserStats update on exam/practice completion in mobile/src/services/exam-session.service.ts and practice.service.ts
 
-**Checkpoint**: User Story 4 complete - users can view comprehensive performance analytics
+**Checkpoint**: User Story 4 complete - users can track performance over time
 
 ---
 
-## Phase 7: User Story 5 - Question Bank Sync (Priority: P3)
+## Phase 7: User Story 5 - Manage Questions (Admin) (Priority: P3)
 
-**Goal**: App syncs question bank updates from cloud API when online
+**Goal**: Admin portal to create, edit, approve, and archive questions across all exam types
 
-**Independent Test**: Start app with network → detect new version → download updates → verify questions available
+**Independent Test**: Login to admin → create question → approve → verify appears in API response
 
-### API Implementation (Minimal Content Delivery)
+### Backend Admin Tasks (US5)
 
-- [ ] T077 [US5] Define Question model in api/src/models/question.ts
-- [ ] T078 [US5] Implement question storage service in api/src/services/questionService.ts
-- [ ] T079 [US5] Implement GET /questions endpoint with since parameter in api/src/routes/questions.ts
-- [ ] T080 [US5] Implement GET /questions/version endpoint in api/src/routes/questions.ts
-- [ ] T081 [US5] Implement GET /health endpoint in api/src/routes/health.ts
-- [ ] T082 [US5] Configure Express app with routes in api/src/app.ts
-- [ ] T083 [US5] Add CORS and security headers middleware in api/src/middleware/security.ts
+- [ ] T075 [US5] Implement AdminModule with JWT authentication in api/src/admin/admin.module.ts
+- [ ] T076 [P] [US5] Create AdminAuthService (login, password hash) in api/src/admin/admin-auth.service.ts
+- [ ] T077 [P] [US5] Create JwtStrategy and JwtAuthGuard in api/src/admin/guards/
+- [ ] T078 [US5] Implement POST /admin/auth/login endpoint in api/src/admin/admin.controller.ts
+- [ ] T079 [US5] Create QuestionsService (CRUD, approval workflow) in api/src/admin/questions.service.ts
+- [ ] T080 [P] [US5] Create QuestionInput, AdminQuestion DTOs in api/src/admin/dto/
+- [ ] T081 [US5] Implement GET /admin/questions (with filters: examTypeId, status, domain, difficulty) in api/src/admin/admin.controller.ts
+- [ ] T082 [US5] Implement POST /admin/questions (create question) in api/src/admin/admin.controller.ts
+- [ ] T083 [P] [US5] Implement GET /admin/questions/{id} in api/src/admin/admin.controller.ts
+- [ ] T084 [P] [US5] Implement PUT /admin/questions/{id} in api/src/admin/admin.controller.ts
+- [ ] T085 [US5] Implement POST /admin/questions/{id}/approve in api/src/admin/admin.controller.ts
+- [ ] T086 [P] [US5] Implement POST /admin/questions/{id}/archive in api/src/admin/admin.controller.ts
+- [ ] T087 [P] [US5] Implement POST /admin/questions/{id}/restore in api/src/admin/admin.controller.ts
+- [ ] T088 [US5] Implement GET /admin/exam-types in api/src/admin/admin.controller.ts
+- [ ] T089 [US5] Implement GET /admin/stats (question counts by status, domain) in api/src/admin/admin.controller.ts
+- [ ] T090 [US5] Implement SyncVersion auto-increment on question approval in api/src/admin/questions.service.ts
+- [ ] T090a [US5] Implement question validation (min 20 char text, min 50 char explanation, duplicate detection) in api/src/admin/questions.service.ts
 
-### Mobile Sync Implementation
+### Admin Portal Tasks (US5)
 
-- [ ] T084 [US5] Implement API client with axios in app/src/services/sync/apiClient.ts
-- [ ] T085 [US5] Implement version check service in app/src/services/sync/versionCheckService.ts
-- [ ] T086 [US5] Implement question sync service in app/src/services/sync/questionSyncService.ts
-- [ ] T087 [US5] Implement network connectivity detection in app/src/services/sync/networkService.ts
-- [ ] T088 [US5] Create Zustand sync store in app/src/stores/syncStore.ts
-- [ ] T089 [US5] Add sync trigger on app launch (if online) in app/App.tsx
-- [ ] T090 [P] [US5] Create SyncStatusIndicator component in app/src/components/sync/SyncStatusIndicator.tsx
-- [ ] T091 [US5] Add sync status display to HomeScreen.tsx
+- [ ] T091 [US5] Initialize React SPA in api/admin-portal/ with Vite
+- [ ] T092 [P] [US5] Create LoginPage component in api/admin-portal/src/pages/LoginPage.tsx
+- [ ] T093 [P] [US5] Create ApiService with JWT interceptor in api/admin-portal/src/services/api.ts
+- [ ] T094 [US5] Create QuestionListPage with filters and pagination in api/admin-portal/src/pages/QuestionListPage.tsx
+- [ ] T095 [P] [US5] Create QuestionForm component (create/edit) in api/admin-portal/src/components/QuestionForm.tsx
+- [ ] T096 [P] [US5] Create QuestionCard component with status badges in api/admin-portal/src/components/QuestionCard.tsx
+- [ ] T097 [US5] Create QuestionDetailPage with approve/archive actions in api/admin-portal/src/pages/QuestionDetailPage.tsx
+- [ ] T098 [P] [US5] Create ExamTypeSwitcher component in api/admin-portal/src/components/ExamTypeSwitcher.tsx
+- [ ] T099 [US5] Create DashboardPage with stats overview in api/admin-portal/src/pages/DashboardPage.tsx
+- [ ] T100 [US5] Configure NestJS to serve admin portal static files in api/src/main.ts
 
-**Checkpoint**: User Story 5 complete - app syncs question bank from cloud API
+**Checkpoint**: User Story 5 complete - admins can manage questions via portal
 
 ---
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-**Purpose**: Final integration, error handling, and production readiness
+**Purpose**: Improvements that affect multiple user stories
 
-- [ ] T092 Implement global error boundary in app/src/components/ErrorBoundary.tsx
-- [ ] T093 Add loading states to all screens with LoadingSpinner component
-- [ ] T094 Implement empty state components for analytics (no exams yet) in app/src/components/EmptyState.tsx
-- [ ] T095 Add keyboard handling for question navigation in ExamScreen.tsx
-- [ ] T096 Implement app launch performance optimization (lazy loading) in App.tsx
-- [ ] T097 Add TypeScript strict mode validation and fix any type errors
-- [ ] T098 Configure Android app.json with Play Store metadata
-- [ ] T099 Create production build configuration in eas.json
-- [ ] T100 Write README.md with setup and deployment instructions
+- [ ] T101 [P] Implement health check endpoint GET /health in api/src/app.controller.ts
+- [ ] T102 [P] Add API request logging middleware in api/src/common/middleware/
+- [ ] T103 [P] Add mobile app error boundary component in mobile/src/components/ErrorBoundary.tsx
+- [ ] T104 [P] Create loading states and skeleton screens for mobile UI
+- [ ] T105 Implement background sync retry logic in mobile/src/services/sync.service.ts
+- [ ] T106 [P] Add network connectivity detection in mobile/src/services/network.service.ts
+- [ ] T107 Create SettingsScreen with sync status in mobile/src/screens/SettingsScreen.tsx
+- [ ] T108 [P] Add API rate limiting middleware in api/src/common/middleware/
+- [ ] T109 [P] Add Prisma query logging in development mode
+- [ ] T110 Run quickstart.md validation - verify full setup works end-to-end
+- [ ] T111 [P] Security review: verify no user data transmitted to servers (FR-030 compliance) in mobile/src/services/
 
 ---
 
-## Dependency Graph
+## Dependencies & Execution Order
 
-```
-Phase 1 (Setup)
-     │
-     ▼
-Phase 2 (Foundation) ─────────────────────────────────────────┐
-     │                                                        │
-     ├──────────────┬──────────────┬──────────────┐          │
-     ▼              ▼              ▼              ▼          │
-Phase 3 (US1)  Phase 4 (US2)  Phase 7 (US5)    [parallel]   │
-  Exam Mode     Practice Mode    Sync API                    │
-     │              │              │                         │
-     └──────┬───────┘              │                         │
-            ▼                      │                         │
-     Phase 5 (US3) ◄───────────────┘                         │
-      Review Mode                                            │
-            │                                                │
-            ▼                                                │
-     Phase 6 (US4)                                           │
-      Analytics                                              │
-            │                                                │
-            ▼                                                │
-     Phase 8 (Polish) ◄──────────────────────────────────────┘
+### Phase Dependencies
+
+```text
+Phase 1 (Setup) → Phase 2 (Foundational) → User Stories (Phases 3-7) → Phase 8 (Polish)
+                        ↓
+         BLOCKS all user stories until complete
 ```
 
-## Parallel Execution Opportunities
+### User Story Dependencies
 
-### Within Phase 2 (Foundation)
+| Story | Depends On        | Can Parallelize With |
+| ----- | ----------------- | -------------------- |
+| US1   | Phase 2 only      | US2 (after Phase 2)  |
+| US2   | Phase 2 only      | US1 (after Phase 2)  |
+| US3   | US1 (exam data)   | US4                  |
+| US4   | US1/US2 (history) | US3                  |
+| US5   | Phase 2 only      | US1, US2, US3, US4   |
 
-- T014, T015 can run in parallel (utilities with no dependencies)
+### Within Each User Story
 
-### Within Phase 3 (US1)
+1. Backend endpoints before mobile API calls
+2. Repositories before services
+3. Services before stores
+4. Stores before screens
+5. Screens before integration
 
-- T027, T028, T029, T030, T031, T032 can all run in parallel (UI components)
+---
 
-### Within Phase 4 (US2)
+## Parallel Execution Examples
 
-- T044, T045, T046, T047 can run in parallel (UI components)
+### Phase 2 Parallel Groups
 
-### Within Phase 5 (US3)
+```text
+Group A (Backend Models): T009, T010, T011, T012 - run together
+Group B (Mobile Schema): T022, T023, T024, T025 - run together
+Group C (Config): T016, T017, T019 - run together
+```
 
-- T056, T057, T058, T059 can run in parallel (UI components)
+### User Story 1 Parallel Groups
 
-### Within Phase 6 (US4)
+```text
+Group A (Repositories): T034, T035, T036 - run together
+Group B (Components): T043, T044, T045 - run together
+```
 
-- T069, T070, T071, T072, T073 can run in parallel (UI components)
+### User Story 5 Parallel Groups
 
-### Cross-Phase Parallelism
-
-- Phase 3 (US1) and Phase 4 (US2) can run in parallel after Phase 2
-- Phase 7 (US5 API) can start after Phase 2, independent of other user stories
+```text
+Group A (Admin Guards): T076, T077 - run together
+Group B (Admin Endpoints): T083, T084, T086, T087 - run together
+```
 
 ---
 
 ## Implementation Strategy
 
-### MVP Scope (Minimum Viable Product)
+### MVP First (User Stories 1 + 2)
 
-**Phases 1-4**: Setup + Foundation + US1 (Exam) + US2 (Practice)
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (CRITICAL)
+3. Complete Phase 3: User Story 1 (Exam Mode)
+4. Complete Phase 4: User Story 2 (Practice Mode)
+5. **STOP and VALIDATE**: Test MVP independently
+6. Deploy/demo if ready
 
-This delivers:
+**MVP Scope**: 58 tasks (T001-T058)
 
-- ✅ Full timed exam simulation (core value proposition)
-- ✅ Domain-based practice mode
-- ✅ Offline-first with bundled questions
-- ✅ Local progress tracking
+### Incremental Delivery
 
-**Estimated Tasks**: 52 tasks (T001-T052)
+| Milestone | Task Range | Deliverable                            |
+| --------- | ---------- | -------------------------------------- |
+| MVP       | T001-T058  | Exam + Practice modes                  |
+| v1.1      | T059-T065  | Add Review mode                        |
+| v1.2      | T066-T074  | Add Analytics                          |
+| v1.3      | T075-T100  | Admin portal (can develop in parallel) |
+| v1.4      | T101-T110  | Polish and production readiness        |
 
-### Full Release
+### Parallel Team Strategy
 
-**All Phases**: MVP + US3 (Review) + US4 (Analytics) + US5 (Sync) + Polish
+With 2+ developers after Phase 2:
 
-Adds:
-
-- ✅ Exam review with explanations
-- ✅ Performance analytics dashboard
-- ✅ Cloud question bank sync
-- ✅ Production polish
-
-**Total Tasks**: 100 tasks
+- **Developer A**: Mobile (US1 → US2 → US3 → US4)
+- **Developer B**: Backend + Admin Portal (US5 → API polish)
 
 ---
 
 ## Summary
 
-| Phase     | User Story          | Tasks   | Parallelizable |
-| --------- | ------------------- | ------- | -------------- |
-| 1         | Setup               | 9       | 4              |
-| 2         | Foundation          | 11      | 2              |
-| 3         | US1 - Exam Mode     | 19      | 6              |
-| 4         | US2 - Practice Mode | 13      | 4              |
-| 5         | US3 - Review Mode   | 11      | 4              |
-| 6         | US4 - Analytics     | 13      | 5              |
-| 7         | US5 - Sync          | 15      | 1              |
-| 8         | Polish              | 9       | 0              |
-| **Total** |                     | **100** | **26**         |
+| Category        | Count |
+| --------------- | ----- |
+| Total Tasks     | 112   |
+| Setup Phase     | 8     |
+| Foundational    | 22    |
+| US1 (Exam)      | 18    |
+| US2 (Practice)  | 10    |
+| US3 (Review)    | 7     |
+| US4 (Analytics) | 9     |
+| US5 (Admin)     | 27    |
+| Polish          | 11    |
+| Parallelizable  | 56    |
+
+---
+
+## Notes
+
+- [P] tasks = different files, no dependencies on incomplete tasks
+- [Story] label maps task to specific user story for traceability
+- Each user story is independently completable and testable
+- Commit after each task or logical group
+- Stop at any checkpoint to validate story independently
+- Admin portal (US5) can be developed in parallel with mobile features
