@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma';
 import { ExamTypesModule } from './exam-types';
+import { AdminModule } from './admin';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ExamTypesModule } from './exam-types';
     }),
     PrismaModule,
     ExamTypesModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

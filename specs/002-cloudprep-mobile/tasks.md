@@ -181,23 +181,23 @@
 
 ### Backend Admin Tasks (US5)
 
-- [ ] T075 [US5] Implement AdminModule with JWT authentication in api/src/admin/admin.module.ts
-- [ ] T076 [P] [US5] Create AdminAuthService (login, password hash) in api/src/admin/admin-auth.service.ts
-- [ ] T077 [P] [US5] Create JwtStrategy and JwtAuthGuard in api/src/admin/guards/
-- [ ] T078 [US5] Implement POST /admin/auth/login endpoint in api/src/admin/admin.controller.ts
-- [ ] T079 [US5] Create QuestionsService (CRUD, approval workflow) in api/src/admin/questions.service.ts
-- [ ] T080 [P] [US5] Create QuestionInput, AdminQuestion DTOs in api/src/admin/dto/
-- [ ] T081 [US5] Implement GET /admin/questions (with filters: examTypeId, status, domain, difficulty) in api/src/admin/admin.controller.ts
-- [ ] T082 [US5] Implement POST /admin/questions (create question) in api/src/admin/admin.controller.ts
-- [ ] T083 [P] [US5] Implement GET /admin/questions/{id} in api/src/admin/admin.controller.ts
-- [ ] T084 [P] [US5] Implement PUT /admin/questions/{id} in api/src/admin/admin.controller.ts
-- [ ] T085 [US5] Implement POST /admin/questions/{id}/approve in api/src/admin/admin.controller.ts
-- [ ] T086 [P] [US5] Implement POST /admin/questions/{id}/archive in api/src/admin/admin.controller.ts
-- [ ] T087 [P] [US5] Implement POST /admin/questions/{id}/restore in api/src/admin/admin.controller.ts
-- [ ] T088 [US5] Implement GET /admin/exam-types in api/src/admin/admin.controller.ts
-- [ ] T089 [US5] Implement GET /admin/stats (question counts by status, domain) in api/src/admin/admin.controller.ts
-- [ ] T090 [US5] Implement SyncVersion auto-increment on question approval in api/src/admin/questions.service.ts
-- [ ] T090a [US5] Implement question validation (min 20 char text, min 50 char explanation, duplicate detection) in api/src/admin/questions.service.ts
+- [x] T075 [US5] Implement AdminModule with JWT authentication in api/src/admin/admin.module.ts
+- [x] T076 [P] [US5] Create AdminAuthService (login, password hash) in api/src/admin/auth/admin-auth.service.ts
+- [x] T077 [P] [US5] Create JwtStrategy and JwtAuthGuard in api/src/admin/guards/
+- [x] T078 [US5] Implement POST /admin/auth/login endpoint in api/src/admin/controllers/admin-auth.controller.ts
+- [x] T079 [US5] Create QuestionsService (CRUD, approval workflow) in api/src/admin/services/questions.service.ts
+- [x] T080 [P] [US5] Create QuestionInput, AdminQuestion DTOs in api/src/admin/dto/
+- [x] T081 [US5] Implement GET /admin/questions (with filters: examTypeId, status, domain, difficulty) in api/src/admin/controllers/admin-questions.controller.ts
+- [x] T082 [US5] Implement POST /admin/questions (create question) in api/src/admin/controllers/admin-questions.controller.ts
+- [x] T083 [P] [US5] Implement GET /admin/questions/{id} in api/src/admin/controllers/admin-questions.controller.ts
+- [x] T084 [P] [US5] Implement PUT /admin/questions/{id} in api/src/admin/controllers/admin-questions.controller.ts
+- [x] T085 [US5] Implement POST /admin/questions/{id}/approve in api/src/admin/controllers/admin-questions.controller.ts
+- [x] T086 [P] [US5] Implement POST /admin/questions/{id}/archive in api/src/admin/controllers/admin-questions.controller.ts
+- [x] T087 [P] [US5] Implement POST /admin/questions/{id}/restore in api/src/admin/controllers/admin-questions.controller.ts
+- [x] T088 [US5] Implement GET /admin/exam-types in api/src/admin/controllers/admin-exam-types.controller.ts
+- [x] T089 [US5] Implement GET /admin/stats (question counts by status, domain) in api/src/admin/controllers/admin-exam-types.controller.ts
+- [x] T090 [US5] Implement SyncVersion auto-increment on question approval in api/src/admin/services/questions.service.ts
+- [x] T090a [US5] Implement question validation (min 20 char text, min 50 char explanation, duplicate detection) in api/src/admin/dto/ and api/src/admin/services/questions.service.ts
 
 ### Admin Portal Tasks (US5)
 
