@@ -2,7 +2,7 @@
 import { getDatabase, QuestionRow, SYNC_META_KEYS } from '../storage';
 
 // Import bundled questions
-import awsCcpBundle from '../../assets/questions/aws-ccp-bundle.json';
+import clfC02Bundle from '../../assets/questions/clf-c02-bundle.json';
 
 /**
  * Bundled question structure (matches the JSON format)
@@ -58,18 +58,35 @@ export const getBundledVersion = async (): Promise<number | null> => {
 /**
  * Load bundled questions into the database
  * This is called on first app launch to provide offline-first functionality
+ * Will also reload if the bundle examTypeId has changed (e.g., data migration)
  */
 export const loadBundledQuestions = async (): Promise<{
   loaded: boolean;
   count: number;
 }> => {
-  // Check if already loaded
-  if (await isBundleLoaded()) {
+  const db = await getDatabase();
+  const bundle = clfC02Bundle as QuestionBundle;
+
+  // Check if bundle was already loaded with the SAME exam type
+  const loadedExamType = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM SyncMeta WHERE key = ?',
+    ['bundled_exam_type_id'],
+  );
+
+  const needsReload = !loadedExamType || loadedExamType.value !== bundle.examTypeId;
+
+  if (!needsReload && (await isBundleLoaded())) {
     return { loaded: false, count: 0 };
   }
 
-  const db = await getDatabase();
-  const bundle = awsCcpBundle as QuestionBundle;
+  // Clear old questions if reloading due to exam type change
+  if (needsReload) {
+    console.warn(`[BundleService] Exam type changed to ${bundle.examTypeId}, clearing old data...`);
+    await db.runAsync('DELETE FROM ExamAnswer');
+    await db.runAsync('DELETE FROM ExamAttempt');
+    await db.runAsync('DELETE FROM Question');
+    await db.runAsync('DELETE FROM SyncMeta');
+  }
 
   // Insert each question
   for (const q of bundle.questions) {
@@ -112,6 +129,13 @@ export const loadBundledQuestions = async (): Promise<{
   await db.runAsync(`INSERT OR REPLACE INTO SyncMeta (key, value, updatedAt) VALUES (?, ?, ?)`, [
     SYNC_META_KEYS.BUNDLED_VERSION,
     String(bundle.version),
+    now,
+  ]);
+
+  // Store the exam type ID so we can detect changes
+  await db.runAsync(`INSERT OR REPLACE INTO SyncMeta (key, value, updatedAt) VALUES (?, ?, ?)`, [
+    'bundled_exam_type_id',
+    bundle.examTypeId,
     now,
   ]);
 

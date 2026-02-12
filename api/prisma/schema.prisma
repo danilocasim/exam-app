@@ -30,7 +30,7 @@ enum QuestionStatus {
 
 // Multi-tenant exam type (e.g., AWS CCP, Solutions Architect)
 model ExamType {
-  id            String   @id // e.g., "aws-ccp", "aws-saa"
+  id            String   @id // e.g., "CLF-C02", "SAA-C03"
   name          String // e.g., "AWS Cloud Practitioner"
   displayName   String // e.g., "AWS CCP"
   description   String?

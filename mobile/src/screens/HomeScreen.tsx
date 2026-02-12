@@ -23,9 +23,11 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
-import { hasInProgressExam } from '../services';
+import { hasInProgressExam, abandonCurrentExam } from '../services';
+import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 import { getTotalQuestionCount } from '../storage/repositories/question.repository';
 import { canGenerateExam } from '../services/exam-generator.service';
+import { EXAM_CONFIG } from '../config';
 
 // AWS Modern Color Palette
 const colors = {
@@ -105,9 +107,24 @@ export const HomeScreen: React.FC = () => {
       console.warn('[HomeScreen] Exam started, navigating to ExamScreen');
       navigation.navigate('ExamScreen', {});
     } catch (err) {
+      // If blocked by a stale in-progress exam, auto-abandon and retry once
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('already in progress')) {
+        console.warn('[HomeScreen] Stale exam detected, auto-abandoning...');
+        try {
+          const inProgress = await getInProgressExamAttempt();
+          if (inProgress) {
+            await abandonCurrentExam(inProgress.id);
+          }
+          await startExam();
+          navigation.navigate('ExamScreen', {});
+          return;
+        } catch (retryErr) {
+          console.error('[HomeScreen] Retry after abandon failed:', retryErr);
+        }
+      }
       console.error('[HomeScreen] Failed to start exam:', err);
-      const message = err instanceof Error ? err.message : 'Failed to start exam';
-      Alert.alert('Error', message);
+      Alert.alert('Error', message || 'Failed to start exam');
     }
   };
 
@@ -137,10 +154,21 @@ export const HomeScreen: React.FC = () => {
           text: 'Abandon & Start New',
           style: 'destructive',
           onPress: async () => {
-            const { abandonExam } = useExamStore.getState();
-            const session = useExamStore.getState().session;
-            if (session) {
-              await abandonExam();
+            try {
+              // Abandon from store if session is loaded
+              const { abandonExam } = useExamStore.getState();
+              const session = useExamStore.getState().session;
+              if (session) {
+                await abandonExam();
+              } else {
+                // Session not in store (app restarted) — abandon directly from DB
+                const inProgress = await getInProgressExamAttempt();
+                if (inProgress) {
+                  await abandonCurrentExam(inProgress.id);
+                }
+              }
+            } catch (err) {
+              console.warn('[HomeScreen] Failed to abandon exam:', err);
             }
             await handleStartExam();
           },
@@ -189,17 +217,17 @@ export const HomeScreen: React.FC = () => {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>65</Text>
+                <Text style={styles.statValue}>{EXAM_CONFIG.QUESTIONS_PER_EXAM}</Text>
                 <Text style={styles.statLabel}>Questions</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>90</Text>
+                <Text style={styles.statValue}>{EXAM_CONFIG.TIME_LIMIT_MINUTES}</Text>
                 <Text style={styles.statLabel}>Minutes</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.successLight }]}>70%</Text>
+                <Text style={[styles.statValue, { color: colors.successLight }]}>{EXAM_CONFIG.PASSING_SCORE}%</Text>
                 <Text style={styles.statLabel}>To Pass</Text>
               </View>
             </View>
@@ -270,7 +298,7 @@ export const HomeScreen: React.FC = () => {
                 ) : (
                   <View style={styles.startButtonContent}>
                     <Text style={styles.startButtonTitle}>Start Exam</Text>
-                    <Text style={styles.startButtonSubtitle}>65 questions • 90 minutes</Text>
+                    <Text style={styles.startButtonSubtitle}>{EXAM_CONFIG.QUESTIONS_PER_EXAM} questions • {EXAM_CONFIG.TIME_LIMIT_MINUTES} minutes</Text>
                   </View>
                 )}
               </LinearGradient>
@@ -287,7 +315,7 @@ export const HomeScreen: React.FC = () => {
                   style={{ marginRight: 8 }}
                 />
                 <Text style={styles.warningText}>
-                  Need at least 65 questions to start. Current: {questionCount}
+                  Need at least {EXAM_CONFIG.QUESTIONS_PER_EXAM} questions to start. Current: {questionCount}
                 </Text>
               </View>
             </View>

@@ -64,11 +64,21 @@ export interface NavigationResult {
  * 4. Return initial session state
  */
 export const startExam = async (): Promise<ExamSession> => {
-  // Check for existing in-progress exam
+  // Clean up any existing in-progress exam
   const existing = await getInProgressExamAttempt();
   if (existing) {
-    throw new Error('An exam is already in progress. Please complete or abandon it first.');
+    // Auto-abandon expired exams
+    const expiresAt = new Date(existing.expiresAt).getTime();
+    if (Date.now() > expiresAt) {
+      await abandonExamAttempt(existing.id);
+    } else {
+      // Still valid — caller must abandon explicitly first
+      throw new Error('An exam is already in progress. Please complete or abandon it first.');
+    }
   }
+
+  // Also handle any other expired exams
+  await handleExpiredExams();
 
   // Generate exam with weighted questions
   const generated: GeneratedExam = await generateExam();

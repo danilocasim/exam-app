@@ -6,14 +6,14 @@
  * This is set at build time and determines which questions are synced from the API
  * Must match an ExamType.id in the backend database
  */
-export const EXAM_TYPE_ID = 'aws-ccp';
+export const EXAM_TYPE_ID = 'CLF-C02';
 
 /**
  * API Configuration
  */
 export const API_CONFIG = {
   /** Base URL for the backend API */
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.31.166:3000',
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.31.250:3000',
 
   /** Request timeout in milliseconds */
   TIMEOUT_MS: 30000,
@@ -45,7 +45,7 @@ export const EXAM_CONFIG = {
   TIME_LIMIT_MINUTES: 90,
 
   /** Passing score percentage (0-100) */
-  PASSING_SCORE: 70,
+  PASSING_SCORE: 72,
 
   /** Score considered proficient */
   PROFICIENT_SCORE: 80,
