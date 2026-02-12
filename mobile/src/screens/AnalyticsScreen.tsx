@@ -12,14 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  ArrowLeft,
-  BarChart2,
-  Trophy,
-  Target,
-  AlertTriangle,
-  BookOpen,
-} from 'lucide-react-native';
+import { ArrowLeft, BarChart2, Trophy, Target, AlertTriangle, BookOpen } from 'lucide-react-native';
 import { useShallow } from 'zustand/react/shallow';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAnalyticsStore, selectHasData } from '../stores/analytics.store';
@@ -234,9 +227,7 @@ const OverallStatsCard: React.FC<OverallStatsCardProps> = ({
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
           <BarChart2 size={18} color={colors.orangeLight} strokeWidth={1.5} />
-          <Text style={styles.summaryStatValue}>
-            {bestScore !== null ? `${bestScore}%` : '--'}
-          </Text>
+          <Text style={styles.summaryStatValue}>{bestScore !== null ? `${bestScore}%` : '--'}</Text>
           <Text style={styles.summaryStatLabel}>Best</Text>
         </View>
         <View style={styles.summaryDivider} />

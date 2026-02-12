@@ -13,13 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  Cloud,
-  Play,
-  AlertTriangle,
-  ClipboardList,
-  BarChart2,
-} from 'lucide-react-native';
+import { Cloud, Play, AlertTriangle, ClipboardList, BarChart2 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
 import { hasInProgressExam, abandonCurrentExam } from '../services';

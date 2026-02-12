@@ -84,10 +84,10 @@ export { getExamHistory, getReviewData, filterReviewItems } from './review.servi
 export type { ReviewFilterType, ReviewItem, ExamHistoryEntry, ReviewData } from './review.service';
 
 // Analytics service exports (T067)
-export { getAnalyticsData, getStudyStats, getScoreHistory, getWeakDomains } from './analytics.service';
-export type {
-  AnalyticsData,
-  ScoreHistoryEntry,
-  StudyStats,
-  WeakDomain,
+export {
+  getAnalyticsData,
+  getStudyStats,
+  getScoreHistory,
+  getWeakDomains,
 } from './analytics.service';
+export type { AnalyticsData, ScoreHistoryEntry, StudyStats, WeakDomain } from './analytics.service';

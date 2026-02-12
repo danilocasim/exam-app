@@ -159,15 +159,15 @@
 
 ### Mobile Tasks (US4)
 
-- [X] T066 [P] [US4] Create UserStatsRepository in mobile/src/storage/repositories/user-stats.repository.ts
-- [X] T067 [US4] Implement AnalyticsService (calculate trends, domain averages, weak areas) in mobile/src/services/analytics.service.ts
-- [X] T068 [US4] Create analyticsStore using Zustand in mobile/src/stores/analytics.store.ts
-- [X] T069 [US4] Create AnalyticsScreen (dashboard layout) in mobile/src/screens/AnalyticsScreen.tsx
-- [X] T070 [P] [US4] Create ScoreTrendChart component in mobile/src/components/analytics/ScoreTrendChart.tsx
-- [X] T071 [P] [US4] Create DomainPerformanceCard component (strong/moderate/weak) in mobile/src/components/analytics/DomainPerformanceCard.tsx
-- [X] T072 [P] [US4] Create StudyStatsCard component (total exams, questions, time) in mobile/src/components/analytics/StudyStatsCard.tsx
-- [X] T073 [US4] Create WeakDomainsSection with practice recommendations in mobile/src/screens/AnalyticsScreen.tsx
-- [X] T074 [US4] Implement UserStats update on exam/practice completion in mobile/src/services/exam-session.service.ts and practice.service.ts
+- [x] T066 [P] [US4] Create UserStatsRepository in mobile/src/storage/repositories/user-stats.repository.ts
+- [x] T067 [US4] Implement AnalyticsService (calculate trends, domain averages, weak areas) in mobile/src/services/analytics.service.ts
+- [x] T068 [US4] Create analyticsStore using Zustand in mobile/src/stores/analytics.store.ts
+- [x] T069 [US4] Create AnalyticsScreen (dashboard layout) in mobile/src/screens/AnalyticsScreen.tsx
+- [x] T070 [P] [US4] Create ScoreTrendChart component in mobile/src/components/analytics/ScoreTrendChart.tsx
+- [x] T071 [P] [US4] Create DomainPerformanceCard component (strong/moderate/weak) in mobile/src/components/analytics/DomainPerformanceCard.tsx
+- [x] T072 [P] [US4] Create StudyStatsCard component (total exams, questions, time) in mobile/src/components/analytics/StudyStatsCard.tsx
+- [x] T073 [US4] Create WeakDomainsSection with practice recommendations in mobile/src/screens/AnalyticsScreen.tsx
+- [x] T074 [US4] Implement UserStats update on exam/practice completion in mobile/src/services/exam-session.service.ts and practice.service.ts
 
 **Checkpoint**: User Story 4 complete - users can track performance over time
 

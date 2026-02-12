@@ -19,9 +19,7 @@ const rowToUserStats = (row: UserStatsRow): UserStats => ({
  */
 export const getUserStats = async (): Promise<UserStats> => {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<UserStatsRow>(
-    'SELECT * FROM UserStats WHERE id = 1',
-  );
+  const row = await db.getFirstAsync<UserStatsRow>('SELECT * FROM UserStats WHERE id = 1');
 
   if (!row) {
     // Should always exist due to INSERT OR IGNORE on init, but handle gracefully

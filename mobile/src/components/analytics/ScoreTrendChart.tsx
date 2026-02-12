@@ -86,12 +86,7 @@ export const ScoreTrendChart: React.FC<ScoreTrendChartProps> = ({
       {/* Bar Chart */}
       <View style={styles.chartContainer}>
         {/* Passing score line */}
-        <View
-          style={[
-            styles.passLine,
-            { bottom: (passingScore / 100) * CHART_HEIGHT },
-          ]}
-        >
+        <View style={[styles.passLine, { bottom: (passingScore / 100) * CHART_HEIGHT }]}>
           <Text style={styles.passLineLabel}>{passingScore}%</Text>
           <View style={styles.passLineDash} />
         </View>
@@ -144,9 +139,7 @@ export const ScoreTrendChart: React.FC<ScoreTrendChartProps> = ({
 /**
  * Calculate score trend from history
  */
-const calculateTrend = (
-  history: ScoreHistoryEntry[],
-): 'improving' | 'declining' | 'stable' => {
+const calculateTrend = (history: ScoreHistoryEntry[]): 'improving' | 'declining' | 'stable' => {
   if (history.length < 2) return 'stable';
 
   const half = Math.floor(history.length / 2);
