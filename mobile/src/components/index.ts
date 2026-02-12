@@ -9,3 +9,7 @@ export { FeedbackCard } from './FeedbackCard';
 export { DomainSelector } from './DomainSelector';
 export type { DomainOption } from './DomainSelector';
 export { DifficultySelector } from './DifficultySelector';
+
+// Review components (T063, T064)
+export { ReviewQuestionCard } from './ReviewQuestionCard';
+export { ReviewFilter } from './ReviewFilter';

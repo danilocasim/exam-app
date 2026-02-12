@@ -24,3 +24,15 @@ export {
   selectHasPreviousPracticeQuestion,
 } from './practice.store';
 export type { PracticeState, PracticeActions, PracticeStore } from './practice.store';
+
+// Review store (T060)
+export {
+  useReviewStore,
+  selectCurrentReviewItem,
+  selectCurrentReviewQuestion,
+  selectHasNextReviewQuestion,
+  selectHasPreviousReviewQuestion,
+  selectReviewProgress,
+  selectReviewStats,
+} from './review.store';
+export type { ReviewState, ReviewActions, ReviewStore } from './review.store';

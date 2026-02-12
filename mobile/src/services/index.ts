@@ -78,3 +78,7 @@ export type {
   PracticeAnswerResult,
   PracticeSummary,
 } from './practice.service';
+
+// Review service exports (T059)
+export { getExamHistory, getReviewData, filterReviewItems } from './review.service';
+export type { ReviewFilterType, ReviewItem, ExamHistoryEntry, ReviewData } from './review.service';

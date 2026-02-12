@@ -94,9 +94,10 @@ const styles = StyleSheet.create({
   },
 });
 
-// Practice screens now imported from ../screens (T053, T054, T058)
-const ExamHistoryScreen = () => <PlaceholderScreen name="Exam History" />;
-const ReviewScreen = () => <PlaceholderScreen name="Review" />;
+// Review screens imported from ../screens (T061, T062)
+import { ExamHistoryScreen } from '../screens/ExamHistoryScreen';
+import { ReviewScreen } from '../screens/ReviewScreen';
+
 const SettingsScreen = () => <PlaceholderScreen name="Settings" />;
 
 /**
@@ -172,12 +173,12 @@ export const RootNavigator: React.FC = () => {
         <Stack.Screen
           name="ExamHistory"
           component={ExamHistoryScreen}
-          options={{ title: 'Exam History' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="ReviewScreen"
           component={ReviewScreen}
-          options={{ title: 'Review Answers' }}
+          options={{ headerShown: false }}
         />
 
         {/* Settings */}

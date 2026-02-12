@@ -139,13 +139,13 @@
 
 ### Mobile Tasks (US3)
 
-- [ ] T059 [US3] Implement ReviewService (fetch exam attempt with answers, filter logic) in mobile/src/services/review.service.ts
-- [ ] T060 [US3] Create reviewStore using Zustand in mobile/src/stores/review.store.ts
-- [ ] T061 [US3] Create ExamHistoryScreen (list of completed exams) in mobile/src/screens/ExamHistoryScreen.tsx
-- [ ] T062 [US3] Create ReviewScreen (question list with correct/incorrect indicators) in mobile/src/screens/ReviewScreen.tsx
-- [ ] T063 [P] [US3] Create ReviewQuestionCard component (shows answer, correct answer, explanation) in mobile/src/components/ReviewQuestionCard.tsx
-- [ ] T064 [P] [US3] Create ReviewFilter component (all/incorrect only) in mobile/src/components/ReviewFilter.tsx
-- [ ] T065 [US3] Add domain breakdown section to ReviewScreen in mobile/src/screens/ReviewScreen.tsx
+- [x] T059 [US3] Implement ReviewService (fetch exam attempt with answers, filter logic) in mobile/src/services/review.service.ts
+- [x] T060 [US3] Create reviewStore using Zustand in mobile/src/stores/review.store.ts
+- [x] T061 [US3] Create ExamHistoryScreen (list of completed exams) in mobile/src/screens/ExamHistoryScreen.tsx
+- [x] T062 [US3] Create ReviewScreen (question list with correct/incorrect indicators) in mobile/src/screens/ReviewScreen.tsx
+- [x] T063 [P] [US3] Create ReviewQuestionCard component (shows answer, correct answer, explanation) in mobile/src/components/ReviewQuestionCard.tsx
+- [x] T064 [P] [US3] Create ReviewFilter component (all/incorrect only) in mobile/src/components/ReviewFilter.tsx
+- [x] T065 [US3] Add domain breakdown section to ReviewScreen in mobile/src/screens/ReviewScreen.tsx
 
 **Checkpoint**: User Story 3 complete - users can review exams with explanations
 

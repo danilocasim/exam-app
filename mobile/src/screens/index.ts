@@ -7,3 +7,7 @@ export { ExamResultsScreen } from './ExamResultsScreen';
 export { PracticeSetupScreen } from './PracticeSetupScreen';
 export { PracticeScreen } from './PracticeScreen';
 export { PracticeSummaryScreen } from './PracticeSummaryScreen';
+
+// Review screens (T061, T062)
+export { ExamHistoryScreen } from './ExamHistoryScreen';
+export { ReviewScreen } from './ReviewScreen';
