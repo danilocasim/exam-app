@@ -1,4 +1,4 @@
-// T041: HomeScreen with "Start Exam" button
+// T041: HomeScreen — redesigned with clear visual hierarchy
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -8,50 +8,108 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Cloud, Play, AlertTriangle, ClipboardList, BarChart2 } from 'lucide-react-native';
+import Svg, { Circle } from 'react-native-svg';
+import {
+  Cloud,
+  Play,
+  AlertTriangle,
+  ClipboardList,
+  BarChart2,
+  BookOpen,
+  Zap,
+  ChevronRight,
+  Target,
+} from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
 import { hasInProgressExam, abandonCurrentExam } from '../services';
 import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 import { getTotalQuestionCount } from '../storage/repositories/question.repository';
 import { canGenerateExam } from '../services/exam-generator.service';
+import { getUserStats } from '../storage/repositories/user-stats.repository';
+import { getOverallStats, calculateAggregatedDomainPerformance } from '../services/scoring.service';
 import { EXAM_CONFIG } from '../config';
 
 // AWS Modern Color Palette
 const colors = {
-  // Backgrounds
-  background: '#232F3E', // AWS Deep Navy
-  surface: '#1F2937', // Slate for cards
+  background: '#232F3E',
+  surface: '#1F2937',
   surfaceHover: '#374151',
-  // Borders
-  borderDefault: '#374151', // Gray border
-  // Text
-  textHeading: '#F9FAFB', // Pure white for headings
-  textBody: '#D1D5DB', // Light Gray for body
+  borderDefault: '#374151',
+  trackGray: '#4B5563',
+  textHeading: '#F9FAFB',
+  textBody: '#D1D5DB',
   textMuted: '#9CA3AF',
-  // Accents
-  primaryOrange: '#FF9900', // AWS Orange
+  primaryOrange: '#FF9900',
   secondaryOrange: '#EC7211',
-  orangeDark: 'rgba(255, 153, 0, 0.2)', // Subtle orange tint
+  orangeDark: 'rgba(255, 153, 0, 0.2)',
   orangeLight: '#FFB84D',
-  // Status
   success: '#10B981',
   successLight: '#6EE7B7',
+  successDark: 'rgba(16, 185, 129, 0.15)',
   error: '#EF4444',
   errorLight: '#FCA5A5',
   errorDark: 'rgba(239, 68, 68, 0.15)',
+  info: '#3B82F6',
 };
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
-/**
- * HomeScreen - main landing screen with exam start button
- */
+// ── Progress Ring ──
+interface ProgressRingProps {
+  progress: number; // 0-1
+  size: number;
+  strokeWidth: number;
+  color: string;
+  trackColor: string;
+}
+
+const ProgressRing: React.FC<ProgressRingProps> = ({
+  progress,
+  size,
+  strokeWidth,
+  color,
+  trackColor,
+}) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - Math.min(progress, 1));
+
+  return (
+    <Svg width={size} height={size}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={trackColor}
+        strokeWidth={strokeWidth}
+        fill="transparent"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="transparent"
+        strokeDasharray={`${circumference}`}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </Svg>
+  );
+};
+
+// ── HomeScreen ──
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { startExam, resumeExam, isLoading, error, setError } = useExamStore();
@@ -61,7 +119,12 @@ export const HomeScreen: React.FC = () => {
   const [canStart, setCanStart] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
 
-  // Check exam status on focus
+  // Supplementary data for progress ring + insights
+  const [questionsAnswered, setQuestionsAnswered] = useState(0);
+  const [passRate, setPassRate] = useState(0);
+  const [totalExams, setTotalExams] = useState(0);
+  const [weakDomainName, setWeakDomainName] = useState<string | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       checkExamStatus();
@@ -71,20 +134,33 @@ export const HomeScreen: React.FC = () => {
   const checkExamStatus = async () => {
     setCheckingStatus(true);
     try {
-      console.warn('[HomeScreen] Checking exam status...');
-      const inProgress = await hasInProgressExam();
+      const [inProgress, count, canGen] = await Promise.all([
+        hasInProgressExam(),
+        getTotalQuestionCount(),
+        canGenerateExam(),
+      ]);
       setHasInProgress(inProgress);
-      console.warn(`[HomeScreen] In progress: ${inProgress}`);
-
-      const count = await getTotalQuestionCount();
       setQuestionCount(count);
-      console.warn(`[HomeScreen] Question count: ${count}`);
-
-      const canGen = await canGenerateExam();
       setCanStart(canGen.canGenerate);
-      console.warn(
-        `[HomeScreen] Can start exam: ${canGen.canGenerate}, reason: ${canGen.reason || 'OK'}`,
-      );
+
+      // Non-critical analytics data
+      try {
+        const [stats, overall, domainPerf] = await Promise.all([
+          getUserStats(),
+          getOverallStats(),
+          calculateAggregatedDomainPerformance(),
+        ]);
+        setQuestionsAnswered(stats.totalQuestions);
+        setPassRate(overall.passRate);
+        setTotalExams(overall.totalExams);
+
+        const weak = domainPerf
+          .filter((d) => d.percentage < 70)
+          .sort((a, b) => a.percentage - b.percentage);
+        setWeakDomainName(weak.length > 0 ? weak[0].domainName : null);
+      } catch {
+        // CTA still works without analytics
+      }
     } catch (err) {
       console.error('[HomeScreen] Failed to check exam status:', err);
     } finally {
@@ -92,31 +168,25 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  // ── Handlers ──
   const handleStartExam = async () => {
     try {
-      console.warn('[HomeScreen] Starting exam...');
       setError(null);
       await startExam();
-      console.warn('[HomeScreen] Exam started, navigating to ExamScreen');
       navigation.navigate('ExamScreen', {});
     } catch (err) {
-      // If blocked by a stale in-progress exam, auto-abandon and retry once
       const message = err instanceof Error ? err.message : '';
       if (message.includes('already in progress')) {
-        console.warn('[HomeScreen] Stale exam detected, auto-abandoning...');
         try {
           const inProgress = await getInProgressExamAttempt();
-          if (inProgress) {
-            await abandonCurrentExam(inProgress.id);
-          }
+          if (inProgress) await abandonCurrentExam(inProgress.id);
           await startExam();
           navigation.navigate('ExamScreen', {});
           return;
-        } catch (retryErr) {
-          console.error('[HomeScreen] Retry after abandon failed:', retryErr);
+        } catch {
+          // fall through
         }
       }
-      console.error('[HomeScreen] Failed to start exam:', err);
       Alert.alert('Error', message || 'Failed to start exam');
     }
   };
@@ -128,7 +198,6 @@ export const HomeScreen: React.FC = () => {
       if (resumed) {
         navigation.navigate('ExamScreen', {});
       } else {
-        // No exam to resume, refresh status
         await checkExamStatus();
       }
     } catch (err) {
@@ -148,20 +217,16 @@ export const HomeScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Abandon from store if session is loaded
               const { abandonExam } = useExamStore.getState();
               const session = useExamStore.getState().session;
               if (session) {
                 await abandonExam();
               } else {
-                // Session not in store (app restarted) — abandon directly from DB
-                const inProgress = await getInProgressExamAttempt();
-                if (inProgress) {
-                  await abandonCurrentExam(inProgress.id);
-                }
+                const ip = await getInProgressExamAttempt();
+                if (ip) await abandonCurrentExam(ip.id);
               }
-            } catch (err) {
-              console.warn('[HomeScreen] Failed to abandon exam:', err);
+            } catch {
+              // continue
             }
             await handleStartExam();
           },
@@ -170,11 +235,12 @@ export const HomeScreen: React.FC = () => {
     );
   };
 
+  // ── Loading splash ──
   if (checkingStatus) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <View style={styles.loadingIcon}>
-          <Cloud size={40} color={colors.textHeading} strokeWidth={2} />
+          <Cloud size={32} color={colors.textHeading} strokeWidth={2} />
         </View>
         <ActivityIndicator size="large" color={colors.primaryOrange} />
         <Text style={styles.loadingText}>Loading...</Text>
@@ -182,101 +248,142 @@ export const HomeScreen: React.FC = () => {
     );
   }
 
+  // ── Derived values ──
+  const progressRatio = questionCount > 0 ? questionsAnswered / questionCount : 0;
+
+  // ── Quick action definitions ──
+  const quickActions = [
+    {
+      key: 'practice',
+      label: 'Practice',
+      sub: 'By domain',
+      icon: <ClipboardList size={20} color={colors.primaryOrange} strokeWidth={1.5} />,
+      gradient: ['rgba(255, 153, 0, 0.12)', 'rgba(236, 114, 17, 0.06)'] as [string, string],
+      borderColor: 'rgba(255, 153, 0, 0.25)',
+      onPress: () => navigation.navigate('PracticeSetup'),
+    },
+    {
+      key: 'analytics',
+      label: 'Analytics',
+      sub: 'Performance',
+      icon: <BarChart2 size={20} color={colors.info} strokeWidth={1.5} />,
+      gradient: ['rgba(59, 130, 246, 0.12)', 'rgba(59, 130, 246, 0.04)'] as [string, string],
+      borderColor: 'rgba(59, 130, 246, 0.25)',
+      onPress: () => navigation.navigate('Analytics'),
+    },
+    {
+      key: 'history',
+      label: 'History',
+      sub: 'Past exams',
+      icon: <BookOpen size={20} color={colors.success} strokeWidth={1.5} />,
+      gradient: ['rgba(16, 185, 129, 0.12)', 'rgba(16, 185, 129, 0.04)'] as [string, string],
+      borderColor: 'rgba(16, 185, 129, 0.25)',
+      onPress: () => navigation.navigate('ExamHistory'),
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      sub: 'Configure',
+      icon: <Target size={20} color={colors.textMuted} strokeWidth={1.5} />,
+      gradient: ['rgba(156, 163, 175, 0.10)', 'rgba(156, 163, 175, 0.04)'] as [string, string],
+      borderColor: 'rgba(156, 163, 175, 0.20)',
+      onPress: () => navigation.navigate('Settings'),
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* ── Compact Header ── */}
         <View style={styles.header}>
-          <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
             <View style={styles.logoIcon}>
-              <Cloud size={22} color={colors.textHeading} strokeWidth={2} />
+              <Cloud size={16} color={colors.textHeading} strokeWidth={2.5} />
             </View>
-            <View>
-              <Text style={styles.appTitle}>CloudPrep</Text>
-              <Text style={styles.appSubtitle}>AWS Cloud Practitioner</Text>
-            </View>
+            <Text style={styles.appTitle}>CloudPrep</Text>
+          </View>
+          <Text style={styles.headerBadge}>CLF-C02</Text>
+        </View>
+
+        {/* ── Inline Stats Strip ── */}
+        <View style={styles.statsStrip}>
+          <View style={styles.stripItem}>
+            <Text style={styles.stripValue}>{questionCount}</Text>
+            <Text style={styles.stripLabel}>In Bank</Text>
+          </View>
+          <View style={styles.stripDot} />
+          <View style={styles.stripItem}>
+            <Text style={styles.stripValue}>{EXAM_CONFIG.QUESTIONS_PER_EXAM}</Text>
+            <Text style={styles.stripLabel}>Per Exam</Text>
+          </View>
+          <View style={styles.stripDot} />
+          <View style={styles.stripItem}>
+            <Text style={styles.stripValue}>{EXAM_CONFIG.TIME_LIMIT_MINUTES}m</Text>
+            <Text style={styles.stripLabel}>Time</Text>
+          </View>
+          <View style={styles.stripDot} />
+          <View style={styles.stripItem}>
+            <Text style={[styles.stripValue, { color: colors.successLight }]}>
+              {EXAM_CONFIG.PASSING_SCORE}%
+            </Text>
+            <Text style={styles.stripLabel}>Pass</Text>
           </View>
         </View>
 
-        {/* Main Content */}
         <View style={styles.content}>
-          {/* Exam Info Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Exam Format</Text>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{questionCount}</Text>
-                <Text style={styles.statLabel}>In Bank</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{EXAM_CONFIG.QUESTIONS_PER_EXAM}</Text>
-                <Text style={styles.statLabel}>Questions</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{EXAM_CONFIG.TIME_LIMIT_MINUTES}</Text>
-                <Text style={styles.statLabel}>Minutes</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.successLight }]}>
-                  {EXAM_CONFIG.PASSING_SCORE}%
-                </Text>
-                <Text style={styles.statLabel}>To Pass</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Resume Exam Card */}
-          {hasInProgress && (
-            <View style={styles.resumeCard}>
-              <View style={styles.resumeHeader}>
-                <View style={styles.resumeIcon}>
-                  <Play
-                    size={16}
-                    color={colors.textHeading}
-                    strokeWidth={2}
-                    fill={colors.textHeading}
-                  />
-                </View>
-                <View style={styles.resumeTextContainer}>
-                  <Text style={styles.resumeTitle}>Exam In Progress</Text>
-                  <Text style={styles.resumeSubtitle}>Continue where you left off</Text>
-                </View>
-              </View>
-              <View style={styles.resumeButtons}>
-                <TouchableOpacity
-                  onPress={handleResumeExam}
-                  disabled={isLoading}
-                  activeOpacity={0.8}
-                  style={styles.resumeButton}
+          {/* ── Primary CTA ── */}
+          {hasInProgress ? (
+            <View style={styles.ctaSection}>
+              <TouchableOpacity
+                onPress={handleResumeExam}
+                disabled={isLoading}
+                activeOpacity={0.85}
+                style={styles.ctaWrapper}
+              >
+                <LinearGradient
+                  colors={[colors.primaryOrange, colors.secondaryOrange]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.ctaGradient}
                 >
                   {isLoading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.resumeButtonText}>Resume Exam</Text>
+                    <View style={styles.ctaContent}>
+                      <View style={styles.ctaLeft}>
+                        <View style={styles.ctaIconCircle}>
+                          <Play
+                            size={18}
+                            color={colors.textHeading}
+                            strokeWidth={2.5}
+                            fill={colors.textHeading}
+                          />
+                        </View>
+                        <View>
+                          <Text style={styles.ctaTitle}>Resume Exam</Text>
+                          <Text style={styles.ctaSub}>Continue where you left off</Text>
+                        </View>
+                      </View>
+                      <ChevronRight size={20} color={colors.textHeading} strokeWidth={2} />
+                    </View>
                   )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleStartNewExam}
-                  disabled={isLoading}
-                  activeOpacity={0.8}
-                  style={styles.newButton}
-                >
-                  <Text style={styles.newButtonText}>New</Text>
-                </TouchableOpacity>
-              </View>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleStartNewExam}
+                disabled={isLoading}
+                activeOpacity={0.7}
+                style={styles.secondaryAction}
+              >
+                <Text style={styles.secondaryActionText}>or start a new exam</Text>
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Start Exam Button */}
-          {!hasInProgress && (
+          ) : (
             <TouchableOpacity
               onPress={handleStartExam}
               disabled={isLoading || !canStart}
-              activeOpacity={0.8}
-              style={[styles.startButton, !canStart && styles.startButtonDisabled]}
+              activeOpacity={0.85}
+              style={[styles.ctaWrapper, !canStart && styles.ctaDisabled]}
             >
               <LinearGradient
                 colors={
@@ -286,101 +393,169 @@ export const HomeScreen: React.FC = () => {
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.startButtonGradient}
+                style={styles.ctaGradient}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <View style={styles.startButtonContent}>
-                    <Text style={styles.startButtonTitle}>Start Exam</Text>
-                    <Text style={styles.startButtonSubtitle}>
-                      {EXAM_CONFIG.QUESTIONS_PER_EXAM} questions • {EXAM_CONFIG.TIME_LIMIT_MINUTES}{' '}
-                      minutes
-                    </Text>
+                  <View style={styles.ctaContent}>
+                    <View style={styles.ctaLeft}>
+                      <View
+                        style={[
+                          styles.ctaIconCircle,
+                          !canStart && { backgroundColor: colors.trackGray },
+                        ]}
+                      >
+                        <Zap size={18} color={colors.textHeading} strokeWidth={2.5} />
+                      </View>
+                      <View>
+                        <Text style={styles.ctaTitle}>Start Exam</Text>
+                        <Text style={styles.ctaSub}>
+                          {EXAM_CONFIG.QUESTIONS_PER_EXAM} questions ·{' '}
+                          {EXAM_CONFIG.TIME_LIMIT_MINUTES} min
+                        </Text>
+                      </View>
+                    </View>
+                    <ChevronRight
+                      size={20}
+                      color={canStart ? colors.textHeading : colors.textMuted}
+                      strokeWidth={2}
+                    />
                   </View>
                 )}
               </LinearGradient>
             </TouchableOpacity>
           )}
 
+          {/* Warning */}
           {!canStart && !hasInProgress && (
-            <View style={styles.warningCard}>
-              <View style={styles.warningContent}>
-                <AlertTriangle
-                  size={16}
-                  color={colors.errorLight}
-                  strokeWidth={2}
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={styles.warningText}>
-                  Need at least {EXAM_CONFIG.QUESTIONS_PER_EXAM} questions to start. Current:{' '}
-                  {questionCount}
-                </Text>
-              </View>
+            <View style={styles.warningRow}>
+              <AlertTriangle size={14} color={colors.errorLight} strokeWidth={2} />
+              <Text style={styles.warningText}>
+                Need {EXAM_CONFIG.QUESTIONS_PER_EXAM}+ questions to start ({questionCount} loaded)
+              </Text>
             </View>
           )}
-
-          {/* Error */}
           {error && (
-            <View style={styles.warningCard}>
+            <View style={styles.warningRow}>
+              <AlertTriangle size={14} color={colors.errorLight} strokeWidth={2} />
               <Text style={styles.warningText}>{error}</Text>
             </View>
           )}
 
-          {/* Quick Actions */}
-          <Text style={styles.sectionLabel}>Quick Actions</Text>
-          <View style={styles.quickActions}>
+          {/* ── Progress & Insights ── */}
+          <View style={styles.insightCard}>
+            <View style={styles.insightLeft}>
+              <View style={styles.ringContainer}>
+                <ProgressRing
+                  progress={progressRatio}
+                  size={72}
+                  strokeWidth={6}
+                  color={colors.primaryOrange}
+                  trackColor={colors.surfaceHover}
+                />
+                <View style={styles.ringLabel}>
+                  <Text style={styles.ringValue}>
+                    {questionsAnswered > 999
+                      ? `${(questionsAnswered / 1000).toFixed(1)}k`
+                      : questionsAnswered}
+                  </Text>
+                  <Text style={styles.ringCaption}>done</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.insightRight}>
+              <Text style={styles.insightTitle}>
+                {questionsAnswered === 0
+                  ? 'Ready to begin?'
+                  : `${questionsAnswered} of ${questionCount} answered`}
+              </Text>
+              <View style={styles.insightMetrics}>
+                {totalExams > 0 && (
+                  <View style={styles.metricChip}>
+                    <Text style={styles.metricValue}>{passRate}%</Text>
+                    <Text style={styles.metricLabel}>pass rate</Text>
+                  </View>
+                )}
+                {totalExams > 0 && (
+                  <View style={styles.metricChip}>
+                    <Text style={styles.metricValue}>{totalExams}</Text>
+                    <Text style={styles.metricLabel}>{totalExams === 1 ? 'exam' : 'exams'}</Text>
+                  </View>
+                )}
+                {totalExams === 0 && (
+                  <Text style={styles.insightHint}>Take your first exam to track progress</Text>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Weak Domain Nudge ── */}
+          {weakDomainName && (
             <TouchableOpacity
               onPress={() => navigation.navigate('PracticeSetup')}
               activeOpacity={0.7}
-              style={styles.actionCard}
+              style={styles.nudge}
             >
-              <View style={styles.actionIconMinimal}>
-                <ClipboardList size={22} color={colors.primaryOrange} strokeWidth={1.5} />
+              <View style={styles.nudgeLeft}>
+                <View style={styles.nudgeIcon}>
+                  <AlertTriangle size={14} color={colors.error} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.nudgeTitle} numberOfLines={1}>
+                    Weak area: {weakDomainName}
+                  </Text>
+                  <Text style={styles.nudgeSub}>Tap to practice this domain</Text>
+                </View>
               </View>
-              <Text style={styles.actionTitle}>Practice</Text>
-              <Text style={styles.actionSubtitle}>By domain</Text>
+              <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
             </TouchableOpacity>
+          )}
 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Analytics')}
-              activeOpacity={0.7}
-              style={styles.actionCard}
-            >
-              <View style={styles.actionIconMinimal}>
-                <BarChart2 size={22} color={colors.primaryOrange} strokeWidth={1.5} />
-              </View>
-              <Text style={styles.actionTitle}>Analytics</Text>
-              <Text style={styles.actionSubtitle}>Performance</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ExamHistory')}
-              activeOpacity={0.7}
-              style={styles.actionCard}
-            >
-              <View style={styles.actionIconMinimal}>
-                <ClipboardList size={22} color={colors.textMuted} strokeWidth={1.5} />
-              </View>
-              <Text style={styles.actionTitle}>History</Text>
-              <Text style={styles.actionSubtitle}>Past exams</Text>
-            </TouchableOpacity>
-          </View>
+          {/* ── Quick Actions ── */}
+          <Text style={styles.sectionLabel}>Quick Actions</Text>
         </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.actionsRow}
+        >
+          {quickActions.map((action) => (
+            <TouchableOpacity
+              key={action.key}
+              onPress={action.onPress}
+              activeOpacity={0.75}
+              style={styles.actionCard}
+            >
+              <LinearGradient
+                colors={action.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.actionGradient, { borderColor: action.borderColor }]}
+              >
+                <View style={styles.actionIconWrap}>{action.icon}</View>
+                <Text style={styles.actionTitle}>{action.label}</Text>
+                <Text style={styles.actionSub}>{action.sub}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+// ── Styles ──
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { paddingHorizontal: 20 },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -388,191 +563,174 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   loadingIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
+    width: 64,
+    height: 64,
+    borderRadius: 14,
     backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  loadingText: {
-    marginTop: 16,
-    color: colors.textMuted,
-    fontSize: 16,
-  },
+  loadingText: { marginTop: 12, color: colors.textMuted, fontSize: 15 },
+
+  // Header
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  appTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: colors.textHeading,
-  },
-  appSubtitle: {
-    fontSize: 14,
-    color: colors.orangeLight,
-  },
-  content: {
-    paddingHorizontal: 20,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-  },
-  cardLabel: {
+  appTitle: { fontSize: 18, fontWeight: 'bold', color: colors.textHeading },
+  headerBadge: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  statsRow: {
-    flexDirection: 'row',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textHeading,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.borderDefault,
-  },
-  resumeCard: {
+    color: colors.orangeLight,
     backgroundColor: colors.orangeDark,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.primaryOrange,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
-  resumeHeader: {
+
+  // Stats Strip
+  statsStrip: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  resumeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    paddingVertical: 10,
+    marginHorizontal: 20,
+    marginBottom: 8,
   },
-  resumeTextContainer: {
-    flex: 1,
+  stripItem: { alignItems: 'center', paddingHorizontal: 12 },
+  stripValue: { fontSize: 16, fontWeight: '700', color: colors.textHeading },
+  stripLabel: { fontSize: 10, color: colors.textMuted, marginTop: 1 },
+  stripDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.trackGray,
   },
-  resumeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textHeading,
-  },
-  resumeSubtitle: {
-    fontSize: 13,
-    color: colors.orangeLight,
-  },
-  resumeButtons: {
+
+  // Primary CTA
+  ctaSection: { marginBottom: 12 },
+  ctaWrapper: { borderRadius: 14, overflow: 'hidden', marginBottom: 4 },
+  ctaDisabled: { opacity: 0.5 },
+  ctaGradient: { paddingVertical: 18, paddingHorizontal: 20 },
+  ctaContent: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  resumeButton: {
-    flex: 1,
-    backgroundColor: colors.primaryOrange,
-    paddingVertical: 14,
-    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  resumeButtonText: {
-    color: colors.textHeading,
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  newButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-  },
-  newButtonText: {
-    color: colors.textBody,
-    fontWeight: '500',
-  },
-  startButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  startButtonDisabled: {
-    opacity: 0.5,
-  },
-  startButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  startButtonContent: {
+  ctaLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  ctaIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  startButtonTitle: {
-    color: colors.textHeading,
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 2,
-  },
-  startButtonSubtitle: {
-    color: colors.orangeLight,
-    fontSize: 13,
-  },
-  warningCard: {
+  ctaTitle: { fontSize: 17, fontWeight: 'bold', color: colors.textHeading },
+  ctaSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 1 },
+  secondaryAction: { alignItems: 'center', paddingVertical: 8 },
+  secondaryActionText: { fontSize: 13, color: colors.textMuted },
+
+  // Warning
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: colors.errorDark,
     borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.error,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
   },
-  warningContent: {
+  warningText: { color: colors.errorLight, fontSize: 13, flex: 1 },
+
+  // Progress Insight Card
+  insightCard: {
     flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
     alignItems: 'center',
   },
-  warningText: {
-    color: colors.errorLight,
-    fontSize: 13,
-    flex: 1,
+  insightLeft: { marginRight: 16 },
+  ringContainer: { position: 'relative', width: 72, height: 72 },
+  ringLabel: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  ringValue: { fontSize: 16, fontWeight: 'bold', color: colors.textHeading },
+  ringCaption: { fontSize: 9, color: colors.textMuted, marginTop: -1 },
+  insightRight: { flex: 1 },
+  insightTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textHeading,
+    marginBottom: 6,
+  },
+  insightMetrics: { flexDirection: 'row', gap: 10 },
+  metricChip: {
+    backgroundColor: colors.surfaceHover,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignItems: 'center',
+  },
+  metricValue: { fontSize: 15, fontWeight: 'bold', color: colors.orangeLight },
+  metricLabel: { fontSize: 10, color: colors.textMuted, marginTop: 1 },
+  insightHint: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
+
+  // Weak Domain Nudge
+  nudge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.errorDark,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  nudgeLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  nudgeIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nudgeTitle: { fontSize: 13, fontWeight: '600', color: colors.textHeading },
+  nudgeSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+
+  // Section Label
   sectionLabel: {
     fontSize: 11,
     fontWeight: '600',
@@ -580,34 +738,22 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 10,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  actionCard: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    alignItems: 'center',
-  },
-  actionIconMinimal: {
-    marginBottom: 12,
-  },
-  actionTitle: {
-    color: colors.textHeading,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  actionSubtitle: {
-    color: colors.textMuted,
-    fontSize: 12,
     marginTop: 4,
   },
+
+  // Quick Actions (Horizontal Scroll)
+  actionsRow: { paddingLeft: 20, paddingRight: 10, gap: 10 },
+  actionCard: { width: (SCREEN_WIDTH - 60) / 3.2, flexShrink: 0 },
+  actionGradient: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  actionIconWrap: { marginBottom: 10 },
+  actionTitle: { fontSize: 13, fontWeight: '600', color: colors.textHeading },
+  actionSub: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
 });
 
 export default HomeScreen;
