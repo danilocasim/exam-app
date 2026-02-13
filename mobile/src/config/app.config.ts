@@ -13,7 +13,7 @@ export const EXAM_TYPE_ID = 'CLF-C02';
  */
 export const API_CONFIG = {
   /** Base URL for the backend API */
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.31.250:3000',
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
 
   /** Request timeout in milliseconds */
   TIMEOUT_MS: 30000,
