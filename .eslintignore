@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+
+# Generated files
+*.generated.*
+prisma/generated/
+
+# Test coverage
+coverage/
+
+# Compiled
+*.min.js
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Specs and non-source files
+specs/
+*.md

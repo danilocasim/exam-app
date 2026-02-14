@@ -1,0 +1,58 @@
+# Development dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build and test
+dist/
+build/
+coverage/
+__tests__/
+*.test.*
+*.spec.*
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment and config (dev-only)
+.env
+.env.local
+.env.*.local
+
+# Git and CI
+.git/
+.github/
+.gitignore
+.gitlab-ci.yml
+.travis.yml
+
+# Specifications and documentation (dev-only)
+specs/
+.specify/
+*.md
+LICENSE
+CHANGELOG.md
+
+# Tools and scripts (dev-only)
+scripts/
+jest.config.*
+tsconfig*.json
+eslint.config.*
+prettier.config.*
+.prettierignore
+.eslintignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Temporary and OS files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+*.log

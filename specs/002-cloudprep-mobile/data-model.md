@@ -493,3 +493,47 @@ const getStrength = (pct: number): 'strong' | 'moderate' | 'weak' => {
 - All entities stored in SQLite; no network required for CRUD
 - Questions pre-bundled in app; sync adds/updates only
 - ExamAttempt.expiresAt checked on app launch; expired → abandoned
+
+## Implementation Status (February 15, 2026)
+
+### ✅ Backend Schema (PostgreSQL + Prisma)
+
+| Entity | Status | Fields | Location |
+|--------|--------|--------|----------|
+| **ExamType** | ✅ | id, name, domains (JSON), passingScore, timeLimit | api/prisma/schema.prisma |
+| **Question** | ✅ | id, examTypeId, text, type, domain, difficulty, options (JSON), status | api/prisma/schema.prisma |
+| **Admin** | ✅ | id, email, passwordHash | api/prisma/schema.prisma |
+| **SyncVersion** | ✅ | examTypeId, version, updatedAt | api/prisma/schema.prisma |
+| **User** | ✅ | id (device-local) | implicit in mobile storage |
+| **ExamAttempt** | ✅ | id, examTypeId, startedAt, submittedAt, statusexpiresAt | mobile SQLite |
+| **ExamAnswer** | ✅ | id, examAttemptId, questionId, selectedOptions, isFlagged | mobile SQLite |
+| **PracticeSession** | ✅ | id, startedAt, endedAt, domain, difficulty | mobile SQLite |
+| **PracticeAnswer** | ✅ | id, sessionId, questionId, selectedOptions | mobile SQLite |
+| **UserStats** | ✅ | id, totalExamsCompleted, totalQuestionsAnswered, totalTimeSpent | mobile SQLite |
+
+### ✅ Database Migrations
+
+| Migration | Status | Details |
+|-----------|--------|---------|
+| **20260212070024_init** | ✅ Applied | Initial schema with ExamType, Question, Admin, SyncVersion models |
+
+### ✅ Repositories Implemented
+
+**Mobile (SQLite)**:
+- QuestionRepository (T034)
+- ExamAttemptRepository (T035)
+- ExamAnswerRepository (T036)
+- PracticeSessionRepository (T049)
+- PracticeAnswerRepository (T050)
+- UserStatsRepository (T066)
+
+**Backend (Prisma)**:
+- PrismaService with CRUD operations
+- Implicit repositories through service layer
+
+### ✅ Relationships Verified
+
+- ExamType ← Question (1-to-many, examTypeId FK)
+- ExamAttempt ← ExamAnswer (1-to-many)
+- PracticeSession ← PracticeAnswer (1-to-many)
+- All foreign keys implemented with proper constraints

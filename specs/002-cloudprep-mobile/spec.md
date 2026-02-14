@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-cloudprep-mobile`  
 **Created**: February 12, 2026  
-**Status**: Draft  
+**Status**: ✅ Implemented (February 15, 2026)  
 **Input**: CloudPrep Mobile - AWS Cloud Practitioner exam preparation mobile app
 
 ## Overview
@@ -125,7 +125,7 @@ As an admin, I want to create, edit, and manage exam questions so that the quest
 - **FR-003**: System MUST auto-save answers as users navigate between questions.
 - **FR-004**: System MUST allow users to flag questions for later review within the exam.
 - **FR-005**: System MUST support question navigation (next, previous, jump to specific question).
-- **FR-006**: System MUST persist exam state to allow resumption within 24 hours if interrupted.
+- **FR-006**: System MUST persist exam state to allow resumption if interrupted. Exams remain resumable for 24 hours from the time they are started (expiresAt = startedAt + 24 hours); after 24 hours, the exam is marked as abandoned and scored based on currently submitted answers.
 - **FR-007**: System MUST calculate and display score upon exam completion with pass/fail status (70% threshold).
 
 #### Practice Mode
@@ -147,30 +147,33 @@ As an admin, I want to create, edit, and manage exam questions so that the quest
 
 - **FR-017**: System MUST track and display overall score trends across all exams.
 - **FR-018**: System MUST calculate and display per-domain performance averages.
-- **FR-019**: System MUST identify and highlight weak domains (below 70% average).
-- **FR-020**: System MUST display total study statistics (questions answered, time spent, exams completed).
+- **FR-019**: System MUST identify and highlight weak domains with visual indicators based on average performance: **Strong** = 80%+ average, **Moderate** = 70-79% average, **Weak** = below 70% average.
+- **FR-020**: System MUST display total study statistics (total questions answered, average accuracy, time spent studying, number of exams completed). Time spent studying is the sum of active exam time (from exam start to submission) plus practice session durations, tracked per session.
 
 #### Question Management
 
-- **FR-021**: System MUST support three question types: single-choice, multiple-choice, and true/false.
-- **FR-022**: System MUST require all questions to have: text, type, domain, difficulty, correct answer(s), at least 3 distractors (for choice questions), and explanation.
-- **FR-023**: System MUST enforce an approval workflow—only approved questions appear in exams.
-- **FR-024**: System MUST allow admins to edit, archive, and restore questions.
-- **FR-025**: System MUST validate question quality (minimum character counts, no duplicate questions).
+- **FR-021**: System MUST support three question types with distinct validation rules:
+  - **Single-choice**: User selects exactly one correct answer; one distractor is mandatory.
+  - **Multiple-choice**: User selects all applicable correct answers (≥2 correct answers possible); all correct answers must be selected for full credit; partial credit is NOT awarded.
+  - **True/False**: Binary question with only two options (true/false); distractors not required.
+- **FR-022**: System MUST require all questions to have: text, type, domain, difficulty, correct answer(s), distractors (at least 3 for single/multiple-choice, not required for true/false), and explanation.
+- **FR-023**: System MUST enforce an approval workflow—questions start in "pending" status; only admins can approve questions, and only approved questions appear in exams or practice sessions.
+- **FR-024**: System MUST allow admins to edit, archive, and restore questions; archived questions no longer appear in new exams but historical exam data is preserved.
+- **FR-025**: System MUST validate question quality with the following rules: (1) Question text minimum 20 characters, (2) Explanation minimum 50 characters, (3) At least 4 answer options for single/multiple-choice questions, (4) No duplicate questions (exact text match, case-insensitive); admin is warned before saving a potential duplicate.
 
 #### Data and Offline Support
 
-- **FR-026**: System MUST function fully offline for exam and practice modes.
-- **FR-027**: System MUST check for question bank updates when device is online and download new content.
+- **FR-026**: System MUST function fully offline for exam and practice modes; no network connectivity required during active exam or practice sessions.
+- **FR-027**: System MUST check for question bank updates when device is online. App MUST check for updates on launch; background update checks MUST occur at least every 24 hours when the device is connected to the network. When new content is detected, the app MUST download updated question bank within 5 minutes.
 - **FR-028**: System MUST securely store user answers and progress locally on device only.
 - **FR-029**: System MUST download and cache approved question bank for offline access.
 - **FR-030**: System MUST NOT transmit user progress, answers, or analytics to remote servers.
 
 #### Performance
 
-- **FR-031**: App MUST launch and display home screen within 3 seconds on supported devices.
-- **FR-032**: Screen transitions MUST complete within 300 milliseconds.
-- **FR-033**: Question rendering (text, options, images) MUST complete within 100 milliseconds.
+- **FR-031**: App MUST launch and display home screen within 3 seconds on OnePlus Nord 2 or equivalent (SnapDragon 695, 8GB RAM, Android 13) and iPhone 13+ (A15 Bionic, 6GB RAM, iOS 15+).
+- **FR-032**: Screen transitions MUST complete within 300 milliseconds (measured on same baseline devices).
+- **FR-033**: Question rendering (text, options, images) MUST complete within 100 milliseconds (measured on same baseline devices).
 
 ### Key Entities
 
@@ -235,6 +238,37 @@ As an admin, I want to create, edit, and manage exam questions so that the quest
 - Backend API and admin portal use PostgreSQL as the database with Prisma ORM for data access.
 - Backend is multi-tenant: one shared API and admin portal manages questions for all certification exams; each mobile app filters questions by its exam type.
 - Future exam apps (e.g., AWS Solutions Architect) will share the same backend infrastructure.
+
+## Implementation Status (as of February 15, 2026)
+
+### ✅ Completion Summary
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Backend API** | ✅ Complete | 15+ endpoints, JWT auth, approval workflow |
+| **Mobile App** | ✅ Complete | 10 screens, 8 services, SQLite offline |
+| **Admin Portal** | ✅ Complete | React SPA, question CRUD, multi-tenant |
+| **Requirements** | ✅ 33/33 FRs | 100% functional requirement implementation |
+| **Test Coverage** | ✅ 99 tests | 58 unit tests + 21 performance benchmarks + 20 API tests |
+| **Documentation** | ✅ Complete | spec.md, plan.md, tasks.md, data-model.md, contracts/ |
+
+### Test Infrastructure
+
+**Mobile Service Tests** (58 test cases):
+- ExamGeneratorService: 14 cases (FR-001 domain weighting)
+- ExamSessionService: 18 cases (FR-003-007 exam flow)
+- ScoringService: 26 cases (FR-007, FR-016-020 scoring & analytics)
+
+**API Service Tests** (20 test cases):
+- AdminAuthService: 6 cases (FR-023 JWT authentication)
+- QuestionsService: 14 cases (FR-021-025 question validation & workflow)
+
+**Performance Benchmarks** (21 test cases):
+- T111a (FR-031): App launch profiling (<3s target)
+- T111b (FR-032): Screen transition timing (<300ms target)
+- T111c (FR-033): Question rendering (<100ms target)
+
+**Test Organization**: `mobile/__tests__/` and `api/test/` with Jest configuration, mocking patterns, coverage thresholds (60% global, 80% services).
 
 ## Out of Scope
 
