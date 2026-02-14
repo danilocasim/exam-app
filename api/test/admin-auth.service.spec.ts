@@ -71,9 +71,9 @@ describe('AdminAuthService', () => {
     it('should throw UnauthorizedException for non-existent admin', async () => {
       (prisma.admin.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.login('nonexistent@example.com', 'password')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login('nonexistent@example.com', 'password'),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException for invalid password', async () => {

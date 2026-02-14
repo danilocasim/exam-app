@@ -15,7 +15,10 @@ import {
   completeExamAttempt,
   abandonExamAttempt,
 } from '../../src/storage/repositories/exam-attempt.repository';
-import { submitAnswer as submitAnswerRepo, toggleFlag as toggleFlagRepo } from '../../src/storage/repositories/exam-answer.repository';
+import {
+  submitAnswer as submitAnswerRepo,
+  toggleFlag as toggleFlagRepo,
+} from '../../src/storage/repositories/exam-answer.repository';
 import { getQuestionsByIds } from '../../src/storage/repositories/question.repository';
 import { generateExam } from '../../src/services/exam-generator.service';
 import { getCachedExamTypeConfig } from '../../src/services/sync.service';
@@ -35,7 +38,7 @@ describe('ExamSessionService', () => {
     description: 'AWS Certified Cloud Practitioner',
     domains: [
       { id: 'cloud-concepts', name: 'Cloud Concepts', weight: 0.24 },
-      { id: 'security', name: 'Security and Compliance', weight: 0.30 },
+      { id: 'security', name: 'Security and Compliance', weight: 0.3 },
       { id: 'technology', name: 'Technology', weight: 0.34 },
       { id: 'billing', name: 'Billing and Pricing', weight: 0.12 },
     ],

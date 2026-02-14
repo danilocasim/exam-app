@@ -1,12 +1,12 @@
 /**
  * T111b: Screen Transition Performance Profiling
- * 
+ *
  * Measures time to transition between exam screens to verify < 300ms target (FR-032)
  * Tests key user flows:
  * - HomeScreen → ExamScreen (load 65 questions)
  * - ExamScreen → ExamResultsScreen (calculate score, render results)
  * - ResultsScreen → ReviewScreen (load exam history, render questions)
- * 
+ *
  * Performance Goal: < 300ms per transition on baseline device
  */
 
@@ -19,15 +19,15 @@ interface ScreenTransitionMetrics {
   transitionName: string;
   startTime: number;
   navigationTime: number; // React Navigation route change
-  renderTime: number;     // Component mounting + initial render
-  dataLoadTime: number;   // Fetching from SQLite/cache
+  renderTime: number; // Component mounting + initial render
+  dataLoadTime: number; // Fetching from SQLite/cache
   totalTime: number;
   meetsTarget: boolean;
 }
 
 /**
  * Simulate HomeScreen → ExamScreen transition
- * 
+ *
  * Actions:
  * 1. User taps "Start Exam" button
  * 2. Generate 65-question exam from question bank
@@ -68,7 +68,7 @@ async function transitionHomeToExam(): Promise<ScreenTransitionMetrics> {
 
 /**
  * Simulate ExamScreen → ExamResultsScreen transition
- * 
+ *
  * Actions:
  * 1. User submits exam (all answers finalized)
  * 2. Mark exam as completed in SQLite
@@ -114,7 +114,7 @@ async function transitionExamToResults(): Promise<ScreenTransitionMetrics> {
 
 /**
  * Simulate ResultsScreen → ReviewScreen transition
- * 
+ *
  * Actions:
  * 1. User navigates to review completed exam
  * 2. Fetch exam attempt + all answers from SQLite
@@ -155,7 +155,7 @@ async function transitionResultsToReview(): Promise<ScreenTransitionMetrics> {
 
 /**
  * Simulate rapid navigation between questions during exam
- * 
+ *
  * Actions:
  * 1. User navigates from question 1 to question 42
  * 2. Update current question index in state
@@ -268,7 +268,8 @@ describe('T111b: Screen Transition Performance (FR-032)', () => {
         'ResultsScreen → ReviewScreen',
         'Question Navigation',
       ],
-      notes: 'All transitions must complete in < 300ms to ensure smooth user experience during exam.',
+      notes:
+        'All transitions must complete in < 300ms to ensure smooth user experience during exam.',
     };
 
     expect(report.transitions).toHaveLength(4);

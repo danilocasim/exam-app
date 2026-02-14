@@ -1,13 +1,13 @@
 /**
  * T111c: Question Rendering Performance Profiling
- * 
+ *
  * Measures QuestionCard component rendering time to verify < 100ms target (FR-033)
  * Tests rendering with different question complexities:
  * - Simple text-only question
  * - Question with 4 options displayed
  * - Question with rich explanation visible
  * - Multiple questions in sequence
- * 
+ *
  * Performance Goal: < 100ms per question card render on baseline device
  */
 
@@ -284,7 +284,9 @@ describe('T111c: Question Rendering Performance (FR-033)', () => {
       const status = metric.meetsTarget ? '✅' : '❌';
       console.log(`${status} ${metric.testName.padEnd(35)} ${metric.totalTime.toFixed(2)}ms`);
       console.log(`    Data:   ${metric.dataSize}`);
-      console.log(`    Parse:  ${metric.parseTime.toFixed(2)}ms, Layout: ${metric.layoutTime.toFixed(2)}ms, Render: ${metric.renderTime.toFixed(2)}ms`);
+      console.log(
+        `    Parse:  ${metric.parseTime.toFixed(2)}ms, Layout: ${metric.layoutTime.toFixed(2)}ms, Render: ${metric.renderTime.toFixed(2)}ms`,
+      );
 
       if (!metric.meetsTarget) {
         allPass = false;
@@ -299,7 +301,8 @@ describe('T111c: Question Rendering Performance (FR-033)', () => {
     const secondRender = await profileSimpleQuestion();
 
     // Performance should be consistent (within 10% variance)
-    const variance = Math.abs(firstRender.totalTime - secondRender.totalTime) / firstRender.totalTime;
+    const variance =
+      Math.abs(firstRender.totalTime - secondRender.totalTime) / firstRender.totalTime;
     expect(variance).toBeLessThan(0.1); // < 10% variance
 
     // Both must stay under budget

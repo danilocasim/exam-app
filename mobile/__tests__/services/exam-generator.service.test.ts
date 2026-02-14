@@ -1,4 +1,8 @@
-import { generateExam, selectQuestionsByDomain, calculateDomainQuotaDistribution } from '../../src/services/exam-generator.service';
+import {
+  generateExam,
+  selectQuestionsByDomain,
+  calculateDomainQuotaDistribution,
+} from '../../src/services/exam-generator.service';
 import { getQuestionsByDomainAndStatus } from '../../src/storage/repositories/question.repository';
 import { ExamTypeConfig, Question } from '../../src/storage/schema';
 
@@ -12,7 +16,7 @@ describe('ExamGeneratorService', () => {
     description: 'AWS Certified Cloud Practitioner',
     domains: [
       { id: 'cloud-concepts', name: 'Cloud Concepts', weight: 0.24 },
-      { id: 'security', name: 'Security and Compliance', weight: 0.30 },
+      { id: 'security', name: 'Security and Compliance', weight: 0.3 },
       { id: 'technology', name: 'Technology', weight: 0.34 },
       { id: 'billing', name: 'Billing and Pricing', weight: 0.12 },
     ],

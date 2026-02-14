@@ -6,16 +6,16 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: {
-        jsx: 'react-native',
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          jsx: 'react-native',
+        },
       },
-    }],
+    ],
   },
-  testMatch: [
-    '**/__tests__/**/*.test.ts',
-    '**/__tests__/**/*.spec.ts',
-  ],
+  testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.spec.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',
     'src/**/*.tsx',

@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { QuestionsService } from '../../src/admin/services/questions.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { QuestionInputDto } from '../../src/admin/dto/question-input.dto';
@@ -67,7 +71,8 @@ describe('QuestionsService (Admin)', () => {
         { label: 'D', text: 'Option D' },
       ],
       correctAnswers: ['A'],
-      explanation: 'This is a detailed explanation with at least 50 characters to meet requirements.',
+      explanation:
+        'This is a detailed explanation with at least 50 characters to meet requirements.',
     };
 
     it('should create question with DRAFT status (FR-023)', async () => {

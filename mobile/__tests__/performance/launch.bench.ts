@@ -1,10 +1,10 @@
 /**
  * T111a: App Launch Performance Profiling
- * 
+ *
  * Measures app startup time to verify < 3 second target (FR-031)
  * Tests on baseline device: OnePlus Nord 2 (SnapDragon 695, 8GB RAM, Android 13)
  *                   or iOS equivalent: iPhone 13+ (A15 Bionic, 6GB RAM, iOS 15+)
- * 
+ *
  * Performance Goal: < 3 seconds from app start to home screen display
  */
 
@@ -27,7 +27,7 @@ interface AppStartupMetrics {
  */
 async function initializeSQLiteDatabase(): Promise<number> {
   const startMark = performance.now();
-  
+
   // Simulate database operations:
   // - Open database file
   // - Run schema initialization if needed
@@ -134,7 +134,7 @@ describe('T111a: App Launch Performance (FR-031)', () => {
 
     // Demonstrate acceptable range
     expect(smallDataset).toBeGreaterThan(200); // At least some work
-    expect(smallDataset).toBeLessThan(500);    // But not too long
+    expect(smallDataset).toBeLessThan(500); // But not too long
   });
 
   it('should report startup timing for device baseline comparison', async () => {
