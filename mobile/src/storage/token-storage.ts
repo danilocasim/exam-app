@@ -101,11 +101,7 @@ export const TokenStorage = {
    */
   async clearTokens(): Promise<void> {
     try {
-      await AsyncStorage.multiRemove([
-        ACCESS_TOKEN_KEY,
-        REFRESH_TOKEN_KEY,
-        TOKEN_EXPIRY_KEY,
-      ]);
+      await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, TOKEN_EXPIRY_KEY]);
     } catch (error) {
       console.error('[TokenStorage] Failed to clear tokens:', error);
       throw error;

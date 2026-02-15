@@ -65,8 +65,7 @@ export function setupApiInterceptors(api: AxiosInstance): void {
 
           // Call refresh endpoint
           const response = await api.post('/auth/refresh', { refreshToken });
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
-            response.data;
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
 
           // Save new tokens
           await TokenStorage.saveTokens(newAccessToken, newRefreshToken);

@@ -566,13 +566,13 @@ With 2+ developers after Phase 2:
 ### Testing & Documentation Tasks
 
 - [x] T143 [P] Create `api/test/auth.e2e-spec.ts` for auth endpoints: POST /auth/google/callback, GET /auth/me, POST /auth/refresh with mocked Google verification
-- [ ] T144 [P] Create `mobile/__tests__/offline-queue.integration.test.ts` for queue persistence across app restart and sync flow
-- [ ] T145 Create `api/test/exam-attempts.e2e-spec.ts` for POST /exam-attempts (submit), GET /exam-attempts (pagination), filtering
-- [ ] T146 Create `api/test/analytics.service.spec.ts` for calculation accuracy: passRate, averageScore, byExamType breakdown
-- [ ] T147 Create `mobile/__tests__/sync-processor.test.ts` for exponential backoff timing and max retry enforcement
-- [ ] T148 Create `mobile/__tests__/performance.bench.ts` benchmarks: cloud sync <5s for 50 exams, analytics query <2s, token refresh <500ms
-- [ ] T149 Create `specs/002-cloudprep-mobile/phase2-testing-guide.md` with manual testing scenarios: sign-in flow, offline submit, sync on restore, token expiration
-- [ ] T150 Update `README.md` with Phase 2 architecture: OAuth flow diagram, offline sync state machine, token lifecycle, migration guide for existing users
+- [x] T144 [P] Create `mobile/__tests__/offline-queue.integration.test.ts` for queue persistence across app restart and sync flow
+- [x] T145 Create `api/test/exam-attempts.e2e-spec.ts` for POST /exam-attempts (submit), GET /exam-attempts (pagination), filtering
+- [x] T146 Create `api/test/analytics.service.spec.ts` for calculation accuracy: passRate, averageScore, byExamType breakdown
+- [x] T147 Create `mobile/__tests__/sync-processor.test.ts` for exponential backoff timing and max retry enforcement
+- [x] T148 Create `mobile/__tests__/performance.bench.ts` benchmarks: cloud sync <5s for 50 exams, analytics query <2s, token refresh <500ms
+- [x] T149 Create `specs/002-cloudprep-mobile/phase2-testing-guide.md` with manual testing scenarios: sign-in flow, offline submit, sync on restore, token expiration
+- [x] T150 Update `README.md` with Phase 2 architecture: OAuth flow diagram, offline sync state machine, token lifecycle, migration guide for existing users
 
 ---
 

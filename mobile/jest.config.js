@@ -1,20 +1,14 @@
 module.exports = {
   preset: 'react-native',
   testEnvironment: 'node',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['/node_modules/', '/build/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  transform: {
-    '^.+\\.(ts|tsx)$': [
-      'ts-jest',
-      {
-        tsconfig: {
-          jsx: 'react-native',
-        },
-      },
-    ],
-  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-native|@react-native|@react-navigation|expo|@expo|expo-crypto|expo-sqlite|expo-auth-session|expo-web-browser|axios|@react-native-async-storage|@react-native-community)/)',
+  ],
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.spec.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -23,7 +17,7 @@ module.exports = {
     '!src/main.tsx',
     '!src/**/*.d.ts',
   ],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       branches: 60,
       functions: 60,
