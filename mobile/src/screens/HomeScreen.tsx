@@ -25,13 +25,11 @@ import {
   Zap,
   ChevronRight,
   Target,
-  LogOut,
   User,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
 import { useAuthStore } from '../stores/auth-store';
-import { signOut } from '../services/auth-service';
 import { hasInProgressExam, abandonCurrentExam } from '../services';
 import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 import { getTotalQuestionCount } from '../storage/repositories/question.repository';
@@ -196,15 +194,6 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Sign-out failed';
-      Alert.alert('Error', message);
-    }
-  };
-
   const handleResumeExam = async () => {
     try {
       setError(null);
@@ -338,7 +327,11 @@ export const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         )}
         {isSignedIn && user && (
-          <View style={styles.authSection}>
+          <TouchableOpacity
+            style={styles.authSection}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Auth')}
+          >
             <View style={styles.userInfo}>
               <View style={styles.userAvatar}>
                 <Text style={styles.userAvatarText}>
@@ -350,10 +343,8 @@ export const HomeScreen: React.FC = () => {
                 <Text style={styles.userEmail}>{user.email}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
-              <LogOut size={16} color={colors.textMuted} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+            <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
+          </TouchableOpacity>
         )}
 
         {/* ── Inline Stats Strip ── */}
@@ -849,14 +840,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     marginTop: 2,
-  },
-  signOutButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceHover,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 

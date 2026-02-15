@@ -15,8 +15,7 @@ let currentDbName = ANONYMOUS_DB;
  * Sanitize an email address for use as a database filename.
  * e.g. "user@gmail.com" → "user_gmail_com"
  */
-const sanitizeEmail = (email: string): string =>
-  email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+const sanitizeEmail = (email: string): string => email.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
 /**
  * Get the database filename for a given user email.
@@ -264,7 +263,17 @@ export const importUserData = async (data: UserDataExport): Promise<void> => {
     await database.runAsync(
       `INSERT OR IGNORE INTO ExamAttempt (id, startedAt, completedAt, status, score, passed, totalQuestions, remainingTimeMs, expiresAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [row.id, row.startedAt, row.completedAt, row.status, row.score, row.passed, row.totalQuestions, row.remainingTimeMs, row.expiresAt],
+      [
+        row.id,
+        row.startedAt,
+        row.completedAt,
+        row.status,
+        row.score,
+        row.passed,
+        row.totalQuestions,
+        row.remainingTimeMs,
+        row.expiresAt,
+      ],
     );
   }
 
@@ -273,7 +282,16 @@ export const importUserData = async (data: UserDataExport): Promise<void> => {
     await database.runAsync(
       `INSERT OR IGNORE INTO ExamAnswer (id, examAttemptId, questionId, selectedAnswers, isCorrect, isFlagged, orderIndex, answeredAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [row.id, row.examAttemptId, row.questionId, row.selectedAnswers, row.isCorrect, row.isFlagged, row.orderIndex, row.answeredAt],
+      [
+        row.id,
+        row.examAttemptId,
+        row.questionId,
+        row.selectedAnswers,
+        row.isCorrect,
+        row.isFlagged,
+        row.orderIndex,
+        row.answeredAt,
+      ],
     );
   }
 
@@ -282,7 +300,19 @@ export const importUserData = async (data: UserDataExport): Promise<void> => {
     await database.runAsync(
       `INSERT OR IGNORE INTO ExamSubmission (id, userId, examTypeId, score, passed, duration, submittedAt, createdAt, syncStatus, syncRetries, syncedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [row.id, row.userId, row.examTypeId, row.score, row.passed, row.duration, row.submittedAt, row.createdAt, row.syncStatus, row.syncRetries, row.syncedAt],
+      [
+        row.id,
+        row.userId,
+        row.examTypeId,
+        row.score,
+        row.passed,
+        row.duration,
+        row.submittedAt,
+        row.createdAt,
+        row.syncStatus,
+        row.syncRetries,
+        row.syncedAt,
+      ],
     );
   }
 
@@ -291,7 +321,15 @@ export const importUserData = async (data: UserDataExport): Promise<void> => {
     await database.runAsync(
       `INSERT OR IGNORE INTO PracticeSession (id, startedAt, completedAt, domain, difficulty, questionsCount, correctCount)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [row.id, row.startedAt, row.completedAt, row.domain, row.difficulty, row.questionsCount, row.correctCount],
+      [
+        row.id,
+        row.startedAt,
+        row.completedAt,
+        row.domain,
+        row.difficulty,
+        row.questionsCount,
+        row.correctCount,
+      ],
     );
   }
 
@@ -410,7 +448,19 @@ export const switchUserDatabase = async (email: string | null): Promise<void> =>
       await database.runAsync(
         `INSERT OR IGNORE INTO Question (id, text, type, domain, difficulty, options, correctAnswers, explanation, version, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [q.id, q.text, q.type, q.domain, q.difficulty, q.options, q.correctAnswers, q.explanation, q.version, q.createdAt, q.updatedAt],
+        [
+          q.id,
+          q.text,
+          q.type,
+          q.domain,
+          q.difficulty,
+          q.options,
+          q.correctAnswers,
+          q.explanation,
+          q.version,
+          q.createdAt,
+          q.updatedAt,
+        ],
       );
     }
   }

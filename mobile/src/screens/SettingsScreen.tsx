@@ -12,8 +12,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, RefreshCw, Wifi, WifiOff, Database, Clock, Info } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  Database,
+  Clock,
+  Info,
+  User,
+  Cloud,
+} from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { useAuthStore } from '../stores/auth-store';
 import {
   performFullSync,
   getLastSyncVersion,
@@ -44,6 +56,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { isSignedIn, user } = useAuthStore();
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
@@ -129,6 +142,43 @@ export const SettingsScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Auth')}
+          >
+            <View style={styles.accountRow}>
+              {isSignedIn && user ? (
+                <>
+                  <View style={styles.accountAvatar}>
+                    <Text style={styles.accountAvatarText}>
+                      {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName}>{user.name || 'Signed In'}</Text>
+                    <Text style={styles.accountEmail}>{user.email}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={[styles.accountAvatar, { backgroundColor: colors.surfaceHover }]}>
+                    <User size={18} color={colors.textMuted} strokeWidth={2} />
+                  </View>
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName}>Sign in with Google</Text>
+                    <Text style={styles.accountEmail}>Sync progress across devices</Text>
+                  </View>
+                </>
+              )}
+              <ChevronRight size={18} color={colors.textMuted} strokeWidth={2} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Connectivity Status */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Network</Text>
@@ -339,5 +389,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  accountAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primaryOrange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountAvatarText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  accountInfo: {
+    flex: 1,
+  },
+  accountName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textHeading,
+  },
+  accountEmail: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });
