@@ -76,9 +76,9 @@
 
 ### Backend Foundational Tasks
 
-- [ ] T158 Create api/src/integrity/dto/verify-token.dto.ts with `VerifyTokenRequest` interface: `{ token: string }`
-- [ ] T159 [P] Create api/src/integrity/dto/integrity-verdict.dto.ts with `PlayIntegrityVerdict` interface per data-model.md
-- [ ] T160 Create api/src/integrity/integrity.service.ts stub with method `verifyToken(token: string): Promise<PlayIntegrityVerdict>`
+- [x] T158 Create api/src/integrity/dto/verify-token.dto.ts with `VerifyTokenRequest` interface: `{ token: string }`
+- [x] T159 [P] Create api/src/integrity/dto/integrity-verdict.dto.ts with `PlayIntegrityVerdict` interface per data-model.md
+- [x] T160 Create api/src/integrity/integrity.service.ts stub with method `verifyToken(token: string): Promise<PlayIntegrityVerdict>`
 - [ ] T161 [P] Create api/src/integrity/integrity.controller.ts stub with `POST /api/integrity/verify` endpoint
 - [ ] T162 Create api/src/integrity/integrity.module.ts and register IntegrityModule in api/src/app.module.ts
 - [ ] T163 Add environment variable support for Google Play Console credentials in api/src/config/ (no actual credentials in code)
