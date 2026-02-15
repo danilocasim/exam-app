@@ -3,12 +3,12 @@ info:
   title: Play Integrity Verification API
   description: |-
     Stateless endpoint for decrypting and verifying Play Integrity tokens.
-    
+
     This endpoint acts as a thin proxy between the mobile client (who obtains
     an encrypted token from Google's Play Integrity API) and Google's
     verification service. The endpoint decrypts the token and returns the
     verdict fields.
-    
+
     **IMPORTANT**: This endpoint does NOT enforce integrity verdicts or store
     user state. Enforcement is entirely client-side. The backend is stateless
     and only decrypts the encrypted token.
@@ -30,7 +30,7 @@ paths:
         Accepts an encrypted Play Integrity token from the mobile client,
         decrypts it using Google's Play Integrity verification API, and
         returns the decrypted verdict.
-        
+
         **Important**: 
         - Token must be obtained from Google Play Integrity API on client
         - Decryption requires service account credentials (backend-only)
@@ -51,7 +51,7 @@ paths:
               valid_token:
                 summary: Valid encrypted token from Google Play Integrity API
                 value:
-                  token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  token: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
       responses:
         '200':
           description: |-
@@ -91,7 +91,7 @@ paths:
                   summary: Token format invalid
                   value:
                     success: false
-                    error: "Invalid token format. Token must be a valid JWT."
+                    error: 'Invalid token format. Token must be a valid JWT.'
         '500':
           description: |-
             Server error (Google API unavailable, decryption failure, etc).
@@ -105,7 +105,7 @@ paths:
                   summary: Google Play Integrity API temporarily unavailable
                   value:
                     success: false
-                    error: "Google Play Integrity API unavailable. Please try again later."
+                    error: 'Google Play Integrity API unavailable. Please try again later.'
         '503':
           description: |-
             Service unavailable (backend maintenance or overload).
@@ -119,7 +119,7 @@ paths:
                   summary: Backend temporarily unavailable
                   value:
                     success: false
-                    error: "Service temporarily unavailable. Please try again."
+                    error: 'Service temporarily unavailable. Please try again.'
 
 components:
   schemas:
@@ -134,7 +134,7 @@ components:
             Encrypted Play Integrity token obtained from Google Play Integrity API.
             Must be a valid JWT signed by Google using the app's signing key.
           format: jwt
-          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+          example: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
 
     IntegrityVerifyResponse:
       type: object
@@ -170,7 +170,7 @@ components:
             - UNKNOWN
           description: |-
             Whether the app is recognized by Google Play.
-            
+
             - `PLAY_RECOGNIZED`: App installed from Play Store, signature matches release key
             - `UNRECOGNIZED_VERSION`: App signature does NOT match Play Store signing key (sideload or re-signed)
             - `UNKNOWN`: Google could not evaluate (transient, should retry)
@@ -183,7 +183,7 @@ components:
             - UNKNOWN
           description: |-
             Whether the user is licensed to use the app (purchased or Install from Play Store).
-            
+
             - `LICENSED`: User purchased or installed the app from Play Store
             - `UNLICENSED`: User did not purchase/install from Play Store (sideload on non-Play device)
             - `UNKNOWN`: Google could not evaluate (transient, should retry)
@@ -196,7 +196,7 @@ components:
             - UNKNOWN
           description: |-
             Whether the device meets Google's integrity requirements.
-            
+
             - `MEETS_DEVICE_INTEGRITY`: Device integrity check passes (basic, sufficient for our use case)
             - `MEETS_STRONG_INTEGRITY`: Device passes stricter checks (optional; we don't require)
             - `UNKNOWN`: Google could not evaluate (transient, should retry)
@@ -209,7 +209,7 @@ components:
           additionalProperties: true
           example:
             timestampMillis: 1676405000000
-            nonce: "abc123..."
+            nonce: 'abc123...'
 
     ErrorResponse:
       type: object
@@ -224,7 +224,7 @@ components:
         error:
           type: string
           description: Human-readable error message
-          example: "Google Play Integrity API request failed"
+          example: 'Google Play Integrity API request failed'
 
   responses:
     UnauthorizedError:
@@ -238,7 +238,7 @@ tags:
   - name: Integrity
     description: |-
       Play Integrity verification endpoints.
-      
+
       **Architecture**: These endpoints are stateless proxies. The backend
       decrypts tokens obtained by the mobile client from Google's Play
       Integrity API. Enforcement of verdicts (blocking vs. allowing access)
@@ -246,10 +246,10 @@ tags:
 
 x-security-note: |-
   **No Additional Authentication Required**
-  
+
   Play Integrity tokens are encrypted using the app's signing key (stored
   securely by Google). Only the mobile app (with the matching signing key
   in Google Play Console) can obtain a valid token. Therefore, this endpoint
   does not require additional API key or bearer token authentication.
-  
+
   The token itself serves as proof of origin (app signature verified by Google).
