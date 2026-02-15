@@ -1,8 +1,34 @@
 // SQLite database initialization
+// Supports per-user database files for multi-account data isolation
 import * as SQLite from 'expo-sqlite';
 
-// Database instance (singleton)
+// Database instance (singleton per active session)
 let db: SQLite.SQLiteDatabase | null = null;
+
+// Default anonymous database name
+const ANONYMOUS_DB = 'dojoexam.db';
+
+// Current active database name
+let currentDbName = ANONYMOUS_DB;
+
+/**
+ * Sanitize an email address for use as a database filename.
+ * e.g. "user@gmail.com" → "user_gmail_com"
+ */
+const sanitizeEmail = (email: string): string =>
+  email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+/**
+ * Get the database filename for a given user email.
+ * Returns the anonymous DB name if email is null.
+ */
+const getDbNameForUser = (email: string | null): string =>
+  email ? `dojoexam_${sanitizeEmail(email)}.db` : ANONYMOUS_DB;
+
+/**
+ * Get the current active database name (for debugging).
+ */
+export const getCurrentDbName = (): string => currentDbName;
 
 /**
  * Get or create the SQLite database instance
@@ -12,7 +38,7 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
     return db;
   }
 
-  db = await SQLite.openDatabaseAsync('dojoexam.db');
+  db = await SQLite.openDatabaseAsync(currentDbName);
   return db;
 };
 
@@ -185,4 +211,223 @@ export const resetDatabase = async (): Promise<void> => {
   `);
 
   await initializeDatabase();
+};
+
+// ─── Per-user database partitioning ─────────────────────────────────────────
+
+/**
+ * Exported user data structure for migration between databases.
+ * Includes all user-scoped tables; excludes Question and SyncMeta (shared content).
+ */
+export interface UserDataExport {
+  examAttempts: any[];
+  examAnswers: any[];
+  examSubmissions: any[];
+  practiceSessions: any[];
+  practiceAnswers: any[];
+  userStats: any | null;
+}
+
+/**
+ * Export all user-scoped data from the current database.
+ * Used to migrate anonymous data to a user-specific database on first login.
+ */
+export const exportUserData = async (): Promise<UserDataExport> => {
+  const database = await getDatabase();
+
+  const examAttempts = await database.getAllAsync('SELECT * FROM ExamAttempt');
+  const examAnswers = await database.getAllAsync('SELECT * FROM ExamAnswer');
+  const examSubmissions = await database.getAllAsync('SELECT * FROM ExamSubmission');
+  const practiceSessions = await database.getAllAsync('SELECT * FROM PracticeSession');
+  const practiceAnswers = await database.getAllAsync('SELECT * FROM PracticeAnswer');
+  const userStats = await database.getFirstAsync('SELECT * FROM UserStats WHERE id = 1');
+
+  return {
+    examAttempts,
+    examAnswers,
+    examSubmissions,
+    practiceSessions,
+    practiceAnswers,
+    userStats,
+  };
+};
+
+/**
+ * Import user-scoped data into the current database.
+ * Uses INSERT OR IGNORE to avoid duplicating records that already exist.
+ */
+export const importUserData = async (data: UserDataExport): Promise<void> => {
+  const database = await getDatabase();
+
+  // Import ExamAttempts
+  for (const row of data.examAttempts) {
+    await database.runAsync(
+      `INSERT OR IGNORE INTO ExamAttempt (id, startedAt, completedAt, status, score, passed, totalQuestions, remainingTimeMs, expiresAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [row.id, row.startedAt, row.completedAt, row.status, row.score, row.passed, row.totalQuestions, row.remainingTimeMs, row.expiresAt],
+    );
+  }
+
+  // Import ExamAnswers
+  for (const row of data.examAnswers) {
+    await database.runAsync(
+      `INSERT OR IGNORE INTO ExamAnswer (id, examAttemptId, questionId, selectedAnswers, isCorrect, isFlagged, orderIndex, answeredAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [row.id, row.examAttemptId, row.questionId, row.selectedAnswers, row.isCorrect, row.isFlagged, row.orderIndex, row.answeredAt],
+    );
+  }
+
+  // Import ExamSubmissions
+  for (const row of data.examSubmissions) {
+    await database.runAsync(
+      `INSERT OR IGNORE INTO ExamSubmission (id, userId, examTypeId, score, passed, duration, submittedAt, createdAt, syncStatus, syncRetries, syncedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [row.id, row.userId, row.examTypeId, row.score, row.passed, row.duration, row.submittedAt, row.createdAt, row.syncStatus, row.syncRetries, row.syncedAt],
+    );
+  }
+
+  // Import PracticeSessions
+  for (const row of data.practiceSessions) {
+    await database.runAsync(
+      `INSERT OR IGNORE INTO PracticeSession (id, startedAt, completedAt, domain, difficulty, questionsCount, correctCount)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [row.id, row.startedAt, row.completedAt, row.domain, row.difficulty, row.questionsCount, row.correctCount],
+    );
+  }
+
+  // Import PracticeAnswers
+  for (const row of data.practiceAnswers) {
+    await database.runAsync(
+      `INSERT OR IGNORE INTO PracticeAnswer (id, sessionId, questionId, selectedAnswers, isCorrect, answeredAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [row.id, row.sessionId, row.questionId, row.selectedAnswers, row.isCorrect, row.answeredAt],
+    );
+  }
+
+  // Merge UserStats (add to existing rather than overwrite)
+  if (data.userStats) {
+    await database.runAsync(
+      `UPDATE UserStats SET
+        totalExams = totalExams + ?,
+        totalPractice = totalPractice + ?,
+        totalQuestions = totalQuestions + ?,
+        totalTimeSpentMs = totalTimeSpentMs + ?,
+        lastActivityAt = COALESCE(?, lastActivityAt)
+      WHERE id = 1`,
+      [
+        data.userStats.totalExams || 0,
+        data.userStats.totalPractice || 0,
+        data.userStats.totalQuestions || 0,
+        data.userStats.totalTimeSpentMs || 0,
+        data.userStats.lastActivityAt,
+      ],
+    );
+  }
+};
+
+/**
+ * Clear all user-scoped data from the current database.
+ * Keeps Question table and SyncMeta (shared content) intact.
+ */
+export const clearUserData = async (): Promise<void> => {
+  const database = await getDatabase();
+  await database.execAsync(`
+    DELETE FROM PracticeAnswer;
+    DELETE FROM PracticeSession;
+    DELETE FROM ExamAnswer;
+    DELETE FROM ExamSubmission;
+    DELETE FROM ExamAttempt;
+    UPDATE UserStats SET totalExams = 0, totalPractice = 0, totalQuestions = 0, totalTimeSpentMs = 0, lastActivityAt = NULL WHERE id = 1;
+  `);
+};
+
+/**
+ * Check if the current database has any user-scoped data.
+ */
+export const hasUserData = async (): Promise<boolean> => {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ total: number }>(`
+    SELECT (
+      (SELECT COUNT(*) FROM ExamAttempt) +
+      (SELECT COUNT(*) FROM ExamSubmission) +
+      (SELECT COUNT(*) FROM PracticeSession)
+    ) AS total
+  `);
+  return (row?.total ?? 0) > 0;
+};
+
+/**
+ * Switch to a user-specific database (or back to anonymous).
+ *
+ * This is the core of per-user data isolation:
+ * - Each email gets its own SQLite file (e.g. dojoexam_user_gmail_com.db)
+ * - Questions and SyncMeta are copied from the source DB on first switch
+ * - Schema is auto-initialized on the target DB
+ *
+ * @param email - User email to switch to, or null for anonymous
+ */
+export const switchUserDatabase = async (email: string | null): Promise<void> => {
+  const targetDbName = getDbNameForUser(email);
+
+  // Already on the correct database
+  if (targetDbName === currentDbName && db) {
+    console.log(`[Database] Already on database: ${currentDbName}`);
+    return;
+  }
+
+  console.log(`[Database] Switching database: ${currentDbName} → ${targetDbName}`);
+
+  // Capture questions and sync metadata from the current DB before closing
+  let questionsToCopy: any[] = [];
+  let syncMetaToCopy: any[] = [];
+  if (db) {
+    try {
+      questionsToCopy = await db.getAllAsync('SELECT * FROM Question');
+      syncMetaToCopy = await db.getAllAsync('SELECT * FROM SyncMeta');
+    } catch {
+      // Source DB might not have tables yet
+    }
+  }
+
+  // Close current database
+  await closeDatabase();
+
+  // Switch to target
+  currentDbName = targetDbName;
+
+  // Initialize schema on the new database
+  await initializeDatabase();
+
+  // Copy questions if the new database is empty
+  const database = await getDatabase();
+  const questionCount = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM Question',
+  );
+
+  if ((!questionCount || questionCount.count === 0) && questionsToCopy.length > 0) {
+    console.log(`[Database] Copying ${questionsToCopy.length} questions to ${targetDbName}`);
+    for (const q of questionsToCopy) {
+      await database.runAsync(
+        `INSERT OR IGNORE INTO Question (id, text, type, domain, difficulty, options, correctAnswers, explanation, version, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [q.id, q.text, q.type, q.domain, q.difficulty, q.options, q.correctAnswers, q.explanation, q.version, q.createdAt, q.updatedAt],
+      );
+    }
+  }
+
+  // Copy SyncMeta if the new database is empty (so question sync knows its version)
+  const syncMetaCount = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM SyncMeta',
+  );
+  if ((!syncMetaCount || syncMetaCount.count === 0) && syncMetaToCopy.length > 0) {
+    console.log(`[Database] Copying SyncMeta to ${targetDbName}`);
+    for (const row of syncMetaToCopy) {
+      await database.runAsync(
+        'INSERT OR IGNORE INTO SyncMeta (key, value, updatedAt) VALUES (?, ?, ?)',
+        [row.key, row.value, row.updatedAt],
+      );
+    }
+  }
+
+  console.log(`[Database] Switched to database: ${targetDbName}`);
 };

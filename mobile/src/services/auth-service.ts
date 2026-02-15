@@ -17,11 +17,13 @@ import { TokenStorage } from '../storage/token-storage';
 import { useAuthStore } from '../stores/auth-store';
 import { useExamAttemptStore } from '../stores/exam-attempt.store';
 import { useExamStore } from '../stores/exam.store';
-import { deleteAllExamSubmissions } from '../storage/repositories/exam-submission.repository';
-import { deleteAllPracticeSessions } from '../storage/repositories/practice-session.repository';
-import { deleteAllPracticeAnswers } from '../storage/repositories/practice-answer.repository';
-import { resetUserStats } from '../storage/repositories/user-stats.repository';
-import { getDatabase } from '../storage/database';
+import {
+  switchUserDatabase,
+  exportUserData,
+  importUserData,
+  clearUserData,
+  hasUserData,
+} from '../storage/database';
 
 // Complete any pending auth sessions (required for web-based OAuth)
 WebBrowser.maybeCompleteAuthSession();
@@ -196,92 +198,111 @@ export async function handleGoogleAuthSuccess(
     const googleUser = await fetchGoogleUserInfo(googleAccessToken);
 
     // Send tokens to backend for verification + JWT issuance
-    const backendResponse = await api.post('/auth/google/callback', {
-      accessToken: googleAccessToken,
-      idToken: googleIdToken,
-    });
+    let backendUser: { id: string; email: string; name?: string } | null = null;
+    let jwtAccessToken = '';
+    let jwtRefreshToken = '';
 
-    const { accessToken, refreshToken, user } = backendResponse.data;
+    try {
+      const backendResponse = await api.post('/auth/google/callback', {
+        accessToken: googleAccessToken,
+        idToken: googleIdToken,
+      });
+      backendUser = backendResponse.data.user;
+      jwtAccessToken = backendResponse.data.accessToken;
+      jwtRefreshToken = backendResponse.data.refreshToken;
+    } catch (err) {
+      console.warn('[Auth] Backend verification failed (offline fallback):', err);
+    }
 
-    // Save JWT tokens locally
-    await TokenStorage.saveTokens(accessToken, refreshToken);
+    // Determine the user identity
+    const user = backendUser
+      ? { ...backendUser, name: backendUser.name || googleUser?.name }
+      : googleUser
+        ? { id: 'local', email: googleUser.email, name: googleUser.name }
+        : null;
+
+    if (!user) {
+      useAuthStore.setState({ isLoading: false, error: 'Sign-in failed' });
+      throw new Error('Could not determine user identity');
+    }
+
+    // ── Per-user database switch ──
+    // 1. Export anonymous progress (exams, practice, stats) before switching
+    const anonymousData = await exportUserData();
+    const hasAnonymousData =
+      anonymousData.examAttempts.length > 0 ||
+      anonymousData.examSubmissions.length > 0 ||
+      anonymousData.practiceSessions.length > 0;
+
+    // 2. Switch to user's personal database (creates it if first login)
+    await switchUserDatabase(user.email);
+
+    // 3. If anonymous session had data, merge it into user's database
+    if (hasAnonymousData) {
+      console.log('[Auth] Migrating anonymous progress to user database...');
+      await importUserData(anonymousData);
+
+      // 4. Clear anonymous DB so the next user gets a clean slate
+      await switchUserDatabase(null); // switch to anonymous
+      await clearUserData();
+      await switchUserDatabase(user.email); // switch back to user
+      console.log('[Auth] Anonymous data migrated and cleared');
+    }
+
+    // 5. Reset in-memory stores so they reload from the new database
+    useExamStore.getState().resetExamState();
+    // Re-initialize exam attempt store from new DB
+    await useExamAttemptStore.getState().initialize();
+
+    // Save JWT tokens locally (if backend succeeded)
+    if (jwtAccessToken) {
+      await TokenStorage.saveTokens(jwtAccessToken, jwtRefreshToken);
+    }
 
     // Update auth store with user info
     useAuthStore.setState({
       isSignedIn: true,
-      user: {
-        ...user,
-        name: user.name || googleUser?.name,
-      },
-      accessToken,
+      user,
+      accessToken: jwtAccessToken || googleAccessToken,
       isLoading: false,
     });
 
-    return { accessToken, refreshToken, user };
+    return {
+      accessToken: jwtAccessToken || googleAccessToken,
+      refreshToken: jwtRefreshToken,
+      user,
+    };
   } catch (error) {
-    console.error('[Auth] Sign-in backend verification failed:', error);
-
-    // Offline fallback: store Google user info locally even if backend fails
-    const googleUser = await fetchGoogleUserInfo(googleAccessToken);
-    if (googleUser) {
-      useAuthStore.setState({
-        isSignedIn: true,
-        user: {
-          id: 'local',
-          email: googleUser.email,
-          name: googleUser.name,
-        },
-        accessToken: googleAccessToken,
-        isLoading: false,
-      });
-      return {
-        accessToken: googleAccessToken,
-        refreshToken: '',
-        user: { id: 'local', email: googleUser.email, name: googleUser.name },
-      };
-    }
-
+    console.error('[Auth] Sign-in failed:', error);
     useAuthStore.setState({ isLoading: false, error: 'Sign-in failed' });
     throw error;
   }
 }
 
 /**
- * Sign out and clear all tokens, auth state, and user-specific local data.
+ * Sign out and switch back to the anonymous database.
  *
- * This is critical for multi-account isolation: when User A logs out and
- * User B logs in, User B must NOT see User A's exam history, stats, or
- * in-progress sessions. We clear all user-scoped data from SQLite and
- * reset in-memory Zustand stores.
+ * The user's data is NOT deleted — it stays in their personal database file
+ * (e.g. dojoexam_user_gmail_com.db). When they log back in, they'll be
+ * switched back to that database and see all their data.
+ *
+ * The anonymous database is a clean slate after sign-out.
  */
 export async function signOut(): Promise<void> {
   try {
-    console.log('[Auth] Signing out — clearing all user data...');
+    console.log('[Auth] Signing out — switching to anonymous database...');
 
     // 1. Clear JWT tokens
     await TokenStorage.clearTokens();
 
-    // 2. Clear all exam-related SQLite tables
-    //    ExamAttempt + ExamAnswer (CASCADE) — in-progress and completed exams
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM ExamAnswer');
-    await db.runAsync('DELETE FROM ExamAttempt');
+    // 2. Switch back to anonymous database (preserves user's data in their DB file)
+    await switchUserDatabase(null);
 
-    //    ExamSubmission — historical submissions with sync tracking
-    await deleteAllExamSubmissions();
-
-    //    PracticeSession + PracticeAnswer — practice mode history
-    await deleteAllPracticeAnswers();
-    await deleteAllPracticeSessions();
-
-    //    UserStats — aggregate stats (exams taken, time spent, etc.)
-    await resetUserStats();
-
-    // 3. Reset in-memory Zustand stores
+    // 3. Reset in-memory Zustand stores (so UI reflects clean state)
     useExamStore.getState().resetExamState();
-    await useExamAttemptStore.getState().clearAll();
+    await useExamAttemptStore.getState().initialize(); // reload from anonymous DB
 
-    // 4. Clear auth store (last, so UI reacts after data is gone)
+    // 4. Clear auth store (last, so UI reacts after data switch is complete)
     useAuthStore.setState({
       isSignedIn: false,
       user: null,
@@ -289,10 +310,10 @@ export async function signOut(): Promise<void> {
       error: null,
     });
 
-    console.log('[Auth] Sign-out complete — all user data cleared');
+    console.log('[Auth] Sign-out complete — switched to anonymous database');
   } catch (error) {
     console.error('[Auth] Sign-out failed:', error);
-    // Still clear auth state even if data cleanup partially fails
+    // Still clear auth state even if database switch partially fails
     useAuthStore.setState({
       isSignedIn: false,
       user: null,

@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, Alert, AppState, AppStateStatus } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
-import { initializeDatabase } from './src/storage/database';
+import { initializeDatabase, switchUserDatabase } from './src/storage/database';
 import { performFullSync } from './src/services/sync.service';
 import { initPersistence, stopPersistence } from './src/services/persistence.service';
 import { getTotalQuestionCount } from './src/storage/repositories/question.repository';
 import { initializeGoogleSignIn } from './src/services/auth-service';
 import { TokenRefreshService } from './src/services/token-refresh-service';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { useAuthStore } from './src/stores/auth-store';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -50,6 +51,13 @@ export default function App() {
         setSyncStatus('Setting up database...');
         await initializeDatabase();
         console.warn('[App] Database initialized');
+
+        // If user was signed in (persisted in AsyncStorage), switch to their database
+        const authState = useAuthStore.getState();
+        if (authState.isSignedIn && authState.user?.email) {
+          console.warn(`[App] Restoring user database for ${authState.user.email}`);
+          await switchUserDatabase(authState.user.email);
+        }
 
         // Check if we already have cached questions
         const existingCount = await getTotalQuestionCount();
