@@ -304,48 +304,32 @@ export const HomeScreen: React.FC = () => {
               <Cloud size={16} color={colors.textHeading} strokeWidth={2.5} />
             </View>
             <View>
-              <Text style={styles.appTitle}>Dojo Exam</Text>
+              <View style={styles.headerTitleRow}>
+                <Text style={styles.appTitle}>Dojo Exam</Text>
+                <Text style={styles.headerBadge}>CLF-C02</Text>
+              </View>
               <Text style={styles.brandSubtitle}>by Tutorials Dojo</Text>
             </View>
           </View>
-          <Text style={styles.headerBadge}>CLF-C02</Text>
-        </View>
-
-        {/* ── Auth Info Section ── */}
-        {!isSignedIn && (
-          <TouchableOpacity style={styles.authSection} onPress={() => navigation.navigate('Auth')}>
-            <View style={styles.userInfo}>
-              <View style={[styles.userAvatar, { backgroundColor: colors.primaryOrange }]}>
-                <User size={16} color="#fff" strokeWidth={2} />
-              </View>
-              <View style={styles.userDetails}>
-                <Text style={styles.userName}>Sign in with Google</Text>
-                <Text style={styles.userEmail}>Sync exam results across devices</Text>
-              </View>
-            </View>
-            <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
-          </TouchableOpacity>
-        )}
-        {isSignedIn && user && (
           <TouchableOpacity
-            style={styles.authSection}
-            activeOpacity={0.7}
             onPress={() => navigation.navigate('Auth')}
+            activeOpacity={0.7}
+            style={styles.headerProfileBtn}
           >
-            <View style={styles.userInfo}>
-              <View style={styles.userAvatar}>
-                <Text style={styles.userAvatarText}>
-                  {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0)}
+            {isSignedIn && user ? (
+              <View style={styles.headerAvatar}>
+                <Text style={styles.headerAvatarText}>
+                  {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
                 </Text>
               </View>
-              <View style={styles.userDetails}>
-                <Text style={styles.userName}>{user.name || 'Signed In'}</Text>
-                <Text style={styles.userEmail}>{user.email}</Text>
+            ) : (
+              <View style={[styles.headerAvatar, styles.headerAvatarGuest]}>
+                <User size={16} color={colors.textMuted} strokeWidth={2} />
               </View>
-            </View>
-            <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
+            )}
+            {isSignedIn && <View style={styles.onlineDot} />}
           </TouchableOpacity>
-        )}
+        </View>
 
         {/* ── Inline Stats Strip ── */}
         <View style={styles.statsStrip}>
@@ -796,50 +780,43 @@ const styles = StyleSheet.create({
   actionTitle: { fontSize: 13, fontWeight: '600', color: colors.textHeading },
   actionSub: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
 
-  // Auth Section
-  authSection: {
+  // Header Profile
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-    borderWidth: 1,
+    gap: 8,
+  },
+  headerProfileBtn: {
+    position: 'relative',
+  },
+  headerAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primaryOrange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarGuest: {
+    backgroundColor: colors.surfaceHover,
+    borderWidth: 1.5,
     borderColor: colors.borderDefault,
   },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryOrange,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  userAvatarText: {
-    fontSize: 16,
+  headerAvatarText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.textHeading,
+    color: '#fff',
   },
-  userDetails: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textHeading,
-  },
-  userEmail: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
+  onlineDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.success,
+    borderWidth: 2.5,
+    borderColor: colors.background,
   },
 });
 

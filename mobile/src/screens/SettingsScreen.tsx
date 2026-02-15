@@ -153,14 +153,20 @@ export const SettingsScreen: React.FC = () => {
             <View style={styles.accountRow}>
               {isSignedIn && user ? (
                 <>
-                  <View style={styles.accountAvatar}>
-                    <Text style={styles.accountAvatarText}>
-                      {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                    </Text>
+                  <View style={styles.accountAvatarWrap}>
+                    <View style={styles.accountAvatar}>
+                      <Text style={styles.accountAvatarText}>
+                        {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.connectedDot} />
                   </View>
                   <View style={styles.accountInfo}>
                     <Text style={styles.accountName}>{user.name || 'Signed In'}</Text>
                     <Text style={styles.accountEmail}>{user.email}</Text>
+                  </View>
+                  <View style={styles.connectedBadge}>
+                    <Text style={styles.connectedText}>Connected</Text>
                   </View>
                 </>
               ) : (
@@ -397,6 +403,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 12,
   },
+  accountAvatarWrap: {
+    position: 'relative',
+  },
   accountAvatar: {
     width: 42,
     height: 42,
@@ -422,5 +431,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  connectedDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.success,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  connectedBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginRight: 4,
+  },
+  connectedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.success,
   },
 });
