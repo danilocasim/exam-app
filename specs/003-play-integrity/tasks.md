@@ -27,7 +27,9 @@
 | **Phase 3** | | | | |
 | Integration & Testing | T181-T188 | 8 | 📋 Ready | 6 hrs |
 | Polish | T189-T190 | 2 | 📋 Ready | 2 hrs |
-| **Total** | **T151–T190** | **40** | **📋 READY** | **~30 hrs (1-2 devs, 3 weeks)** |
+| **Phase 4** | | | | |
+| AWS Production Deployment | T191-T205 | 15 | 📋 Ready | 8 hrs |
+| **Total** | **T151–T205** | **55** | **📋 READY** | **~38 hrs (1-2 devs, 4 weeks)** |
 
 ---
 
@@ -184,6 +186,41 @@
 
 ---
 
+## Phase 8: AWS Production Deployment (Infrastructure & Database)
+
+**Purpose**: Deploy backend API to AWS App Runner with Aurora PostgreSQL database for production
+
+### AWS Infrastructure Tasks
+
+- [ ] T191 Create AWS Aurora PostgreSQL Serverless v2 cluster in VPC (database name: `exam_app_prod`, instance class: db.serverless, min capacity: 0.5 ACU, max capacity: 2 ACU)
+- [ ] T192 [P] Configure Aurora cluster security group to allow inbound PostgreSQL (port 5432) from App Runner VPC connector
+- [ ] T193 Create AWS Secrets Manager secret for database credentials: `exam-app/prod/database` with fields: `host`, `port`, `username`, `password`, `database`
+- [ ] T194 [P] Create AWS Systems Manager Parameter Store entries for non-sensitive config: `/exam-app/prod/jwt-secret`, `/exam-app/prod/google-client-id`, `/exam-app/prod/google-client-secret`, `/exam-app/prod/play-integrity-credentials`
+- [ ] T195 Create VPC Connector for App Runner to access Aurora in private subnets (attach to exam-app VPC, select private subnets with Aurora)
+
+### Database Migration & Setup Tasks
+
+- [ ] T196 Update api/prisma/schema.prisma datasource to support `DATABASE_URL` environment variable from AWS Secrets Manager
+- [ ] T197 Create api/scripts/migrate-production.sh script: pull credentials from AWS Secrets Manager, run `npx prisma migrate deploy` to apply all migrations to Aurora
+- [ ] T198 [P] Create api/scripts/seed-production.sh script: run `npx prisma db seed` to populate initial exam types and seed questions (configure for production environment)
+- [ ] T199 Test database connection from local environment using temporary Aurora public access (verify Prisma can connect, run migrations, seed data)
+
+### App Runner Deployment Tasks
+
+- [ ] T200 Create api/apprunner.yaml configuration file: specify Node.js 20 runtime, build command `npm ci && npm run build`, start command `npm run start:prod`, port 3000, environment variables from Secrets Manager and Parameter Store
+- [ ] T201 [P] Create AWS App Runner service via AWS Console or Terraform: source from GitHub `003-play-integrity` branch, automatic deployments on push, instance configuration (CPU: 1 vCPU, Memory: 2 GB), attach VPC Connector from T195
+- [ ] T202 Configure App Runner environment variables: `NODE_ENV=production`, `DATABASE_URL` (from Secrets Manager secret ARN), `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PLAY_INTEGRITY_CREDENTIALS` (from Parameter Store)
+- [ ] T203 [P] Configure App Runner health check: HTTP GET `/health` endpoint (create api/src/health/health.controller.ts if not exists), unhealthy threshold: 3, healthy threshold: 2, interval: 30s, timeout: 5s
+
+### CI/CD & Monitoring Tasks
+
+- [ ] T204 Update mobile/src/services/api.config.ts: add production API URL (App Runner service URL from T201, e.g., `https://xyz.us-east-1.awsapprunner.com`), environment-based URL selection (`__DEV__` → localhost, production → App Runner)
+- [ ] T205 Create specs/003-play-integrity/deployment-guide.md: document AWS infrastructure setup, database migration steps, App Runner deployment process, environment variable configuration, rollback procedure, monitoring dashboard links (CloudWatch logs, Aurora metrics)
+
+**Checkpoint**: Backend API deployed to AWS App Runner, Aurora PostgreSQL operational, mobile app configured with production API URL
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -197,6 +234,7 @@
   - US4 (Reinstall, P2): Depends on US1 (cache logic already implemented)
 - **Integration (Phase 7)**: Depends on all user stories
 - **Polish (Phase 7)**: Final cleanup
+- **AWS Deployment (Phase 8)**: Depends on Integration & Polish (all tests passing, code production-ready)
 
 ### Parallel Opportunities
 
@@ -211,6 +249,10 @@
 - T178-T180: US4 sequential, depends on US1 cache implementation
 
 **Sprint 4 (Testing)**: T181-T190 mostly parallelizable ([P] marked for independent test files)
+
+**Sprint 5 (AWS Deployment)**: T191-T205 sequential AWS infrastructure setup
+- T192, T194, T198, T201, T203 can be [P] after their dependencies complete
+- AWS infrastructure (T191-T195) must complete before App Runner deployment (T200-T203)
 
 ### Recommended Execution (2 Developers)
 
@@ -228,6 +270,11 @@
 - Dev A: T181-T184, T187-T188 (Mobile E2E tests)
 - Dev B: T178-T180, T185-T186 (US4, backend tests, performance)
 - Final: T189-T190 (Polish, docs, review)
+
+**Week 4**:
+- DevOps/Dev A: T191-T195 (AWS infrastructure: Aurora, Secrets Manager, VPC Connector)
+- Dev B: T196-T199 (Database migration scripts, seed scripts, connection testing)
+- Final: T200-T205 (App Runner deployment, health checks, mobile API config, deployment docs)
 
 ---
 

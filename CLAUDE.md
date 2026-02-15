@@ -6,6 +6,7 @@ Auto-generated from all feature plans. Last updated: 2026-02-12
 
 - **Mobile**: TypeScript 5.x, React Native 0.73+, Expo SDK 50+, React Navigation 6.x, expo-sqlite, expo-auth-session, Zustand, NativeWind, Axios
 - **Backend**: TypeScript 5.x, NestJS, Fastify, Prisma ORM, PostgreSQL 15+
+- **Production Infrastructure**: AWS App Runner (backend hosting), AWS Aurora PostgreSQL Serverless v2 (database), AWS Secrets Manager (credentials), AWS Systems Manager Parameter Store (configuration)
 - **Admin Portal**: React SPA (served by NestJS)
 - **Testing**: Jest, React Native Testing Library, Detox (mobile), Supertest (API)
 
@@ -102,13 +103,18 @@ POST /admin/questions                     # Create question (requires examTypeId
   - Deliverables: 5 test files, phase2-testing-guide.md, README.md with architecture diagrams
   - Testing: 3 integration tests (T144-T146), 2 unit tests (T147-T148), performance benchmarks, manual test guide
   - All tasks completed and merged into 003-play-integrity branch
-- **Phase 3** (003-play-integrity): Play Integrity Guard - 📋 Ready for Implementation (40 tasks T151-T190)
+- **Phase 3** (003-play-integrity): Play Integrity Guard - 📋 Ready for Implementation (55 tasks T151-T205)
   - User Stories: US1-4 (Play Store verification, sideload blocking, dev bypass, reinstall reset)
-  - Functional Requirements: FR-001 to FR-016 (verification, caching, error handling)
-  - Success Criteria: SC-001 to SC-008 (100% blocking, <5s first launch, offline post-verify, dev bypass)
-  - Scope: One-time app integrity check on first launch, 30-day cache TTL, full offline after verification
+  - Functional Requirements: FR-001 to FR-025 (verification, caching, error handling, AWS production deployment)
+  - Success Criteria: SC-001 to SC-013 (100% blocking, <5s first launch, offline post-verify, dev bypass, AWS deployment)
+  - Scope: One-time app integrity check on first launch, 30-day cache TTL, full offline after verification, production deployment to AWS
   - Dependencies: Phase 2 complete (authentication, cloud sync infrastructure in place)
   - Blocks sideloaded/re-signed APKs while preserving offline functionality and dev iteration
+  - **Phase 3.8: AWS Production Deployment** (T191-T205):
+    - Infrastructure: Aurora PostgreSQL Serverless v2, AWS App Runner, VPC with private subnets
+    - Secrets: AWS Secrets Manager (database credentials), Parameter Store (configuration)
+    - Database: Migration scripts, seed scripts, production connection testing
+    - Deployment: Health checks, environment-based API URLs, deployment documentation
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

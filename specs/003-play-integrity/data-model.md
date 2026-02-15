@@ -312,3 +312,58 @@ App Start
 - **Mobile Role**: Client fetches verdict, verifies locally, stores cache in SQLite, blocks/allows access.
 
 This keeps integrity logic isolated from the multi-tenant exam management system and preserves offline-first architecture.
+
+---
+
+## Production Database Configuration (AWS Aurora)
+
+### Environment-Based Connection
+
+The backend API uses environment variables for database connection configuration:
+
+```typescript
+// api/prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// DATABASE_URL format (loaded from AWS Secrets Manager):
+// postgresql://username:password@aurora-cluster-endpoint:5432/exam_app_prod?schema=public
+```
+
+### AWS Secrets Manager Structure
+
+**Secret Name**: `exam-app/prod/database`
+
+```json
+{
+  "host": "exam-app-aurora-cluster.cluster-xyz123.us-east-1.rds.amazonaws.com",
+  "port": "5432",
+  "username": "exam_app_admin",
+  "password": "randomly-generated-password",
+  "database": "exam_app_prod"
+}
+```
+
+### AWS Systems Manager Parameter Store (Non-Sensitive Configuration)
+
+- `/exam-app/prod/jwt-secret`: JWT signing secret for authentication tokens
+- `/exam-app/prod/google-client-id`: Google OAuth client ID
+- `/exam-app/prod/google-client-secret`: Google OAuth client secret
+- `/exam-app/prod/play-integrity-credentials`: Google Play Integrity API credentials (JSON)
+
+### Database Initialization for Production
+
+1. **Migration Deployment**: `npx prisma migrate deploy` (applies all pending migrations)
+2. **Seed Data**: `npx prisma db seed` (populates initial exam types and questions)
+3. **Connection Validation**: Health check queries `SELECT 1` to verify connectivity
+
+### Aurora Serverless v2 Configuration
+
+- **Min Capacity**: 0.5 ACU (Aurora Capacity Units)
+- **Max Capacity**: 2 ACU
+- **Scaling**: Automatic based on database load
+- **VPC**: Private subnets only (no public internet access)
+- **Access**: App Runner VPC Connector provides secure connection
+- **Backups**: Automated backups with 1-day retention (configurable)

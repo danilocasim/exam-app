@@ -14,12 +14,28 @@ import {
   RequestLoggerMiddleware,
   RateLimitMiddleware,
 } from './common/middleware';
+import {
+  appConfig,
+  databaseConfig,
+  jwtConfig,
+  corsConfig,
+  authConfig,
+  playIntegrityConfig,
+} from './config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
+      load: [
+        appConfig,
+        databaseConfig,
+        jwtConfig,
+        corsConfig,
+        authConfig,
+        playIntegrityConfig,
+      ],
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'admin-portal', 'dist'),

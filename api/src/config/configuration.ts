@@ -20,6 +20,13 @@ export const corsConfig = registerAs('cors', () => ({
   origin: process.env.CORS_ORIGIN?.split(',') || ['*'],
 }));
 
+export const authConfig = registerAs('auth', () => ({
+  googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID || '',
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  jwtAccessSecret: process.env.JWT_ACCESS_SECRET || 'change-me-in-production',
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'change-me-in-production',
+}));
+
 export const playIntegrityConfig = registerAs('playIntegrity', () => ({
   googleCloudProjectNumber: process.env.GOOGLE_CLOUD_PROJECT_NUMBER || '',
   googleServiceAccountKeyPath:

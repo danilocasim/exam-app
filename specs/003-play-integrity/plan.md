@@ -6,15 +6,18 @@
 
 ## Summary
 
-Play Integrity Guard adds one-time device verification on first app launch using Google's Play Integrity API. Verification runs concurrently with app initialization, caches result locally for 30 days, and blocks sideloaded/tampered builds on Android. Development builds bypass verification automatically. Backend provides stateless token decryption proxy only; enforcement is entirely client-side.
+Play Integrity Guard adds one-time device verification on first app launch using Google's Play Integrity API. Verification runs concurrently with app initialization, caches result locally for 30 days, and blocks sideloaded/tampered builds on Android. Development builds bypass verification automatically. Backend provides stateless token decryption proxy only; enforcement is entirely client-side. Production deployment uses AWS App Runner for backend hosting and AWS Aurora PostgreSQL Serverless v2 for the database.
 
 **Building on Phase 2**: This feature leverages the authentication infrastructure from Phase 2 (JWT tokens, API endpoints, mobile services architecture) and extends it with Play Integrity verification. The offline-first design from Phase 1-2 is preserved—after initial verification, the app runs fully offline.
+
+**Implementation Scope**: 55 tasks (T151-T205) covering mobile + backend implementation, integration testing, and AWS production deployment infrastructure.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x (all components)  
 **Primary Dependencies**: @react-native-google-signin/google-signin ^10.0.0 (existing from Phase 2, supports Play Integrity token requests), expo-sqlite (existing), Google Play Console API credentials  
-**Storage**: SQLite via expo-sqlite (mobile local verification cache), none (backend stateless)  
+**Storage**: SQLite via expo-sqlite (mobile local verification cache), AWS Aurora PostgreSQL Serverless v2 (production backend database)  
+**Production Infrastructure**: AWS App Runner (backend hosting), AWS Secrets Manager (credentials), AWS Systems Manager Parameter Store (configuration), VPC with private subnets (database security)  
 **Testing**: Jest (mobile), Supertest (API), Detox (mobile E2E)  
 **Target Platform**: Android 10+ Play Store distributed apps  
 **Project Type**: mobile + api (Extends existing: Mobile app + Backend API)  
@@ -212,7 +215,13 @@ api/
 - T179: Quickstart guide & local setup documentation
 - T180: Code review checklist & PR templates
 
-**Total Dev-Hours**: ~30 hours (can be split 1–2 developers over 2–3 weeks)
+**Sprint 4: AWS Production Deployment** (T191–T205, ~8 dev-hours)
+- T191-T195: AWS infrastructure setup (Aurora PostgreSQL Serverless v2, Secrets Manager, VPC Connector)
+- T196-T199: Database migration and seed scripts for production
+- T200-T203: AWS App Runner service configuration and deployment
+- T204-T205: Mobile API configuration for production and deployment documentation
+
+**Total Dev-Hours**: ~38 hours (can be split 1–2 developers over 4 weeks)
 
 ---
 
@@ -324,22 +333,46 @@ api/
 
 ## Deployment Strategy
 
-### Phase 3a: Staging Deployment
+### Phase 3a: Staging Deployment (Local/Dev Environment)
 1. Merge `003-play-integrity` into staging branch
-2. Deploy backend to staging environment
+2. Test locally with development database (PostgreSQL via Docker or local install)
 3. Obtain Google Play Console service account credentials
-4. Configure staging API env variables
+4. Configure local API env variables (.env.local)
 5. Internal testing: sideload APK to device, verify blocking works
 6. Performance testing: measure launch time impact
 
-### Phase 3b: Production Deployment
-1. Merge to main branch
-2. Deploy backend API (zero downtime; stateless endpoint)
-3. Update mobile app AAB (released to Google Play)
-4. Monitor Play Store metrics: crash rates, user feedback
+### Phase 3b: AWS Production Deployment (Sprint 4)
+1. **Infrastructure Setup** (T191-T195):
+   - Create AWS Aurora PostgreSQL Serverless v2 cluster in VPC
+   - Configure security groups for Aurora (inbound from App Runner VPC Connector)
+   - Store database credentials in AWS Secrets Manager
+   - Store non-sensitive config in AWS Systems Manager Parameter Store
+   - Create VPC Connector for App Runner to access private Aurora
+
+2. **Database Migration** (T196-T199):
+   - Update Prisma schema to use DATABASE_URL from Secrets Manager
+   - Create production migration script (scripts/migrate-production.sh)
+   - Create production seed script (scripts/seed-production.sh)
+   - Test database connection from local using temporary public access
+
+3. **App Runner Deployment** (T200-T203):
+   - Create apprunner.yaml configuration (Node.js 20, build + start commands)
+   - Deploy App Runner service from GitHub 003-play-integrity branch
+   - Configure environment variables (DATABASE_URL, JWT_SECRET, Google OAuth, Play Integrity credentials)
+   - Set up health checks (GET /health endpoint)
+
+4. **Mobile Configuration** (T204):
+   - Update mobile API config with App Runner service URL
+   - Environment-based URL selection (__DEV__ → localhost, production → App Runner)
+
+5. **Documentation & Monitoring** (T205):
+   - Create deployment-guide.md with infrastructure setup, migration steps, rollback procedures
+   - Monitor CloudWatch logs and Aurora metrics
+   - Monitor Play Store metrics: crash rates, user feedback
 
 ### Rollback Plan
-- **Backend**: Endpoint removal is non-breaking (no upstream dependency on /api/integrity/verify; mobile can handle 404 gracefully)
+- **Backend**: App Runner supports instant rollback to previous revision (zero downtime)
+- **Database**: Aurora automated backups (1-day retention); manual snapshots before migrations
 - **Mobile**: If blocking persists after fix, user must uninstall + reinstall from Play Store (re-verification clears block)
 
 ---
@@ -351,7 +384,8 @@ api/
 | Sprint 1: Mobile Foundation | 1 week (12 hrs) | Phase 0 research complete |
 | Sprint 2: Backend & API | 1 week (8 hrs) | Sprint 1 mobile service signatures locked |
 | Sprint 3: Integration & Testing | 1 week (10 hrs) | Sprint 2 backend endpoint operational |
-| **Total** | **3 weeks** | **~30 dev-hours (1–2 developers)** |
+| Sprint 4: AWS Production Deployment | 1 week (8 hrs) | Sprint 3 all tests passing |
+| **Total** | **4 weeks** | **~38 dev-hours (1–2 developers)** |
 
 ---
 
@@ -361,7 +395,7 @@ When ready to proceed, run:
 
 ```bash
 cd /Users/danilo/repos/exam-app
-speckit tasks  # Generates tasks.md (T151–T180) with detailed checklist
+speckit tasks  # Generates tasks.md (T151–T205) with detailed checklist
 ```
 
-This plan is **implementation-ready**. All research complete, all models defined, all constraints documented.
+This plan is **implementation-ready**. All research complete, all models defined, all constraints documented, AWS production deployment architecture finalized.

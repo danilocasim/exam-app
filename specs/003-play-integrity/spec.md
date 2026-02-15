@@ -154,6 +154,18 @@ As the app developer, I want the integrity verification to reset when the app is
 - **FR-015**: When integrity verification fails definitively (UNLICENSED, UNRECOGNIZED_VERSION, or device integrity failure), the system MUST display the blocking message from FR-004 with NO retry button.
 - **FR-016**: The integrity verification MUST run concurrently with other app initialization tasks (database setup, questions cache loading, etc.) using Promise.all() execution model to minimize perceived launch delay.
 
+#### AWS Production Deployment
+
+- **FR-017**: The backend API MUST be deployed to AWS App Runner with automatic scaling (min 1 instance, max 10 instances) and continuous deployment from the GitHub repository.
+- **FR-018**: The production database MUST use AWS Aurora PostgreSQL Serverless v2 (min capacity: 0.5 ACU, max capacity: 2 ACU) with automatic backups enabled (1-day retention minimum).
+- **FR-019**: Database credentials (host, port, username, password, database name) MUST be stored in AWS Secrets Manager and accessed via environment variables at runtime. No credentials MUST be committed to source code.
+- **FR-020**: Non-sensitive configuration (JWT secret, Google OAuth client ID/secret, Play Integrity credentials) MUST be stored in AWS Systems Manager Parameter Store and loaded as environment variables.
+- **FR-021**: The App Runner service MUST be deployed in a VPC with a VPC Connector that allows access to Aurora in private subnets (no public internet access to database).
+- **FR-022**: The backend API MUST expose a health check endpoint (GET /health) that returns HTTP 200 when the service is operational and can connect to the database.
+- **FR-023**: The mobile app MUST use environment-based API URL configuration: development mode (`__DEV__` true) connects to localhost, production builds connect to the AWS App Runner service URL.
+- **FR-024**: Database migrations MUST be applied via `npx prisma migrate deploy` before deploying new App Runner revisions to ensure schema compatibility.
+- **FR-025**: Production deployment documentation MUST include: infrastructure setup steps, database migration procedures, environment variable configuration, rollback procedures, and monitoring dashboard links.
+
 ### Key Entities
 
 - **IntegrityStatus**: Represents the cached result of the Play Integrity verification. Stored in app-private local storage (SQLite or AsyncStorage). Attributes:
@@ -179,6 +191,11 @@ As the app developer, I want the integrity verification to reset when the app is
 - **SC-006**: Development builds (`__DEV__` mode) launch without any blocking or integrity prompts 100% of the time.
 - **SC-007**: Reinstalling the app clears the verification cache and requires a fresh integrity check.
 - **SC-008**: When Play Integrity API is unavailable on first launch, the user can retry verification without restarting the app.
+- **SC-009**: The backend API deploys successfully to AWS App Runner and passes health checks within 5 minutes of deployment.
+- **SC-010**: The Aurora PostgreSQL database accepts connections from the App Runner service through the VPC Connector with <100ms latency (P95).
+- **SC-011**: All Prisma migrations apply successfully to the production Aurora database without errors.
+- **SC-012**: The mobile app successfully connects to the production API (App Runner URL) and all endpoints respond with valid data.
+- **SC-013**: Database credentials and sensitive configuration are never exposed in logs, source code, or error messages.
 
 ## Assumptions
 
@@ -192,6 +209,11 @@ As the app developer, I want the integrity verification to reset when the app is
 - Rooted devices that pass Play Integrity's basic device integrity check are acceptable (no MEETS_STRONG_INTEGRITY requirement).
 - First-time internet requirement is acceptable since users download the app from Play Store (which requires internet).
 - The mobile app is exam-type specific (e.g., AWS CCP) with a hardcoded `EXAM_TYPE_ID`, so Play Integrity is per-exam-app, not multi-app.
+- **AWS Infrastructure**: The production backend will be deployed to AWS App Runner with Aurora PostgreSQL Serverless v2 in a VPC with private subnets. AWS services (Secrets Manager, Systems Manager Parameter Store, CloudWatch) are available in the target AWS region (default: us-east-1).
+- **Database**: Aurora PostgreSQL is compatible with Prisma ORM and all existing migrations. The database will use standard PostgreSQL wire protocol (port 5432) for connections.
+- **Secrets Management**: AWS Secrets Manager and Systems Manager Parameter Store are used for credential and configuration management. IAM roles for App Runner provide secure access without hardcoded keys.
+- **Continuous Deployment**: GitHub integration with App Runner enables automatic deployments on push to the `003-play-integrity` branch. Build and deployment succeed within 5-10 minutes.
+- **Cost**: Aurora Serverless v2 with 0.5-2 ACU and App Runner with 1 vCPU/2GB instance configuration stay within acceptable budget limits for a small-scale production deployment.
 
 ## Out of Scope
 
@@ -206,3 +228,13 @@ As the app developer, I want the integrity verification to reset when the app is
 - Admin portal changes or new endpoints for integrity management
 - Multi-app integrity coordination
 - Integrity API key/credential storage guidance (assumes Google Play Console service account configuration)
+- **AWS Infrastructure (Out of Scope)**:
+  - Multi-region deployment or global load balancing (single region: us-east-1)
+  - Custom domain and SSL certificate management (uses default App Runner domain)
+  - Advanced monitoring and alerting (CloudWatch dashboards not configured; basic logs only)
+  - Auto-scaling policies beyond App Runner defaults (uses default scaling: min 1, max 10 instances)
+  - Database read replicas or multi-AZ deployments (Aurora Serverless v2 handles availability automatically)
+  - Infrastructure-as-Code (Terraform/CloudFormation) for automated provisioning (manual AWS Console setup accepted)
+  - CI/CD pipelines for automated testing and deployment (manual deployment via GitHub integration accepted)
+  - Blue-green or canary deployment strategies (App Runner instant deployment with rollback capability)
+  - Cost optimization or reserved capacity planning (pay-as-you-go billing accepted)

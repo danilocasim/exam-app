@@ -129,7 +129,8 @@ export const useIsVerified = () => usePlayIntegrityStore((state) => state.verifi
 /**
  * Check if blocking screen should be shown
  */
-export const useShowBlockingScreen = () => usePlayIntegrityStore((state) => state.showBlockingScreen);
+export const useShowBlockingScreen = () =>
+  usePlayIntegrityStore((state) => state.showBlockingScreen);
 
 /**
  * Get current verification status
