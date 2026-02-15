@@ -15,6 +15,13 @@ import { API_CONFIG } from '../config';
 import { api } from './api';
 import { TokenStorage } from '../storage/token-storage';
 import { useAuthStore } from '../stores/auth-store';
+import { useExamAttemptStore } from '../stores/exam-attempt.store';
+import { useExamStore } from '../stores/exam.store';
+import { deleteAllExamSubmissions } from '../storage/repositories/exam-submission.repository';
+import { deleteAllPracticeSessions } from '../storage/repositories/practice-session.repository';
+import { deleteAllPracticeAnswers } from '../storage/repositories/practice-answer.repository';
+import { resetUserStats } from '../storage/repositories/user-stats.repository';
+import { getDatabase } from '../storage/database';
 
 // Complete any pending auth sessions (required for web-based OAuth)
 WebBrowser.maybeCompleteAuthSession();
@@ -240,20 +247,57 @@ export async function handleGoogleAuthSuccess(
 }
 
 /**
- * Sign out and clear all tokens and auth state.
+ * Sign out and clear all tokens, auth state, and user-specific local data.
+ *
+ * This is critical for multi-account isolation: when User A logs out and
+ * User B logs in, User B must NOT see User A's exam history, stats, or
+ * in-progress sessions. We clear all user-scoped data from SQLite and
+ * reset in-memory Zustand stores.
  */
 export async function signOut(): Promise<void> {
   try {
-    // Clear tokens and auth state
+    console.log('[Auth] Signing out — clearing all user data...');
+
+    // 1. Clear JWT tokens
     await TokenStorage.clearTokens();
 
+    // 2. Clear all exam-related SQLite tables
+    //    ExamAttempt + ExamAnswer (CASCADE) — in-progress and completed exams
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM ExamAnswer');
+    await db.runAsync('DELETE FROM ExamAttempt');
+
+    //    ExamSubmission — historical submissions with sync tracking
+    await deleteAllExamSubmissions();
+
+    //    PracticeSession + PracticeAnswer — practice mode history
+    await deleteAllPracticeAnswers();
+    await deleteAllPracticeSessions();
+
+    //    UserStats — aggregate stats (exams taken, time spent, etc.)
+    await resetUserStats();
+
+    // 3. Reset in-memory Zustand stores
+    useExamStore.getState().resetExamState();
+    await useExamAttemptStore.getState().clearAll();
+
+    // 4. Clear auth store (last, so UI reacts after data is gone)
+    useAuthStore.setState({
+      isSignedIn: false,
+      user: null,
+      accessToken: null,
+      error: null,
+    });
+
+    console.log('[Auth] Sign-out complete — all user data cleared');
+  } catch (error) {
+    console.error('[Auth] Sign-out failed:', error);
+    // Still clear auth state even if data cleanup partially fails
     useAuthStore.setState({
       isSignedIn: false,
       user: null,
       accessToken: null,
     });
-  } catch (error) {
-    console.error('[Auth] Sign-out failed:', error);
     throw error;
   }
 }
