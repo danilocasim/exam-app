@@ -83,6 +83,9 @@ GET /exam-types/{examTypeId}              # Get exam config (domains, passing sc
 GET /exam-types/{examTypeId}/questions    # Get questions filtered by exam type
 GET /exam-types/{examTypeId}/questions/version  # Check for updates
 
+# Integrity Verification (mobile app)
+POST /api/integrity/verify                # Decrypt Play Integrity token (client-side enforcement)
+
 # Admin (portal)
 GET /admin/exam-types                     # List all exam types
 GET /admin/questions?examTypeId=...       # List questions filtered by exam type
@@ -98,6 +101,12 @@ POST /admin/questions                     # Create question (requires examTypeId
   - Task breakdown: Backend Auth (8) + Persistence (8) + Mobile Integration (15) + Testing (8)
   - Timeline: 4 weeks with 2 developers in parallel, ~58 dev-hours
   - All design documents updated: research.md, data-model.md, contracts/api.yaml, plan.md, tasks.md
+- **Phase 3** (003-play-integrity): Play Integrity Guard - 📋 Draft Spec (TBD tasks)
+  - User Stories: US1-4 (Play Store verification, sideload blocking, dev bypass, reinstall reset)
+  - Functional Requirements: FR-001 to FR-016 (verification, caching, error handling)
+  - Success Criteria: SC-001 to SC-008 (100% blocking, <5s first launch, offline post-verify, dev bypass)
+  - Scope: One-time app integrity check on first launch, 30-day cache TTL, full offline after verification
+  - Blocks sideloaded/re-signed APKs while preserving offline functionality and dev iteration
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
