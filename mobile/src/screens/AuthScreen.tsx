@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +32,7 @@ import {
   CheckCircle2,
   Mail,
 } from 'lucide-react-native';
+import { Image } from 'react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../stores/auth-store';
 import { useGoogleAuthRequest, handleGoogleAuthSuccess, signOut } from '../services/auth-service';
@@ -129,11 +131,15 @@ export function AuthScreen(): React.ReactElement {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           {/* Profile Card */}
           <View style={styles.profileCard}>
-            <View style={styles.avatarLarge}>
-              <Text style={styles.avatarLargeText}>
-                {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            {user.picture ? (
+              <Image source={{ uri: user.picture }} style={styles.avatarLargeImg} />
+            ) : (
+              <View style={styles.avatarLarge}>
+                <Text style={styles.avatarLargeText}>
+                  {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <Text style={styles.profileName}>{user.name || 'Signed In'}</Text>
             <Text style={styles.profileEmail}>{user.email}</Text>
             <View style={styles.statusBadge}>
@@ -569,6 +575,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 14,
+  },
+  avatarLargeImg: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     marginBottom: 14,
   },
   avatarLargeText: {

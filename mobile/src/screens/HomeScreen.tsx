@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -317,11 +318,15 @@ export const HomeScreen: React.FC = () => {
             style={styles.headerProfileBtn}
           >
             {isSignedIn && user ? (
-              <View style={styles.headerAvatar}>
-                <Text style={styles.headerAvatarText}>
-                  {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              user.picture ? (
+                <Image source={{ uri: user.picture }} style={styles.headerAvatarImg} />
+              ) : (
+                <View style={styles.headerAvatar}>
+                  <Text style={styles.headerAvatarText}>
+                    {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )
             ) : (
               <View style={[styles.headerAvatar, styles.headerAvatarGuest]}>
                 <User size={16} color={colors.textMuted} strokeWidth={2} />
@@ -796,6 +801,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerAvatarImg: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   headerAvatarGuest: {
     backgroundColor: colors.surfaceHover,

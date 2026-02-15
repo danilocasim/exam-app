@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -154,11 +155,15 @@ export const SettingsScreen: React.FC = () => {
               {isSignedIn && user ? (
                 <>
                   <View style={styles.accountAvatarWrap}>
-                    <View style={styles.accountAvatar}>
-                      <Text style={styles.accountAvatarText}>
-                        {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
+                    {user.picture ? (
+                      <Image source={{ uri: user.picture }} style={styles.accountAvatarImg} />
+                    ) : (
+                      <View style={styles.accountAvatar}>
+                        <Text style={styles.accountAvatarText}>
+                          {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.connectedDot} />
                   </View>
                   <View style={styles.accountInfo}>
@@ -413,6 +418,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  accountAvatarImg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
   },
   accountAvatarText: {
     fontSize: 17,

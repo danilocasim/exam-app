@@ -216,9 +216,9 @@ export async function handleGoogleAuthSuccess(
 
     // Determine the user identity
     const user = backendUser
-      ? { ...backendUser, name: backendUser.name || googleUser?.name }
+      ? { ...backendUser, name: backendUser.name || googleUser?.name, picture: googleUser?.photo ?? undefined }
       : googleUser
-        ? { id: 'local', email: googleUser.email, name: googleUser.name }
+        ? { id: 'local', email: googleUser.email, name: googleUser.name, picture: googleUser.photo ?? undefined }
         : null;
 
     if (!user) {
