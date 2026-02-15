@@ -13,7 +13,7 @@ Play Integrity Guard adds one-time device verification on first app launch using
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x (all components)  
-**Primary Dependencies**: @react-native-google-signin/google-signin (extends existing), expo-sqlite (existing), Google Play Console API credentials  
+**Primary Dependencies**: @react-native-google-signin/google-signin ^10.0.0 (existing from Phase 2, supports Play Integrity token requests), expo-sqlite (existing), Google Play Console API credentials  
 **Storage**: SQLite via expo-sqlite (mobile local verification cache), none (backend stateless)  
 **Testing**: Jest (mobile), Supertest (API), Detox (mobile E2E)  
 **Target Platform**: Android 10+ Play Store distributed apps  
@@ -174,9 +174,9 @@ api/
 
 ### Implementation Scope
 
-**Total Estimated Tasks**: ~30 tasks (T151–T180) across 3 sprints
+**Total Estimated Tasks**: 40 tasks (T151–T190) across 3 phases
 
-**Sprint 1: Mobile Foundation** (T151–T160, ~12 dev-hours)
+**Phase 1: Setup & Foundational** (T151–T163, ~6 dev-hours)
 - T151: Create `play-integrity.service.ts` (token request, verdict parsing)
 - T152: Create `play-integrity.store.ts` (Zustand store for integrity state)
 - T153: Create `IntegrityBlockedScreen.tsx` (blocking UI, Play Store link button)

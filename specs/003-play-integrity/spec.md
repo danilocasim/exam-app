@@ -136,7 +136,7 @@ As the app developer, I want the integrity verification to reset when the app is
 
 - **FR-007**: On subsequent launches, if `integrity_verified == true` exists in local storage, the system MUST skip the integrity check entirely.
 - **FR-008**: After successful verification, the app MUST function fully offline with no network dependency on any future launch.
-- **FR-009**: The system MUST NOT perform background re-checks or revalidation while the app is running. On cold start, if the cached verification is older than 30 days, the system MUST re-verify (requiring a one-time network connection). If re-verification fails with a transient error, the system MUST allow the user to retry while keeping cached access enabled. If re-verification fails with a definitive failure, the system MUST block access per FR-004.
+- **FR-009**: The system MUST NOT perform background re-checks or revalidation while the app is running. On cold start, if the cached verification is older than 30 days (2592000 seconds from verified_at timestamp), the system MUST re-verify (requiring a one-time network connection). If re-verification fails with a transient error, the system MUST allow the user to retry while keeping cached access enabled. If re-verification fails with a definitive failure, the system MUST block access per FR-004.
 
 #### Reinstallation Behavior
 
@@ -150,9 +150,9 @@ As the app developer, I want the integrity verification to reset when the app is
 #### Error Handling & Messaging
 
 - **FR-013**: When the device has no internet on first launch, the system MUST display: "Please connect to the internet for first-time setup. A one-time connection is required." with a retry button.
-- **FR-014**: When the Play Integrity API is temporarily unavailable (5xx error, timeout, or UNEVALUATED verdict), the system MUST display: "Unable to verify your installation. Please check your internet connection and try again." with a retry button.
+- **FR-014**: When the Play Integrity API is temporarily unavailable (5xx error, timeout, or UNEVALUATED verdict), the system MUST display: "Unable to verify your installation. Please check your internet connection and try again." with a retry button. Retry attempts have no maximum limit; user can retry indefinitely with a 2-second delay between attempts.
 - **FR-015**: When integrity verification fails definitively (UNLICENSED, UNRECOGNIZED_VERSION, or device integrity failure), the system MUST display the blocking message from FR-004 with NO retry button.
-- **FR-016**: The integrity verification MUST run concurrently with other app initialization tasks (database setup, questions cache loading, etc.) to minimize perceived launch delay.
+- **FR-016**: The integrity verification MUST run concurrently with other app initialization tasks (database setup, questions cache loading, etc.) using Promise.all() execution model to minimize perceived launch delay.
 
 ### Key Entities
 
@@ -173,8 +173,8 @@ As the app developer, I want the integrity verification to reset when the app is
 
 - **SC-001**: A sideloaded APK (installed via `adb install`) is blocked on launch 100% of the time on devices with Google Play Services.
 - **SC-002**: A re-signed or tampered APK is blocked on launch 100% of the time.
-- **SC-003**: App launch time with integrity check (first launch) does not exceed 5 seconds on supported devices with stable internet.
-- **SC-004**: App launch time on subsequent launches (cached verification) remains within the existing 3-second target—no regression.
+- **SC-003**: App launch time with integrity check (first launch) does not exceed 5 seconds (P95 latency measured over 10 runs) on supported devices with stable internet.
+- **SC-004**: App launch time on subsequent launches (cached verification) remains within the existing 3-second target (P95 latency)—no regression.
 - **SC-005**: After successful first-launch verification, the app functions fully offline on all subsequent launches (zero network dependency on exam functionality).
 - **SC-006**: Development builds (`__DEV__` mode) launch without any blocking or integrity prompts 100% of the time.
 - **SC-007**: Reinstalling the app clears the verification cache and requires a fresh integrity check.
