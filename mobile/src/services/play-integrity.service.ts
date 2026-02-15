@@ -62,8 +62,16 @@ export interface IntegrityVerifyResponse {
  * @returns IntegrityCheckResult with verified status and optional error
  */
 export const checkIntegrity = async (): Promise<IntegrityCheckResult> => {
+  // T157: Development mode bypass (FR-011, FR-012)
+  if (__DEV__) {
+    console.log('[PlayIntegrity] Bypassed in development mode');
+    return {
+      verified: true,
+      cachedResult: true,
+    };
+  }
+
   // TODO (T166): Implement full integrity check flow
-  // - Check __DEV__ bypass (T157)
   // - Check cache validity (T167)
   // - Request token (requestToken)
   // - Verify with backend

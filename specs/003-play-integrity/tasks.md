@@ -67,10 +67,10 @@
 
 ### Mobile Foundational Tasks
 
-- [ ] T154 [P] Implement IntegrityStatusRepository in mobile/src/storage/repositories/integrity.repository.ts with methods: `getStatus()`, `saveStatus()`, `clearStatus()`, `checkCacheTTL()`
-- [ ] T155 Update mobile/src/storage/database.ts to initialize IntegrityStatus table on app startup in `initializeDatabase()` function
-- [ ] T156 [P] Create mobile/src/components/IntegrityBlockedScreen.tsx (full-screen blocking UI, "Get from Play Store" button, no navigation access)
-- [ ] T157 [P] Implement `__DEV__` bypass check in mobile/src/services/play-integrity.service.ts with console log: `[PlayIntegrity] Bypassed in development mode`
+- [x] T154 [P] Implement IntegrityStatusRepository in mobile/src/storage/repositories/integrity.repository.ts with methods: `getStatus()`, `saveStatus()`, `clearStatus()`, `checkCacheTTL()`
+- [x] T155 Update mobile/src/storage/database.ts to initialize IntegrityStatus table on app startup in `initializeDatabase()` function
+- [x] T156 [P] Create mobile/src/components/IntegrityBlockedScreen.tsx (full-screen blocking UI, "Get from Play Store" button, no navigation access)
+- [x] T157 [P] Implement `__DEV__` bypass check in mobile/src/services/play-integrity.service.ts with console log: `[PlayIntegrity] Bypassed in development mode`
 
 ### Backend Foundational Tasks
 
