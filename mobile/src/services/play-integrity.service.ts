@@ -68,6 +68,7 @@ export interface IntegrityVerifyResponse {
  * @returns IntegrityCheckResult with verified status and optional error
  */
 export const checkIntegrity = async (): Promise<IntegrityCheckResult> => {
+
   // T174/T175: Development mode bypass (FR-011, FR-012)
   if (__DEV__) {
     console.warn('[PlayIntegrity] Bypassed in development mode');
@@ -76,6 +77,9 @@ export const checkIntegrity = async (): Promise<IntegrityCheckResult> => {
       cachedResult: true,
     };
   }
+
+  // Extra logging for network and backend diagnostics
+  console.log('[PlayIntegrity] Starting integrity check (not __DEV__)');
 
   // T176: Cache check logging
   console.log('[PlayIntegrity] Checking cached integrity status...');
@@ -102,6 +106,7 @@ export const checkIntegrity = async (): Promise<IntegrityCheckResult> => {
 
   const isOnline = await checkConnectivity();
   if (!isOnline) {
+    console.error('[PlayIntegrity] Device is offline. Cannot verify integrity.');
     return {
       verified: false,
       error: {
@@ -109,12 +114,16 @@ export const checkIntegrity = async (): Promise<IntegrityCheckResult> => {
         message: 'Please connect to the internet for first-time verification.',
       },
     };
+  } else {
+    console.log('[PlayIntegrity] Device is online. Proceeding with token request.');
   }
 
   let token: string;
   try {
     token = await requestToken();
-  } catch {
+    console.log('[PlayIntegrity] Token successfully requested. Length:', token?.length);
+  } catch (err) {
+    console.error('[PlayIntegrity] Error requesting token:', err);
     return {
       verified: false,
       error: {
@@ -130,7 +139,9 @@ export const checkIntegrity = async (): Promise<IntegrityCheckResult> => {
       INTEGRITY_VERIFY_ENDPOINT,
       { token },
     );
-  } catch {
+    console.log('[PlayIntegrity] Backend verification response:', response);
+  } catch (err) {
+    console.error('[PlayIntegrity] Error posting token to backend:', err);
     return {
       verified: false,
       error: {
