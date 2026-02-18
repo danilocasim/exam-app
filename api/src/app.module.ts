@@ -4,6 +4,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma';
 import { ExamTypesModule } from './exam-types';
 import { AdminModule } from './admin';
@@ -53,7 +54,7 @@ import {
     SyncModule,
     IntegrityModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
