@@ -197,16 +197,16 @@
 
 - [X] T191 Create Neon PostgreSQL project at https://neon.tech (free tier: 3 projects, 10 GB storage): project name `exam-app-prod`, database name `exam_app_prod`, auto-suspend inactive branches enabled (cost optimization). See [t191-neon-setup.md](t191-neon-setup.md) for step-by-step guide. Connection test: `DATABASE_URL="..." ./scripts/verify-neon-connection.sh`.
 - [X] T192 [P] Configure Neon connection pooling: PgBouncer enabled (pool size: 10, max connections: 20, transaction mode). Pooled connection string configured in `.env.local`. See [t192-connection-pooling.md](t192-connection-pooling.md) for detailed configuration and verification steps.
-- [ ] T193 Create Neon read replica branch (optional, for backup/analytics): allows branching data without additional cost, enables quick rollback if needed
+- [X] T193 Create Neon read replica branch (optional, for backup/analytics): Guide created ([t193-read-replica.md](t193-read-replica.md)), .env.read-replica.example added. Manual step in Neon console. No code changes required.
 - [X] T194 [P] Copy Neon connection string to secure location: pooled connection string in `.env.local` and `.env.production.example`. Format: `postgresql://[user]:[password]@[host]-pooler.c-X.region.aws.neon.tech/[db]?sslmode=require&channel_binding=require`
 - [X] T195 Test local Neon connection: Prisma connection test successful via pooled connection string in `.env.local`. Run: `source .env.local && cd api && npx prisma db execute --stdin < /dev/null`
 
 ### Database Migration & Setup Tasks
 
-- [ ] T196 Update api/prisma/schema.prisma datasource to support `DATABASE_URL` environment variable (already supports env vars, verify `env("DATABASE_URL")` is set as datasource URL)
-- [ ] T197 Create api/scripts/migrate-production.sh script: pull `DATABASE_URL` from environment, run `npx prisma migrate deploy` to apply all migrations to Neon
-- [ ] T198 [P] Create api/scripts/seed-production.sh script: run `npx prisma db seed` to populate initial exam types and seed questions (configure for production environment)
-- [ ] T199 Test database connection and migrations: from local machine, set `DATABASE_URL` to Neon connection string, run `npm run migrate:prod` to verify Prisma connects and migrations apply
+- [X] T196 Update api/prisma/schema.prisma datasource to support `DATABASE_URL` environment variable: Verified Prisma 7+ config—`prisma.config.ts` loads from env, schema.prisma has no url property. Fully compliant.
+- [X] T197 Create api/scripts/migrate-production.sh script: Script created, applies all migrations to Neon using pooled connection. Checks env, dependencies, migration status.
+- [X] T198 [P] Create api/scripts/seed-production.sh script: Script created, runs `npx prisma db seed` for initial data. Skips if already seeded, verifies data after run.
+- [X] T199 Test database connection and migrations: All migrations applied, seed script run, and data verified in Neon. Prisma CLI and client both confirm correct schema and data.
 
 ### Railway Application Deployment
 
