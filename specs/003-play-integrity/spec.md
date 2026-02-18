@@ -150,21 +150,27 @@ As the app developer, I want the integrity verification to reset when the app is
 #### Error Handling & Messaging
 
 - **FR-013**: When the device has no internet on first launch, the system MUST display: "Please connect to the internet for first-time setup. A one-time connection is required." with a retry button.
-- **FR-014**: When the Play Integrity API is temporarily unavailable (5xx error, timeout, or UNEVALUATED verdict), the system MUST display: "Unable to verify your installation. Please check your internet connection and try again." with a retry button. Retry attempts have no maximum limit; user can retry indefinitely with a 2-second delay between attempts.
+- **FR-014**: When the Play Integrity API is temporarily unavailable (5xx error, timeout, or UNEVALUATED verdict), the system MUST:
+  1. Display a retry-friendly dialog: "Unable to verify your installation. Please check your internet connection and try again."
+  2. Show a "Retry" button that re-invokes the integrity check without closing the app
+  3. Show a "Continue Offline" button (if cached verification exists and is not expired) that grants temporary app access
+  4. If no cached verification exists, show "Retry" button only—do not allow offline access on first launch
+  5. Implement exponential backoff for automatic retries: 2s, 4s, 8s, 16s between attempts (max 5 automatic retries before showing manual retry button)
+  6. Do not permanently block access during transient failures; allow user to retry indefinitely
 - **FR-015**: When integrity verification fails definitively (UNLICENSED, UNRECOGNIZED_VERSION, or device integrity failure), the system MUST display the blocking message from FR-004 with NO retry button.
 - **FR-016**: The integrity verification MUST run concurrently with other app initialization tasks (database setup, questions cache loading, etc.) using Promise.all() execution model to minimize perceived launch delay.
 
-#### AWS Production Deployment
+#### Production Deployment (Railway + Neon)
 
-- **FR-017**: The backend API MUST be deployed to AWS App Runner with automatic scaling (min 1 instance, max 10 instances) and continuous deployment from the GitHub repository.
-- **FR-018**: The production database MUST use AWS Aurora PostgreSQL Serverless v2 (min capacity: 0.5 ACU, max capacity: 2 ACU) with automatic backups enabled (1-day retention minimum).
-- **FR-019**: Database credentials (host, port, username, password, database name) MUST be stored in AWS Secrets Manager and accessed via environment variables at runtime. No credentials MUST be committed to source code.
-- **FR-020**: Non-sensitive configuration (JWT secret, Google OAuth client ID/secret, Play Integrity credentials) MUST be stored in AWS Systems Manager Parameter Store and loaded as environment variables.
-- **FR-021**: The App Runner service MUST be deployed in a VPC with a VPC Connector that allows access to Aurora in private subnets (no public internet access to database).
-- **FR-022**: The backend API MUST expose a health check endpoint (GET /health) that returns HTTP 200 when the service is operational and can connect to the database.
-- **FR-023**: The mobile app MUST use environment-based API URL configuration: development mode (`__DEV__` true) connects to localhost, production builds connect to the AWS App Runner service URL.
-- **FR-024**: Database migrations MUST be applied via `npx prisma migrate deploy` before deploying new App Runner revisions to ensure schema compatibility.
-- **FR-025**: Production deployment documentation MUST include: infrastructure setup steps, database migration procedures, environment variable configuration, rollback procedures, and monitoring dashboard links.
+- **FR-017**: The backend API MUST be deployed to Railway with automatic continuous deployment from the GitHub repository (`003-play-integrity` branch). Railway auto-detects Node.js projects and manages scaling automatically.
+- **FR-018**: The production database MUST use Neon PostgreSQL serverless with connection pooling enabled (PgBouncer, default 10-20 max connections) and auto-suspend enabled for cost optimization. Automatic backups retained for 7 days (free tier default).
+- **FR-019**: Database credentials (connection string with host, port, username, password, database name) MUST be provided via Railway environment variables (DATABASE_URL). No credentials MUST be committed to source code.
+- **FR-020**: Non-sensitive configuration (JWT secret, Google OAuth client ID/secret, Play Integrity credentials) MUST be configured as Railway environment variables and accessed at runtime. Railway dashboard provides secure configuration UI.
+- **FR-021**: The Neon PostgreSQL connection string includes SSL requirement (sslmode=require) for transit security. No manual VPC setup required—Neon provides built-in connection pooling and Railway manages networking automatically.
+- **FR-022**: The backend API MUST expose a health check endpoint (GET /health) that returns HTTP 200 with JSON status when the service is operational and can connect to the database. Railway auto-detects health endpoints.
+- **FR-023**: The mobile app MUST use environment-based API URL configuration: development mode (`__DEV__` true) connects to localhost, production builds connect to the Railway service URL (auto-generated: `https://api-[hash].railway.app`).
+- **FR-024**: Database migrations MUST be applied via `npx prisma migrate deploy` before deploying new Railway revisions to ensure schema compatibility. Can be automated in Dockerfile or run manually before deployment.
+- **FR-025**: Production deployment documentation MUST include: Neon PostgreSQL setup steps (project creation, connection string, pooling config), Railway deployment process (GitHub integration, environment variables), database migration procedures, rollback procedures (Railway instant rollback, Neon branch management), and monitoring (Railway logs dashboard, Neon metrics dashboard).
 
 ### Key Entities
 
@@ -179,6 +185,22 @@ As the app developer, I want the integrity verification to reset when the app is
   - `deviceRecognitionVerdict`: Device attestation result (MEETS_DEVICE_INTEGRITY, MEETS_STRONG_INTEGRITY, or UNKNOWN)
   - Not persisted—only used to extract pass/fail decision
 
+## Terminology Glossary
+
+This glossary standardizes terminology used throughout the specification to ensure consistency and prevent miscommunication:
+
+- **Integrity Verification** (primary term): The complete process of requesting, receiving, and validating the Play Integrity verdict. Synonym: "integrity check."
+- **Integrity Verdict**: The decrypted response from Google's Play Integrity API containing app recognition, licensing, and device integrity verdicts.
+- **Verify/Validation** (vs. other usage): Confirming that the integrity verdict meets the acceptance criteria (all three checks PASS). Synonym: "extract verdict" (determining the pass/fail result).
+- **Caching**: Storing the result of a successful integrity check in local device storage (`IntegrityStatus`) for 30 days to minimize repeated verification requests.
+- **Transient Failure/Error**: Temporary unavailability of the Play Integrity API (5xx, timeout, or UNEVALUATED verdict). Recovery: user retries manually or via automatic backoff.
+- **Definitive Failure/Error**: Permanent integrity failure (UNLICENSED, UNRECOGNIZED_VERSION, UNKNOWN device integrity). Recovery: None—app is blocked.
+- **Sideloaded APK**: App installation from outside Google Play Store (manually copied, alternative app store, or re-signed APK).
+- **Integrity Check Bypass** (for development): Special code path that skips Play Integrity verification during local/dev builds (`__DEV__ === true`).
+- **Cold Start**: App launch immediately after installation or after clearing app data/cache.
+- **Cache Hit**: App launch when cached verification exists and is within 30-day TTL.
+- **Cache Miss**: App launch when cached verification is expired or non-existent—requires fresh integrity check.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -191,8 +213,8 @@ As the app developer, I want the integrity verification to reset when the app is
 - **SC-006**: Development builds (`__DEV__` mode) launch without any blocking or integrity prompts 100% of the time.
 - **SC-007**: Reinstalling the app clears the verification cache and requires a fresh integrity check.
 - **SC-008**: When Play Integrity API is unavailable on first launch, the user can retry verification without restarting the app.
-- **SC-009**: The backend API deploys successfully to AWS App Runner and passes health checks within 5 minutes of deployment.
-- **SC-010**: The Aurora PostgreSQL database accepts connections from the App Runner service through the VPC Connector with <100ms latency (P95).
+- **SC-009**: The backend API service deploys successfully and accepts HTTP requests within 5 minutes of deployment, with health check endpoint returning 200 status. *(Current implementation: Railway with GitHub auto-deploy; see deployment-guide.md for platform-specific setup)*
+- **SC-010**: The PostgreSQL database accepts connections with <100ms query response latency (P95) for typical exam question lookups. *(Current implementation: Neon with connection pooling; see deployment-guide.md for connection optimization)*
 - **SC-011**: All Prisma migrations apply successfully to the production Aurora database without errors.
 - **SC-012**: The mobile app successfully connects to the production API (App Runner URL) and all endpoints respond with valid data.
 - **SC-013**: Database credentials and sensitive configuration are never exposed in logs, source code, or error messages.
@@ -209,11 +231,11 @@ As the app developer, I want the integrity verification to reset when the app is
 - Rooted devices that pass Play Integrity's basic device integrity check are acceptable (no MEETS_STRONG_INTEGRITY requirement).
 - First-time internet requirement is acceptable since users download the app from Play Store (which requires internet).
 - The mobile app is exam-type specific (e.g., AWS CCP) with a hardcoded `EXAM_TYPE_ID`, so Play Integrity is per-exam-app, not multi-app.
-- **AWS Infrastructure**: The production backend will be deployed to AWS App Runner with Aurora PostgreSQL Serverless v2 in a VPC with private subnets. AWS services (Secrets Manager, Systems Manager Parameter Store, CloudWatch) are available in the target AWS region (default: us-east-1).
-- **Database**: Aurora PostgreSQL is compatible with Prisma ORM and all existing migrations. The database will use standard PostgreSQL wire protocol (port 5432) for connections.
-- **Secrets Management**: AWS Secrets Manager and Systems Manager Parameter Store are used for credential and configuration management. IAM roles for App Runner provide secure access without hardcoded keys.
-- **Continuous Deployment**: GitHub integration with App Runner enables automatic deployments on push to the `003-play-integrity` branch. Build and deployment succeed within 5-10 minutes.
-- **Cost**: Aurora Serverless v2 with 0.5-2 ACU and App Runner with 1 vCPU/2GB instance configuration stay within acceptable budget limits for a small-scale production deployment.
+- **Production Infrastructure**: The production backend will be deployed to Railway with Neon PostgreSQL serverless database. Railway handles automatic scaling and container orchestration. Neon provides PostgreSQL with built-in connection pooling (PgBouncer).
+- **Database**: Neon PostgreSQL is fully compatible with Prisma ORM and all existing migrations. The database uses standard PostgreSQL wire protocol (port 5432) with SSL encryption (sslmode=require). Connection pooling is enabled by default.
+- **Configuration Management**: Railway environment variables dashboard provides secure configuration UI. No AWS Secrets Manager or Parameter Store needed; Railway stores and encrypts all environment variables server-side.
+- **Continuous Deployment**: GitHub integration with Railway enables automatic deployments on push to the `003-play-integrity` branch. Build and deployment succeed within 2-3 minutes. Railway automatically detects Node.js projects and creates Docker containers.
+- **Cost Optimization**: Free tier includes Neon (10GB storage, auto-suspend, free backups) and Railway (512MB RAM, 100GB bandwidth/month). Total cost: ~$0-20/month (vs. ~$200+/month for AWS). Upgrade only if exceeding free tier limits.
 
 ## Out of Scope
 
@@ -228,13 +250,11 @@ As the app developer, I want the integrity verification to reset when the app is
 - Admin portal changes or new endpoints for integrity management
 - Multi-app integrity coordination
 - Integrity API key/credential storage guidance (assumes Google Play Console service account configuration)
-- **AWS Infrastructure (Out of Scope)**:
-  - Multi-region deployment or global load balancing (single region: us-east-1)
-  - Custom domain and SSL certificate management (uses default App Runner domain)
-  - Advanced monitoring and alerting (CloudWatch dashboards not configured; basic logs only)
-  - Auto-scaling policies beyond App Runner defaults (uses default scaling: min 1, max 10 instances)
-  - Database read replicas or multi-AZ deployments (Aurora Serverless v2 handles availability automatically)
-  - Infrastructure-as-Code (Terraform/CloudFormation) for automated provisioning (manual AWS Console setup accepted)
-  - CI/CD pipelines for automated testing and deployment (manual deployment via GitHub integration accepted)
-  - Blue-green or canary deployment strategies (App Runner instant deployment with rollback capability)
-  - Cost optimization or reserved capacity planning (pay-as-you-go billing accepted)
+- **Deployment Infrastructure (Out of Scope)**:
+  - Multi-region deployment or global load balancing (single region deployment via Railway accepted)
+  - Custom domain and SSL certificate management (uses Railway-provided domain; custom domains out of scope)
+  - Advanced crash analytics and monitoring dashboards (Railway logs dashboard and Neon metrics dashboard only; Sentry/Datadog out of scope)
+  - Infrastructure-as-Code (Terraform/Infrastructure provisioning) for automated setup (manual setup via Railway/Neon dashboards accepted)
+  - Advanced CI/CD pipelines beyond GitHub integration (GitHub → Railway auto-deploy sufficient; GitLab CI/GitHub Actions workflows out of scope)
+  - Canary or blue-green deployment strategies (Railway instant rollback capability sufficient; complex strategies out of scope)
+  - Database read replicas or advanced clustering (Neon auto-suspend and single-database approach sufficient)

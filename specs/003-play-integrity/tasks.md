@@ -4,7 +4,7 @@
 **Prerequisites**:  
 - ✅ Phase 2 (002-cloudprep-mobile) Complete - Authentication, cloud sync, JWT infrastructure
 - ✅ Design: plan.md, spec.md, research.md, data-model.md, contracts/integrity-api.yaml  
-**Status**: 📋 **READY FOR IMPLEMENTATION (40 tasks, T151–T190)**
+**Status**: 📋 **READY FOR IMPLEMENTATION (40 tasks core T151–T205, +2 optional T189.5/T206)**
 
 **Phase 2 Integration Notes**:  
 - Uses existing mobile services architecture (Phase 2: ExamAttemptService, AuthService patterns)  
@@ -27,9 +27,11 @@
 | **Phase 3** | | | | |
 | Integration & Testing | T181-T188 | 8 | 📋 Ready | 6 hrs |
 | Polish | T189-T190 | 2 | 📋 Ready | 2 hrs |
-| **Phase 4** | | | | |
-| AWS Production Deployment | T191-T205 | 15 | 📋 Ready | 8 hrs |
-| **Total** | **T151–T205** | **55** | **📋 READY** | **~38 hrs (1-2 devs, 4 weeks)** |
+| **Phase 8** | | | | |
+| Railway + Neon Deployment | T191-T205 | 15 | 📋 Ready | 8 hrs |
+| **Phase 9 (Optional)** | | | | |
+| Post-Launch Validation | T189.5, T206 | 2 | 📋 Optional | 3 hrs |
+| **Total** | **T151–T205** + optional | **57** | **📋 READY** | **~38 hrs core (1-2 devs, 4 weeks)** |
 
 ---
 
@@ -168,56 +170,65 @@
 
 ### Integration Testing Tasks
 
-- [ ] T181 [P] Create mobile/__tests__/play-integrity.service.test.ts: Jest unit tests for verdict parsing, cache TTL logic, definitive vs. transient error distinction (mock Google API responses, SQLite queries)
-- [ ] T182 [P] Create mobile/__tests__/play-integrity.e2e.test.ts: Detox E2E test for first-launch happy path (mock API, verify app launches normally)
-- [ ] T183 [P] Create mobile/__tests__/integrity-blocking.e2e.test.ts: Detox E2E test for sideload blocking scenario (mock UNLICENSED verdict, verify blocking screen appears)
-- [ ] T184 [P] Create mobile/__tests__/integrity-cached-launch.e2e.test.ts: Detox E2E test for cached launch (no API call, verify fast load <1s, airplane mode works)
-- [ ] T185 Create api/test/integrity.e2e-spec.ts: Supertest E2E tests for POST /api/integrity/verify endpoint (mock Google API, test success and error responses)
-- [ ] T186 [P] Add performance benchmarks to mobile/__tests__/integrity-performance.test.ts: measure first-launch with API (target <5s), cached-launch (target <3s), cache-hit query time (<10ms)
-- [ ] T187 [P] Create mobile/__tests__/dev-bypass.e2e.test.ts: Detox test confirming `__DEV__ == true` bypasses all checks, app loads normally
-- [ ] T188 [US4] Create mobile/__tests__/reinstall-reset.integration.test.ts: Jest test for cache clearing lifecycle (mock uninstall, verify IntegrityStatus cleared)
+- [X] T181 [P] Create mobile/__tests__/play-integrity.service.test.ts: Jest unit tests for verdict parsing, cache TTL logic, definitive vs. transient error distinction (mock Google API responses, SQLite queries)
+- [X] T182 [P] Create mobile/__tests__/play-integrity.e2e.test.ts: Detox E2E test for first-launch happy path (mock API, verify app launches normally)
+- [X] T183 [P] Create mobile/__tests__/integrity-blocking.e2e.test.ts: Detox E2E test for sideload blocking scenario (mock UNLICENSED verdict, verify blocking screen appears)
+- [X] T184 [P] Create mobile/__tests__/integrity-cached-launch.e2e.test.ts: Detox E2E test for cached launch (no API call, verify fast load <1s, airplane mode works)
+- [X] T185 Create api/test/integrity.e2e-spec.ts: Supertest E2E tests for POST /api/integrity/verify endpoint (mock Google API, test success and error responses)
+- [X] T186 [P] Add performance benchmarks to mobile/__tests__/integrity-performance.test.ts: measure first-launch with API (target <5s), cached-launch (target <3s), cache-hit query time (<10ms)
+- [X] T187 [P] Create mobile/__tests__/dev-bypass.e2e.test.ts: Detox test confirming `__DEV__ == true` bypasses all checks, app loads normally
+- [X] T188 [US4] Create mobile/__tests__/reinstall-reset.integration.test.ts: Jest test for cache clearing lifecycle (mock uninstall, verify IntegrityStatus cleared)
 
 ### Polish & Documentation Tasks
 
-- [ ] T189 Update specs/003-play-integrity/quickstart.md with test execution instructions: `npm test` commands, E2E setup, performance baseline measurement
-- [ ] T190 Code review checklist: verify no console logs in production builds, no hardcoded credentials, Play Integrity error messages match spec, all edge cases handled (network, UNEVALUATED, rooted devices)
+- [X] T189 Update specs/003-play-integrity/quickstart.md with test execution instructions: `npm test` commands, E2E setup, performance baseline measurement
+- [X] T190 Code review checklist: verify no console logs in production builds, no hardcoded credentials, Play Integrity error messages match spec, all edge cases handled (network, UNEVALUATED, rooted devices)
+- [ ] **T189.5** (Optional) Performance Regression Prevention: Document T186 baseline measurements (first-launch <5s P95, cache-launch <3s P95, cache-hit <10ms) and create CI/CD pipeline regression check (±10% threshold, flag at +20% degradation). Add to quickstart.md and consider adding to GitHub Actions workflow.
 
 **Checkpoint**: All tests passing; performance targets met; documentation complete
 
 ---
 
-## Phase 8: AWS Production Deployment (Infrastructure & Database)
+## Phase 8: Railway + Neon Production Deployment (Cost-Efficient Infrastructure)
 
-**Purpose**: Deploy backend API to AWS App Runner with Aurora PostgreSQL database for production
+**Purpose**: Deploy backend API to Railway with Neon PostgreSQL serverless database for production (cost-optimized)
 
-### AWS Infrastructure Tasks
+### Neon PostgreSQL Database Setup
 
-- [ ] T191 Create AWS Aurora PostgreSQL Serverless v2 cluster in VPC (database name: `exam_app_prod`, instance class: db.serverless, min capacity: 0.5 ACU, max capacity: 2 ACU)
-- [ ] T192 [P] Configure Aurora cluster security group to allow inbound PostgreSQL (port 5432) from App Runner VPC connector
-- [ ] T193 Create AWS Secrets Manager secret for database credentials: `exam-app/prod/database` with fields: `host`, `port`, `username`, `password`, `database`
-- [ ] T194 [P] Create AWS Systems Manager Parameter Store entries for non-sensitive config: `/exam-app/prod/jwt-secret`, `/exam-app/prod/google-client-id`, `/exam-app/prod/google-client-secret`, `/exam-app/prod/play-integrity-credentials`
-- [ ] T195 Create VPC Connector for App Runner to access Aurora in private subnets (attach to exam-app VPC, select private subnets with Aurora)
+- [ ] T191 Create Neon PostgreSQL project at https://neon.tech (free tier: 3 projects, 10 GB storage): project name `exam-app-prod`, database name `exam_app_prod`, auto-suspend inactive branches enabled (cost optimization)
+- [ ] T192 [P] Configure Neon connection pooling: enable PgBouncer on branch (default: 10 connections), set max connections to 20; note the pooled connection string (ending in `-pooler.neon.tech`)
+- [ ] T193 Create Neon read replica branch (optional, for backup/analytics): allows branching data without additional cost, enables quick rollback if needed
+- [ ] T194 [P] Copy Neon connection string to secure location: format `postgresql://[user]:[password]@pgXXXX.neon.tech:5432/exam_app_prod?sslmode=require` (will be used as `DATABASE_URL` in Railway)
+- [ ] T195 Test local Neon connection: `psql [connection-string]` to verify connection works (can be done from local machine or CI/CD)
 
 ### Database Migration & Setup Tasks
 
-- [ ] T196 Update api/prisma/schema.prisma datasource to support `DATABASE_URL` environment variable from AWS Secrets Manager
-- [ ] T197 Create api/scripts/migrate-production.sh script: pull credentials from AWS Secrets Manager, run `npx prisma migrate deploy` to apply all migrations to Aurora
+- [ ] T196 Update api/prisma/schema.prisma datasource to support `DATABASE_URL` environment variable (already supports env vars, verify `env("DATABASE_URL")` is set as datasource URL)
+- [ ] T197 Create api/scripts/migrate-production.sh script: pull `DATABASE_URL` from environment, run `npx prisma migrate deploy` to apply all migrations to Neon
 - [ ] T198 [P] Create api/scripts/seed-production.sh script: run `npx prisma db seed` to populate initial exam types and seed questions (configure for production environment)
-- [ ] T199 Test database connection from local environment using temporary Aurora public access (verify Prisma can connect, run migrations, seed data)
+- [ ] T199 Test database connection and migrations: from local machine, set `DATABASE_URL` to Neon connection string, run `npm run migrate:prod` to verify Prisma connects and migrations apply
 
-### App Runner Deployment Tasks
+### Railway Application Deployment
 
-- [ ] T200 Create api/apprunner.yaml configuration file: specify Node.js 20 runtime, build command `npm ci && npm run build`, start command `npm run start:prod`, port 3000, environment variables from Secrets Manager and Parameter Store
-- [ ] T201 [P] Create AWS App Runner service via AWS Console or Terraform: source from GitHub `003-play-integrity` branch, automatic deployments on push, instance configuration (CPU: 1 vCPU, Memory: 2 GB), attach VPC Connector from T195
-- [ ] T202 Configure App Runner environment variables: `NODE_ENV=production`, `DATABASE_URL` (from Secrets Manager secret ARN), `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PLAY_INTEGRITY_CREDENTIALS` (from Parameter Store)
-- [ ] T203 [P] Configure App Runner health check: HTTP GET `/health` endpoint (create api/src/health/health.controller.ts if not exists), unhealthy threshold: 3, healthy threshold: 2, interval: 30s, timeout: 5s
+- [ ] T200 Create Railway project at https://railway.app: project name `exam-app-prod`, link GitHub repository `003-play-integrity` branch (Railway auto-deploys on push)
+- [ ] T201 [P] Add Docker service to Railway: connect GitHub repo, set root directory to `api/`, enable automatic deployments (Railway auto-detects Node.js project)
+- [ ] T202 Configure Railway environment variables: `NODE_ENV=production`, `DATABASE_URL` (Neon pooled connection string from T194), `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PLAY_INTEGRITY_CREDENTIALS`
+- [ ] T203 [P] Configure Railway health check: set `PORT=3000`, create api/src/health/health.controller.ts with GET `/health` endpoint returning `{ status: 'ok' }` (Railway auto-detects port, enable Health Check in Railway dashboard)
 
-### CI/CD & Monitoring Tasks
+### Mobile Configuration & Deployment Documentation
 
-- [ ] T204 Update mobile/src/services/api.config.ts: add production API URL (App Runner service URL from T201, e.g., `https://xyz.us-east-1.awsapprunner.com`), environment-based URL selection (`__DEV__` → localhost, production → App Runner)
-- [ ] T205 Create specs/003-play-integrity/deployment-guide.md: document AWS infrastructure setup, database migration steps, App Runner deployment process, environment variable configuration, rollback procedure, monitoring dashboard links (CloudWatch logs, Aurora metrics)
+- [ ] T204 Update mobile/src/services/api.config.ts: add production API URL (Railway service URL from T200, e.g., `https://api.example.railway.app`), environment-based URL selection (`__DEV__` → localhost, production → Railway URL detected from environment or hardcoded for release builds)
+- [ ] T205 Create specs/003-play-integrity/deployment-guide.md: document Neon setup (how to create project, get connection string), Railway deployment (connect GitHub, environment variables, auto-deploy on push), database migration steps, rollback procedure, monitoring (Railway dashboard, Neon dashboard, Docker logs)
 
-**Checkpoint**: Backend API deployed to AWS App Runner, Aurora PostgreSQL operational, mobile app configured with production API URL
+**Checkpoint**: Backend API deployed to Railway, Neon PostgreSQL operational, mobile app configured with production API URL (~$10-20/month for Neon + Railway free tier, vs $200+/month for AWS)
+
+---
+
+## Phase 9 (Optional): Post-Launch Validation & Hardening
+
+**Purpose**: Optional post-launch tasks for device security validation and observability improvements
+
+- [ ] **T206** (Optional) Rooted Device Testing: Test Play Integrity API behavior on rooted devices with Magisk/SuperSU installed to validate that sideload blocking works as expected. Document findings: Does Play Integrity still detect rooting? Are rooted devices blocked properly? Update assumptions in spec.md if findings differ from expectations. Tools: BurpSuite for network inspection, Magisk Manager, LocalSocket proxy for Play Integrity token debugging.
 
 ---
 
