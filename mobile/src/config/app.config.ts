@@ -6,7 +6,7 @@
  * This is set at build time and determines which questions are synced from the API
  * Must match an ExamType.id in the backend database
  */
-export const EXAM_TYPE_ID = 'CLF-C02';
+export const EXAM_TYPE_ID = process.env.EXPO_PUBLIC_EXAM_TYPE_ID || 'CLF-C02';
 
 /**
  * API Configuration
