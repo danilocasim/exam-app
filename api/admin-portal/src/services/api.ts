@@ -4,9 +4,7 @@
  */
 
 const API_BASE_URL =
-  process.env.NODE_ENV === 'production'
-    ? 'https://exam-app-production-9181.up.railway.app'
-    : 'http://localhost:3000';
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 // Endpoint usage: no /api prefix
 function getToken(): string | null {
