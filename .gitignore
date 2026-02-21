@@ -12,6 +12,10 @@ build/
 
 # Secrets
 api/keys/*.json
+*.jks
+
+# AI agent settings
+.claude/
 
 # IDE
 .idea/
