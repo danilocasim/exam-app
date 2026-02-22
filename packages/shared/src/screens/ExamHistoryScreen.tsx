@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, ChevronRight, Clock, BarChart2 } from 'lucide-react-native';
@@ -44,6 +44,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExamHistory
  */
 export const ExamHistoryScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
 
   const [entries, setEntries] = useState<ExamHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,7 +182,10 @@ export const ExamHistoryScreen: React.FC = () => {
           data={entries}
           keyExtractor={(item) => item.attempt.id}
           renderItem={renderExamEntry}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(32, insets.bottom) },
+          ]}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
         />

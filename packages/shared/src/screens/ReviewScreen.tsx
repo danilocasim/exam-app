@@ -10,7 +10,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, ChevronRight, X, BarChart2, AlertCircle, Grid3x3 } from 'lucide-react-native';
@@ -59,6 +59,7 @@ type ReviewRouteProp = RouteProp<RootStackParamList, 'ReviewScreen'>;
 export const ReviewScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ReviewRouteProp>();
+  const insets = useSafeAreaInsets();
   const { attemptId } = route.params;
 
   // Store state (primitive selectors - stable)
@@ -207,7 +208,7 @@ export const ReviewScreen: React.FC = () => {
 
         {/* Bottom Navigation */}
         {filteredItems.length > 0 && (
-          <View style={styles.navigator}>
+          <View style={[styles.navigator, { paddingBottom: insets.bottom }]}>
             {/* Previous */}
             <TouchableOpacity
               onPress={goToPreviousQuestion}

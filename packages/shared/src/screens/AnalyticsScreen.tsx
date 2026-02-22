@@ -9,7 +9,7 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, BarChart2, Trophy, Target, AlertTriangle, BookOpen } from 'lucide-react-native';
@@ -52,6 +52,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Analytics'>
  */
 export const AnalyticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
 
   const { analyticsData, isLoading, error } = useAnalyticsStore(
     useShallow((state) => ({
@@ -78,7 +79,7 @@ export const AnalyticsScreen: React.FC = () => {
   // Loading state
   if (isLoading && !analyticsData) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ArrowLeft size={22} color={colors.textHeading} strokeWidth={2} />
@@ -97,7 +98,7 @@ export const AnalyticsScreen: React.FC = () => {
   // Error state
   if (error && !analyticsData) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ArrowLeft size={22} color={colors.textHeading} strokeWidth={2} />
@@ -117,7 +118,7 @@ export const AnalyticsScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -129,7 +130,10 @@ export const AnalyticsScreen: React.FC = () => {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: Math.max(32, insets.bottom) },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}

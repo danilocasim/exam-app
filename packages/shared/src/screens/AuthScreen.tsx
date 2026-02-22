@@ -15,7 +15,7 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -63,6 +63,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export function AuthScreen(): React.ReactElement {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const { isSignedIn, user, isLoading, error } = useAuthStore();
   const { request, response, promptAsync } = useGoogleAuthRequest();
 
@@ -127,7 +128,13 @@ export function AuthScreen(): React.ReactElement {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(40, insets.bottom) },
+          ]}
+        >
           {/* Profile Card */}
           <View style={styles.profileCard}>
             {user.picture ? (
@@ -240,7 +247,11 @@ export function AuthScreen(): React.ReactElement {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, styles.scrollContentCentered]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          styles.scrollContentCentered,
+          { paddingBottom: Math.max(40, insets.bottom) },
+        ]}
       >
         {/* Hero */}
         <View style={styles.heroSection}>

@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Trophy, XCircle, BookOpen, Home, AlertCircle, CheckCircle2 } from 'lucide-react-native';
@@ -55,6 +55,7 @@ type ResultsRouteProp = RouteProp<RootStackParamList, 'ExamResults'>;
 export const ExamResultsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ResultsRouteProp>();
+  const insets = useSafeAreaInsets();
   const { attemptId } = route.params;
 
   const [result, setResult] = useState<ExamResult | null>(null);
@@ -171,7 +172,11 @@ export const ExamResultsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+      >
         {/* Header */}
         <View style={[styles.header, result.passed ? styles.headerPassed : styles.headerFailed]}>
           {/* Status badge */}

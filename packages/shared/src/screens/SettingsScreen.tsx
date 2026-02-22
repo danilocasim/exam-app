@@ -10,7 +10,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -57,6 +57,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const { isSignedIn, user } = useAuthStore();
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -142,7 +143,13 @@ export const SettingsScreen: React.FC = () => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={[
+          styles.contentInner,
+          { paddingBottom: Math.max(40, insets.bottom) },
+        ]}
+      >
         {/* Account Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>

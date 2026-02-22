@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { X, CheckSquare } from 'lucide-react-native';
@@ -44,6 +44,7 @@ const colors = {
  */
 export const PracticeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
 
   // Store state
   const session = usePracticeStore((state) => state.session);
@@ -271,6 +272,7 @@ export const PracticeScreen: React.FC = () => {
           </View>
         )}
       </View>
+      <View style={{ paddingBottom: insets.bottom }} />
     </SafeAreaView>
   );
 };

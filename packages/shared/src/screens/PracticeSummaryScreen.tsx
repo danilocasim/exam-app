@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BookOpen, Home, AlertCircle, RotateCcw } from 'lucide-react-native';
@@ -59,6 +59,7 @@ interface DomainBreakdown {
 export const PracticeSummaryScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<SummaryRouteProp>();
+  const insets = useSafeAreaInsets();
   const { sessionId } = route.params;
 
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
@@ -192,7 +193,11 @@ export const PracticeSummaryScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+      >
         {/* Header */}
         <View
           style={[styles.header, isGoodScore ? styles.headerSuccess : styles.headerImprovement]}

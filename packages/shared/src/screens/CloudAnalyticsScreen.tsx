@@ -16,7 +16,7 @@ import {
   RefreshControl,
   FlatList,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -117,6 +117,7 @@ function formatDate(iso: string): string {
 
 export const CloudAnalyticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const { isSignedIn } = useAuthStore();
 
   // Analytics state
@@ -506,7 +507,7 @@ export const CloudAnalyticsScreen: React.FC = () => {
         )}
 
         {/* Bottom spacing */}
-        <View style={{ height: 32 }} />
+        <View style={{ height: Math.max(32, insets.bottom) }} />
       </ScrollView>
     </SafeAreaView>
   );

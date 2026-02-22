@@ -13,7 +13,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -123,6 +123,7 @@ const ProgressRing: React.FC<ProgressRingProps> = ({
 // ── HomeScreen ──
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const { startExam, resumeExam, isLoading, error, setError } = useExamStore();
   const { isSignedIn, user } = useAuthStore();
 
@@ -636,7 +637,7 @@ export const HomeScreen: React.FC = () => {
         </View>
 
         {/* Bottom spacer */}
-        <View style={{ height: 24 }} />
+        <View style={{ height: Math.max(24, insets.bottom) }} />
       </ScrollView>
 
       {/* ── Resources Drawer ── */}

@@ -9,7 +9,7 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Play, BookOpen } from 'lucide-react-native';
@@ -43,6 +43,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'PracticeSet
  */
 export const PracticeSetupScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const {
     selectedDomain,
     selectedDifficulty,
@@ -228,6 +229,7 @@ export const PracticeSetupScreen: React.FC = () => {
           )}
         </View>
       </View>
+      <View style={{ paddingBottom: insets.bottom }} />
     </SafeAreaView>
   );
 };

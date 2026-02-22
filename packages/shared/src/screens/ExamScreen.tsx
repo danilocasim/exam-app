@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { X, Send } from 'lucide-react-native';
@@ -32,6 +32,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExamScreen'
  */
 export const ExamScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
 
   // Store state
   const session = useExamStore((state) => state.session);
@@ -270,16 +271,18 @@ export const ExamScreen: React.FC = () => {
         )}
 
         {/* Navigation */}
-        <QuestionNavigator
-          answers={session.answers}
-          currentIndex={currentIndex}
-          onNavigate={goToQuestion}
-          onFlag={handleToggleFlag}
-          onPrevious={goToPreviousQuestion}
-          onNext={goToNextQuestion}
-          hasPrevious={hasPrevious}
-          hasNext={hasNext}
-        />
+        <View style={{ paddingBottom: insets.bottom }}>
+          <QuestionNavigator
+            answers={session.answers}
+            currentIndex={currentIndex}
+            onNavigate={goToQuestion}
+            onFlag={handleToggleFlag}
+            onPrevious={goToPreviousQuestion}
+            onNext={goToNextQuestion}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+          />
+        </View>
       </View>
     </SafeAreaView>
   );
