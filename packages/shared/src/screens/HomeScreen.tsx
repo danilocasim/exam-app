@@ -25,7 +25,6 @@ import {
   BookOpen,
   Zap,
   ChevronRight,
-  Target,
   User,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -284,15 +283,6 @@ export const HomeScreen: React.FC = () => {
       borderColor: 'rgba(16, 185, 129, 0.25)',
       onPress: () => navigation.navigate('ExamHistory'),
     },
-    {
-      key: 'settings',
-      label: 'Settings',
-      sub: 'Configure',
-      icon: <Target size={20} color={colors.textMuted} strokeWidth={1.5} />,
-      gradient: ['rgba(156, 163, 175, 0.10)', 'rgba(156, 163, 175, 0.04)'] as [string, string],
-      borderColor: 'rgba(156, 163, 175, 0.20)',
-      onPress: () => navigation.navigate('Settings'),
-    },
   ];
 
   return (
@@ -313,7 +303,7 @@ export const HomeScreen: React.FC = () => {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Auth')}
+            onPress={() => navigation.navigate('Settings')}
             activeOpacity={0.7}
             style={styles.headerProfileBtn}
           >
