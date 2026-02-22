@@ -33,8 +33,8 @@
 | Post-Launch Validation | T189.5, T206 | 2 | 📋 Optional | 3 hrs |
 | **Phase 4: Multi-App Monorepo** | | | | |
 | Phase 10: Monorepo Foundation | T207-T214 | 8 | 📋 Not Started | 6 hrs |
-| Phase 11: App Wrapper Migration | T215-T220 | 6 | 📋 Not Started | 5 hrs |
-| Phase 12: Template & Script | T221-T224 | 4 | 📋 Not Started | 3 hrs |
+| Phase 11: App Wrapper Migration | T215-T220 | 6 | ✅ Complete | 5 hrs |
+| Phase 12: Template & Script | T221-T224 | 4 | � In Progress | 3 hrs |
 | Phase 13: Admin CRUD Backend | T225-T230 | 6 | 📋 Not Started | 5 hrs |
 | Phase 14: Admin CRUD Frontend | T231-T238 | 8 | 📋 Not Started | 6 hrs |
 | Phase 15: Testing & Docs | T239-T246 | 8 | 📋 Not Started | 6 hrs |
@@ -477,7 +477,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   }
   ```
 
-- [ ] T220 **CRITICAL REGRESSION TEST**: Verify apps/aws-clp produces identical behavior to original mobile/:
+- [x] T220 **CRITICAL REGRESSION TEST**: Verify apps/aws-clp produces identical behavior to original mobile/:
   1. Run `cd apps/aws-clp && npx expo start` — app launches normally
   2. Dev bypass works (`[PlayIntegrity] Bypassed in development mode` in logs)
   3. All screens render correctly (Home, Exam, Practice, Settings)
