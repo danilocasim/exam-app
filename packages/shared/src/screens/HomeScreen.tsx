@@ -16,6 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
+import * as WebBrowser from 'expo-web-browser';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Circle } from 'react-native-svg';
@@ -35,6 +36,7 @@ import {
   ExternalLink,
   X,
   ArrowLeft,
+  MessageSquare,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
@@ -636,6 +638,25 @@ export const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* ── Feedback Button ── */}
+        <View style={styles.content}>
+          <TouchableOpacity
+            onPress={() => {
+              WebBrowser.openBrowserAsync('https://forms.gle/uAwSbyFjXddZMSNF8');
+            }}
+            activeOpacity={0.8}
+            style={styles.feedbackBtn}
+          >
+            <View style={styles.resourcesBtnLeft}>
+              <View style={styles.feedbackBtnIcon}>
+                <MessageSquare size={18} color={colors.success} strokeWidth={2} />
+              </View>
+              <Text style={styles.resourcesBtnText}>Bug Report & Suggestions</Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+
         {/* Bottom spacer */}
         <View style={{ height: Math.max(24, insets.bottom) }} />
       </ScrollView>
@@ -974,6 +995,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.textHeading,
+  },
+
+  // Feedback Button
+  feedbackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+  },
+  feedbackBtnIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Resources Drawer
