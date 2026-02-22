@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "api"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present",
+    "format:check": "npm run format:check --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "overrides": {
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "expo": "~54.0.33"
+  }
+}

@@ -367,3 +367,113 @@ datasource db {
 - **VPC**: Private subnets only (no public internet access)
 - **Access**: App Runner VPC Connector provides secure connection
 - **Backups**: Automated backups with 1-day retention (configurable)
+
+---
+
+## Phase 4: Admin ExamType CRUD API Contracts
+
+### POST /admin/exam-types — Create Exam Type
+
+**Request**:
+```json
+{
+  "id": "SAA-C03",
+  "name": "AWS Solutions Architect Associate",
+  "displayName": "AWS SAA",
+  "description": "Validates cloud architecture knowledge",
+  "domains": [
+    { "id": "design-secure", "name": "Design Secure Architectures", "weight": 30, "questionCount": 20 },
+    { "id": "design-resilient", "name": "Design Resilient Architectures", "weight": 26, "questionCount": 17 },
+    { "id": "design-performant", "name": "Design High-Performing Architectures", "weight": 24, "questionCount": 15 },
+    { "id": "design-cost", "name": "Design Cost-Optimized Architectures", "weight": 20, "questionCount": 13 }
+  ],
+  "passingScore": 72,
+  "timeLimit": 130,
+  "questionCount": 65
+}
+```
+
+**Response (201 Created)**:
+```json
+{
+  "id": "SAA-C03",
+  "name": "AWS Solutions Architect Associate",
+  "displayName": "AWS SAA",
+  "description": "Validates cloud architecture knowledge",
+  "domains": [ /* same as request */ ],
+  "passingScore": 72,
+  "timeLimit": 130,
+  "questionCount": 65,
+  "isActive": true,
+  "createdAt": "2026-02-21T10:00:00.000Z",
+  "updatedAt": "2026-02-21T10:00:00.000Z"
+}
+```
+
+**Error (409 Conflict)**: `{ "message": "Exam type 'SAA-C03' already exists", "statusCode": 409 }`  
+**Error (400 Bad Request)**: `{ "message": ["Domain weights must sum to 100"], "statusCode": 400 }`
+
+### PUT /admin/exam-types/:id — Update Exam Type
+
+**Request** (same as POST but without `id` — ID is immutable, taken from URL):
+```json
+{
+  "name": "AWS Solutions Architect Associate (Updated)",
+  "displayName": "AWS SAA",
+  "description": "Updated description",
+  "domains": [ /* updated domains */ ],
+  "passingScore": 75,
+  "timeLimit": 130,
+  "questionCount": 65
+}
+```
+
+**Response (200 OK)**: Full ExamType object with updated fields and new `updatedAt` timestamp.  
+**Error (404)**: `{ "message": "Exam type 'SAA-C03' not found", "statusCode": 404 }`
+
+### PATCH /admin/exam-types/:id — Toggle Active/Inactive
+
+**Request**: No body required. Toggles `isActive` boolean.
+
+**Response (200 OK)**: Full ExamType object with toggled `isActive` value.  
+**Error (404)**: `{ "message": "Exam type 'SAA-C03' not found", "statusCode": 404 }`
+
+### Validation Rules
+
+| Field | Type | Constraints |
+|-------|------|-------------|
+| `id` | string | Required, unique, regex: `/^[A-Za-z0-9-]+$/`, immutable on update |
+| `name` | string | Required, min 3 characters |
+| `displayName` | string | Required, min 2 characters |
+| `description` | string | Optional |
+| `domains` | array | Required, min 1 item, weights MUST sum to 100 |
+| `domains[].id` | string | Required, unique within exam type |
+| `domains[].name` | string | Required, min 2 characters |
+| `domains[].weight` | number | Required, 0-100 |
+| `domains[].questionCount` | number | Required, integer >= 0 |
+| `passingScore` | number | Required, integer 0-100 |
+| `timeLimit` | number | Required, integer >= 1 (minutes) |
+| `questionCount` | number | Required, integer 1-500 |
+
+### No Prisma Schema Changes Required
+
+The existing `ExamType` model in `api/prisma/schema.prisma` already supports all CRUD operations:
+
+```prisma
+model ExamType {
+  id            String   @id        // Supports custom IDs like "SAA-C03"
+  name          String              // Full name
+  displayName   String              // Short name
+  description   String?             // Optional
+  domains       Json                // [{id, name, weight, questionCount}]
+  passingScore  Int      @default(70)
+  timeLimit     Int      @default(90)
+  questionCount Int      @default(65)
+  isActive      Boolean  @default(true)  // Soft-delete via toggle
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  // ... relations unchanged
+}
+```
+
+Zero migrations needed. All new functionality uses the existing model as-is.

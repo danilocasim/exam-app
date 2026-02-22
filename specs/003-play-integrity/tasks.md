@@ -28,10 +28,17 @@
 | Integration & Testing | T181-T188 | 8 | 📋 Ready | 6 hrs |
 | Polish | T189-T190 | 2 | 📋 Ready | 2 hrs |
 | **Phase 8** | | | | |
-| Railway + Neon Deployment | T191-T205 | 15 | 📋 Ready | 8 hrs |
+| Railway + Neon Deployment | T191-T205 | 15 | ✅ Complete | 8 hrs |
 | **Phase 9 (Optional)** | | | | |
 | Post-Launch Validation | T189.5, T206 | 2 | 📋 Optional | 3 hrs |
-| **Total** | **T151–T205** + optional | **57** | **📋 READY** | **~38 hrs core (1-2 devs, 4 weeks)** |
+| **Phase 4: Multi-App Monorepo** | | | | |
+| Phase 10: Monorepo Foundation | T207-T214 | 8 | 📋 Not Started | 6 hrs |
+| Phase 11: App Wrapper Migration | T215-T220 | 6 | ✅ Complete | 5 hrs |
+| Phase 12: Template & Script | T221-T224 | 4 | � In Progress | 3 hrs |
+| Phase 13: Admin CRUD Backend | T225-T230 | 6 | 📋 Not Started | 5 hrs |
+| Phase 14: Admin CRUD Frontend | T231-T238 | 8 | 📋 Not Started | 6 hrs |
+| Phase 15: Testing & Docs | T239-T246 | 8 | 📋 Not Started | 6 hrs |
+| **Total** | **T151–T246** + optional | **97** | **📋 READY** | **~69 hrs core (1-2 devs, 8-9 weeks)** |
 
 ---
 
@@ -372,4 +379,460 @@ cd api && npm run test:e2e -- integrity
 yarn workspaces run test
 chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 ```
+
+---
+
+## Phase 4: Multi-App Monorepo Architecture
+
+**Input**: Phase 4 specification from spec.md § Phase 4, implementation plan from plan.md § Phase 4  
+**Prerequisites**:  
+- ✅ Phase 3 Phases 1-8 (T151-T205) complete  
+- ✅ All 99+ existing tests passing  
+- ✅ Railway + Neon production deployment operational  
+**Status**: 📋 **READY FOR IMPLEMENTATION (40 tasks T207–T246)**
+
+**Key Principle**: ALL existing logic (Play Integrity, Auth, Cloud Sync, Offline-First) MUST remain functionally identical. Only import paths and file locations change during extraction. Zero business logic modifications.
+
+---
+
+## Phase 10: Monorepo Foundation (Setup npm Workspaces + Extract Shared Code)
+
+**Purpose**: Initialize monorepo structure and extract all shared mobile code into `packages/shared/`
+
+### Monorepo Setup Tasks
+
+- [x] T207 Create root package.json with npm workspaces configuration: `{ "private": true, "workspaces": ["packages/*", "apps/*", "api"] }`. Add root-level scripts: `"test": "npm run test --workspaces"`, `"build": "npm run build --workspaces"`. Ensure existing `api/package.json` and future packages are detected by workspace resolution.
+
+- [x] T208 [P] Create packages/shared/ package structure: `packages/shared/package.json` (name: `@exam-app/shared`, version: `1.0.0`, main: `src/index.ts`), `packages/shared/tsconfig.json` (extends root tsconfig, paths alias `@exam-app/shared`), `packages/shared/src/index.ts` (barrel export file). Directory structure: `src/components/`, `src/services/`, `src/stores/`, `src/storage/`, `src/screens/`, `src/navigation/`, `src/config/`.
+
+### Shared Code Extraction Tasks
+
+**Critical**: Use `git mv` for all file moves to preserve git history. Do NOT copy-delete.
+
+- [x] T209 [P] Extract shared components: `git mv mobile/src/components/* packages/shared/src/components/`. Files to move: ALL components from mobile/src/components/ including IntegrityBlockedScreen.tsx, QuestionCard.tsx, and all others. Update barrel export in packages/shared/src/index.ts.
+
+- [x] T210 [P] Extract shared services: `git mv mobile/src/services/* packages/shared/src/services/`. Files to move: ALL services including play-integrity.service.ts, exam scoring logic, sync services, API services. Update barrel export. Note: play-integrity.service.ts uses `__DEV__` which works identically in shared package context.
+
+- [x] T211 [P] Extract shared stores: `git mv mobile/src/stores/* packages/shared/src/stores/`. Files to move: ALL Zustand stores including play-integrity.store.ts and any existing stores. Update barrel export.
+
+- [x] T212 [P] Extract shared storage: `git mv mobile/src/storage/* packages/shared/src/storage/`. Files to move: ALL SQLite database code, migrations, repositories (including integrity.repository.ts). Update barrel export.
+
+- [x] T213 [P] Extract shared screens: `git mv mobile/src/screens/* packages/shared/src/screens/`. Files to move: ALL screens including HomeScreen.tsx and all exam/practice/settings screens. Update barrel export.
+
+- [x] T214 [P] Extract shared navigation: `git mv mobile/src/navigation/* packages/shared/src/navigation/`. Files to move: ALL navigation configuration. Update barrel export. Create packages/shared/src/config/types.ts with `AppConfig` interface: `{ examTypeId: string; appName: string; branding?: { primaryColor?: string } }`. Create packages/shared/src/config/defaults.ts exporting default EXAM_CONFIG, SYNC_CONFIG, STORAGE_CONFIG from the current mobile/src/config/app.config.ts.
+
+**Checkpoint**: packages/shared/ contains all reusable code with barrel exports. Not yet imported by any app. `npm install` from root resolves workspace.
+
+---
+
+## Phase 11: App Wrapper Migration (Convert mobile/ → apps/aws-clp/)
+
+**Purpose**: Create thin app wrapper for AWS Cloud Practitioner that imports everything from @exam-app/shared
+
+### Migration Tasks
+
+- [x] T215 Create apps/aws-clp/ directory structure. Move app-specific files from mobile/: `git mv mobile/app.json apps/aws-clp/app.json`, `git mv mobile/assets/ apps/aws-clp/assets/`, `git mv mobile/eas.json apps/aws-clp/eas.json`. Create apps/aws-clp/package.json with dependencies: `{ "@exam-app/shared": "*", "expo": "~50.0.0", "react": "18.x", "react-native": "0.73.x" }` and all necessary Expo/RN dependencies from current mobile/package.json.
+
+- [x] T216 Create apps/aws-clp/metro.config.js configured for monorepo workspace resolution:
+  ```js
+  const { getDefaultConfig } = require('expo/metro-config');
+  const path = require('path');
+  const projectRoot = __dirname;
+  const workspaceRoot = path.resolve(projectRoot, '../..');
+  const config = getDefaultConfig(projectRoot);
+  config.watchFolders = [workspaceRoot];
+  config.resolver.nodeModulesPaths = [
+    path.resolve(projectRoot, 'node_modules'),
+    path.resolve(workspaceRoot, 'node_modules'),
+  ];
+  module.exports = config;
+  ```
+
+- [x] T217 [P] Create apps/aws-clp/babel.config.js configured for workspace package resolution. Ensure NativeWind, Reanimated, and other Babel plugins from current mobile/babel.config.js are preserved. Add module-resolver alias for `@exam-app/shared`.
+
+- [x] T218 Create apps/aws-clp/src/config/app.config.ts with AWS Cloud Practitioner specific config:
+  ```ts
+  export const APP_CONFIG = {
+    examTypeId: 'CLF-C02',
+    appName: 'Dojo Exam CLFC02',
+    branding: { primaryColor: '#232F3E' }, // AWS orange/dark
+  };
+  ```
+  This replaces the previous mobile/src/config/app.config.ts EXAM_TYPE_ID export.
+
+- [x] T219 Create packages/shared/src/AppRoot.tsx — the root component that accepts `examTypeId` and branding as props. This component renders the full app tree (navigation, providers, initialization logic including Play Integrity check). Extracted from current mobile/App.tsx. Interface:
+  ```ts
+  interface AppRootProps {
+    examTypeId: string;
+    appName: string;
+    branding?: { primaryColor?: string };
+  }
+  ```
+  Create apps/aws-clp/App.tsx that imports AppRoot and passes CLF-C02 config:
+  ```tsx
+  import { AppRoot } from '@exam-app/shared';
+  import { APP_CONFIG } from './src/config/app.config';
+  export default function App() {
+    return <AppRoot {...APP_CONFIG} />;
+  }
+  ```
+
+- [x] T220 **CRITICAL REGRESSION TEST**: Verify apps/aws-clp produces identical behavior to original mobile/:
+  1. Run `cd apps/aws-clp && npx expo start` — app launches normally
+  2. Dev bypass works (`[PlayIntegrity] Bypassed in development mode` in logs)
+  3. All screens render correctly (Home, Exam, Practice, Settings)
+  4. Database initialization succeeds
+  5. API connectivity works (questions sync from backend)
+  6. Run `npm test` from apps/aws-clp — all existing mobile tests pass
+  7. Compare startup behavior: no additional delays, no new errors
+
+**Checkpoint**: apps/aws-clp is the new home for AWS CLP app. Uses @exam-app/shared for all logic. Zero functional regression.
+
+---
+
+## Phase 12: App Template & Scaffold Script
+
+**Purpose**: Create template and automation so new apps take <5 minutes to scaffold
+
+### Template Tasks
+
+- [ ] T221 Create apps/template/ directory with template files using placeholder tokens:
+  - `app.json.template`: `__APP_NAME__`, `__APP_SLUG__`, `__PACKAGE_NAME__`, `__BUNDLE_ID__`
+  - `App.tsx.template`: `__EXAM_TYPE_ID__`, `__APP_NAME__`
+  - `package.json.template`: `__APP_SLUG__`
+  - `metro.config.js.template`: (no placeholders — identical for all apps)
+  - `babel.config.js.template`: (no placeholders — identical for all apps)
+  - `tsconfig.json.template`: (no placeholders — identical for all apps)
+  - `src/config/app.config.ts.template`: `__EXAM_TYPE_ID__`, `__APP_NAME__`, `__PRIMARY_COLOR__`
+  - `assets/`: Placeholder icon.png, splash-icon.png, adaptive-icon.png
+
+- [ ] T222 Create scripts/create-app.sh with parameters:
+  ```bash
+  Usage: ./scripts/create-app.sh --exam-type <ID> --name <NAME> --package <PACKAGE> [--color <HEX>]
+  Example: ./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03 --color "#FF9900"
+  ```
+  Script: copies template → replaces tokens → runs npm install → prints next steps (update assets, configure EAS, test). Validate that exam type ID exists in backend before creating (optional: `curl /exam-types/{id}` check).
+
+- [ ] T223 Create first new app using the script: `./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03`. Verify apps/aws-saa/ is generated with correct files and placeholders replaced.
+
+- [ ] T224 Verify apps/aws-saa/ builds and runs:
+  1. `cd apps/aws-saa && npx expo start` — app launches
+  2. App shows correct exam name and connects to backend
+  3. Backend returns SAA-C03 exam type config (if exam type exists in DB) or 404 (expected if not yet created)
+  4. Play Integrity bypass works in dev mode
+  5. All shared screens render correctly
+
+**Checkpoint**: New exam apps can be created in minutes via script. Template is reusable.
+
+---
+
+## Phase 13: Admin Portal — ExamType CRUD Backend
+
+**Purpose**: Add API endpoints for creating, updating, and deactivating exam types through the admin portal
+
+### Backend DTO Tasks
+
+- [ ] T225 Create api/src/admin/dto/create-exam-type.dto.ts:
+  ```ts
+  export class CreateExamTypeDomainDto {
+    @IsString() id: string;
+    @IsString() @MinLength(2) name: string;
+    @IsNumber() @Min(0) @Max(100) weight: number;
+    @IsInt() @Min(0) questionCount: number;
+  }
+  
+  export class CreateExamTypeDto {
+    @IsString() @Matches(/^[A-Za-z0-9-]+$/) id: string;
+    @IsString() @MinLength(3) name: string;
+    @IsString() @MinLength(2) displayName: string;
+    @IsOptional() @IsString() description?: string;
+    @IsArray() @ValidateNested({ each: true }) @Type(() => CreateExamTypeDomainDto)
+    domains: CreateExamTypeDomainDto[];
+    @IsInt() @Min(0) @Max(100) passingScore: number;
+    @IsInt() @Min(1) timeLimit: number;
+    @IsInt() @Min(1) @Max(500) questionCount: number;
+  }
+  ```
+  Add custom validator: domain weights must sum to 100.
+
+- [ ] T226 [P] Create api/src/admin/dto/update-exam-type.dto.ts using OmitType/PartialType pattern:
+  ```ts
+  export class UpdateExamTypeDto extends OmitType(CreateExamTypeDto, ['id'] as const) {}
+  ```
+  ID is immutable — only non-ID fields can be updated.
+
+### Backend Service Tasks
+
+- [ ] T227 Create api/src/admin/services/exam-types.service.ts (AdminExamTypesService) with methods:
+  - `create(dto: CreateExamTypeDto): Promise<ExamType>` — validates unique ID, creates in DB, returns new entity
+  - `update(id: string, dto: UpdateExamTypeDto): Promise<ExamType>` — validates exists, updates all fields, returns updated entity
+  - `toggleActive(id: string): Promise<ExamType>` — flips isActive boolean, returns updated entity
+  - All methods use PrismaService for database operations
+  - Register AdminExamTypesService in AdminModule providers
+
+### Backend Controller Tasks
+
+- [ ] T228 [US5] Add POST /admin/exam-types endpoint to api/src/admin/controllers/admin-exam-types.controller.ts:
+  ```ts
+  @Post('exam-types')
+  @HttpCode(HttpStatus.CREATED)
+  async createExamType(@Body() dto: CreateExamTypeDto): Promise<ExamType> {
+    return this.adminExamTypesService.create(dto);
+  }
+  ```
+  Return 201 on success, 409 on duplicate ID, 400 on validation failure.
+
+- [ ] T229 [US9] Add PUT /admin/exam-types/:id endpoint:
+  ```ts
+  @Put('exam-types/:id')
+  async updateExamType(@Param('id') id: string, @Body() dto: UpdateExamTypeDto): Promise<ExamType> {
+    return this.adminExamTypesService.update(id, dto);
+  }
+  ```
+  Return 200 on success, 404 if not found, 400 on validation failure.
+
+- [ ] T230 [US9] Add PATCH /admin/exam-types/:id endpoint for toggling isActive:
+  ```ts
+  @Patch('exam-types/:id')
+  async toggleExamType(@Param('id') id: string): Promise<ExamType> {
+    return this.adminExamTypesService.toggleActive(id);
+  }
+  ```
+  Return 200 on success, 404 if not found.
+
+**Checkpoint**: Backend ExamType CRUD fully operational. Test with: `curl -X POST localhost:3000/admin/exam-types -H "Authorization: Bearer <token>" -d '{"id":"SAA-C03", ...}'`
+
+---
+
+## Phase 14: Admin Portal — ExamType CRUD Frontend
+
+**Purpose**: Add admin portal UI for managing exam types (create, edit, deactivate)
+
+### Admin API Service Tasks
+
+- [ ] T231 Add exam type CRUD methods to api/admin-portal/src/services/api.ts:
+  ```ts
+  createExamType(input: CreateExamTypeInput): Promise<ExamType>;
+  updateExamType(id: string, input: UpdateExamTypeInput): Promise<ExamType>;
+  toggleExamType(id: string): Promise<ExamType>;
+  ```
+  Add TypeScript interfaces: `CreateExamTypeInput`, `UpdateExamTypeInput` matching backend DTOs.
+
+### Admin Portal Page Tasks
+
+- [ ] T232 [US5] Create api/admin-portal/src/pages/ExamTypeListPage.tsx:
+  - Table displaying all exam types: id, displayName, questionCount, passingScore, isActive status
+  - "Create New" button → navigates to /exam-types/new
+  - "Edit" button per row → navigates to /exam-types/:id
+  - "Deactivate"/"Reactivate" toggle per row → calls toggleExamType API
+  - Style consistent with existing DashboardPage and QuestionListPage
+
+- [ ] T233 Create api/admin-portal/src/components/DomainEditor.tsx:
+  - Renders list of domain rows, each with: id (text input), name (text input), weight (number input 0-100), questionCount (number input)
+  - "Add Domain" button appends empty row
+  - "Remove" button per row (with confirmation)
+  - Drag handles for reordering (optional, can use up/down buttons)
+  - Live validation: shows total weight and warning if not 100
+  - Props: `domains: Domain[]`, `onChange: (domains: Domain[]) => void`
+
+- [ ] T234 [US5] [US9] Create api/admin-portal/src/pages/ExamTypeFormPage.tsx:
+  - Create mode (path: /exam-types/new): empty form
+  - Edit mode (path: /exam-types/:id): pre-filled form (fetch exam type on mount)
+  - Fields: id (text, read-only in edit mode), name, displayName, description (textarea), passingScore (number), timeLimit (number), questionCount (number)
+  - DomainEditor component for domains field
+  - Submit button: calls createExamType or updateExamType API
+  - Success: navigate back to /exam-types with success toast
+  - Error: display validation error messages inline
+  - Style consistent with existing QuestionDetailPage form
+
+### Admin Portal Routing & Navigation Tasks
+
+- [ ] T235 Update api/admin-portal/src/App.tsx to add exam type routes:
+  ```tsx
+  <Route path="/exam-types" element={<ExamTypeListPage />} />
+  <Route path="/exam-types/new" element={<ExamTypeFormPage />} />
+  <Route path="/exam-types/:id" element={<ExamTypeFormPage />} />
+  ```
+  Import ExamTypeListPage and ExamTypeFormPage.
+
+- [ ] T236 [P] Update api/admin-portal/src/components/Layout.tsx:
+  - Add "Exam Types" link in sidebar navigation (between Dashboard and Questions)
+  - Icon: settings/cog or document icon
+  - Active state styling consistent with existing nav links
+
+### Admin Portal Validation Tasks
+
+- [ ] T237 [P] Add client-side validation to ExamTypeFormPage:
+  - ID format: alphanumeric + hyphens only (regex: `/^[A-Za-z0-9-]+$/`)
+  - Name: minimum 3 characters
+  - DisplayName: minimum 2 characters
+  - PassingScore: 0-100 range
+  - TimeLimit: positive integer
+  - QuestionCount: 1-500 range
+  - Domains: at least 1 domain, weights sum to 100
+  - Show inline error messages on invalid fields
+  - Disable submit button until all validations pass
+
+- [ ] T238 [P] Add confirmation dialogs for state-changing actions:
+  - Deactivate: "Deactivating this exam type will prevent mobile apps from receiving new questions. Existing questions remain accessible. Continue?"
+  - Reactivate: "Reactivating this exam type will make it available to mobile apps again. Continue?"
+  - Style: modal dialog consistent with existing app patterns
+
+**Checkpoint**: Admin portal fully supports ExamType management. Admins can create SAA-C03, GCP-ACE, AZ-900 exam types entirely through the UI.
+
+---
+
+## Phase 15: Testing, EAS Build Configuration & Documentation
+
+**Purpose**: Validate all existing tests pass, add new tests, configure per-app builds, update all docs
+
+### Regression Testing Tasks
+
+- [ ] T239 **CRITICAL**: Run ALL existing tests in monorepo structure:
+  1. `cd packages/shared && npm test` — all shared code tests pass
+  2. `cd apps/aws-clp && npm test` — all app-specific tests pass
+  3. `cd api && npm test` — all backend tests pass (should have zero changes needed)
+  4. Fix any import path issues from extraction (T209-T214)
+  5. Verify test count: minimum 99 tests pass (same as pre-monorepo)
+  6. Document any test modifications needed (should be import paths only)
+
+### New Test Tasks
+
+- [ ] T240 Create api/test/admin-exam-types.e2e-spec.ts with Supertest E2E tests:
+  - POST /admin/exam-types: create new exam type → 201 with correct response body
+  - POST /admin/exam-types: duplicate ID → 409 Conflict
+  - POST /admin/exam-types: invalid domain weights (sum != 100) → 400
+  - POST /admin/exam-types: missing required fields → 400
+  - PUT /admin/exam-types/:id: update existing → 200
+  - PUT /admin/exam-types/:id: non-existent → 404
+  - PATCH /admin/exam-types/:id: toggle active → 200, isActive flipped
+  - All endpoints require auth: no token → 401
+
+- [ ] T241 [P] Create admin portal component tests (Jest + React Testing Library):
+  - DomainEditor: renders domains, add domain, remove domain, weight validation display
+  - ExamTypeFormPage: renders form fields, submit triggers API call, validation errors shown
+  - ExamTypeListPage: renders table rows, deactivate toggle calls API
+
+### EAS Build Configuration Tasks
+
+- [ ] T242 Configure EAS Build in apps/aws-clp/eas.json:
+  - Copy existing eas.json from mobile/ if not already moved in T215
+  - Verify projectId matches existing EAS project
+  - Configure build profiles: development, preview, production
+  - Test: `cd apps/aws-clp && eas build --platform android --profile preview` succeeds
+
+- [ ] T243 [P] Create scripts/build-all.sh:
+  ```bash
+  #!/bin/bash
+  # Build all exam apps
+  for app_dir in apps/*/; do
+    if [ -f "$app_dir/eas.json" ]; then
+      echo "Building $(basename $app_dir)..."
+      (cd "$app_dir" && eas build --platform android --profile production --non-interactive)
+    fi
+  done
+  ```
+  Also add `npm run build:all` script to root package.json.
+
+### End-to-End Workflow Validation
+
+- [ ] T244 Test complete create-app workflow end-to-end:
+  1. Admin creates exam type SAA-C03 via admin portal (if not already created)
+  2. Developer runs: `./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03`
+  3. Verify apps/aws-saa/ generated correctly
+  4. `cd apps/aws-saa && npx expo start` — app launches
+  5. App displays "Dojo Exam SAA" branding
+  6. Backend returns SAA-C03 config via API
+  7. Play Integrity dev bypass works
+  8. Admin adds a question for SAA-C03 → app syncs it
+  9. Document: time-to-first-working-app should be <30 minutes
+
+### Documentation Tasks
+
+- [ ] T245 Update specs/003-play-integrity/quickstart.md with Phase 4 monorepo instructions:
+  - New section: "Monorepo Development Setup"
+  - Commands: `npm install` (from root), `cd apps/aws-clp && npx expo start`
+  - How to create a new app: reference create-app.sh
+  - How to run tests: `npm test` (root runs all), or per-workspace
+  - How to build: `npm run build --workspace=apps/aws-clp`
+  - How to add an exam type in admin portal
+  - Troubleshooting: Metro resolver issues, npm workspace hoisting
+
+- [ ] T246 Update root documentation:
+  - CLAUDE.md: Add Phase 4 section to Recent Changes, update Project Structure to reflect monorepo layout, add new commands section
+  - README.md: Update architecture overview, add monorepo structure diagram, add "Adding a New Exam App" section
+  - Add comparison table: before (single app) vs after (monorepo) for developer reference
+
+**Checkpoint**: All tests passing (99+ existing + new ExamType CRUD tests). EAS builds configured. Documentation complete. Phase 4 fully implemented.
+
+---
+
+## Phase 4 Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Phase 10 (Monorepo Foundation)**: No dependencies beyond Phase 1-8 completion — can start immediately
+- **Phase 11 (App Wrapper)**: Depends on Phase 10 (shared code must be extracted first)
+- **Phase 12 (Template & Script)**: Depends on Phase 11 (need working app wrapper as reference)
+- **Phase 13 (Admin CRUD Backend)**: **INDEPENDENT** — can run in parallel with Phases 10-12 (no shared code dependency)
+- **Phase 14 (Admin CRUD Frontend)**: Depends on Phase 13 (needs backend endpoints)
+- **Phase 15 (Testing & Docs)**: Depends on all previous phases
+
+### Parallel Opportunities (Phase 4)
+
+**Week 1-2 (Monorepo + Backend in parallel)**:
+- Dev A: T207-T220 (Phases 10-11: Monorepo setup + app wrapper migration)
+- Dev B: T225-T230 (Phase 13: Backend ExamType CRUD — completely independent)
+
+**Week 2-3 (Template + Frontend in parallel)**:
+- Dev A: T221-T224 (Phase 12: Template and scaffold script)
+- Dev B: T231-T238 (Phase 14: Admin portal ExamType CRUD frontend)
+
+**Week 4 (Testing together)**:
+- Both: T239-T246 (Phase 15: Testing, EAS build, documentation)
+
+### What CAN Be Parallelized ([P] Marked)
+
+| Tasks | Parallelizable? | Reason |
+|-------|-----------------|--------|
+| T208-T214 | ✅ Yes | Different directories, no shared state |
+| T215-T217 | ✅ Yes | Different files in apps/aws-clp/ |
+| T225-T226 | ✅ Yes | Independent DTO files |
+| T231, T233, T237, T238 | ✅ Yes | Independent frontend files |
+| T240-T241 | ✅ Yes | Independent test files |
+| T242-T243 | ✅ Yes | Independent build config files |
+| Phase 10-12 ↔ Phase 13 | ✅ Yes | Backend CRUD is independent of monorepo |
+
+---
+
+## Phase 4 Checklist Template
+
+```markdown
+### Task [TID]: [Title]
+
+- [ ] Code written in [file path]
+- [ ] Tested: [test file] passes
+- [ ] TypeScript strict: tsc --noEmit passes
+- [ ] No breaking changes to existing exports/interfaces
+- [ ] Import paths updated (if extraction task)
+- [ ] Barrel export updated in packages/shared/src/index.ts (if applicable)
+- [ ] Spec compliance: Implements [FR-XXX]
+- [ ] Documentation: Updated if needed
+- [ ] Reviewed: Code style, edge cases
+```
+
+---
+
+## Notes for Implementers (Phase 4)
+
+1. **Use `git mv` for all file moves**: This preserves git blame history. Never copy-delete.
+2. **Test after every extraction task**: Run existing tests after each T209-T214 to catch import issues early.
+3. **Metro bundler configuration is critical**: If Metro can't resolve `@exam-app/shared`, nothing works. T216 is the highest-risk task — validate thoroughly.
+4. **Backend ExamType CRUD is fully independent**: Phase 13 (T225-T230) has zero dependency on the monorepo migration. It can be done first, last, or in parallel.
+5. **Admin portal follows existing patterns**: The ExamTypeFormPage should look and feel like the existing QuestionDetailPage. Use the same form layout, validation approach, and navigation patterns.
+6. **Domain weight validation is business-critical**: Domains must sum to 100%. Validate on both frontend (real-time) and backend (DTO validator). Frontend shows a live counter.
+7. **EAS Build monorepo support**: Expo/EAS officially supports monorepo builds. Key setting: `"extends"` in eas.json can share base config. Each app needs its own `projectId`.
+8. **No Prisma schema changes**: ExamType model already has all needed fields. CRUD operations use existing Prisma client. Zero migrations.
+9. **Preserve all environment variable patterns**: `EXPO_PUBLIC_*` variables must work identically in `apps/{name}/` as they did in `mobile/`.
+10. **The `mobile/` directory**: After Phase 11 migration is verified, `mobile/` can be removed or converted to a symlink to `apps/aws-clp/` for backward compatibility. Do NOT delete until all CI/CD and documentation references are updated.
 

@@ -108,7 +108,7 @@ export class ExamAttemptController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(201)
   async submitExamAuthenticated(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Body() dto: SubmitExamAttemptDto,
   ): Promise<ExamAttemptResponse> {
     // Validate input
@@ -143,7 +143,7 @@ export class ExamAttemptController {
   @Get('my-history')
   @UseGuards(JwtAuthGuard)
   async getMyHistory(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('examTypeId') examTypeId?: string,
@@ -172,9 +172,10 @@ export class ExamAttemptController {
    * @returns Exam attempt details
    */
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   async getExamAttempt(
     @Param('id') id: string,
-    @CurrentUser('sub') userId?: string,
+    @CurrentUser('userId') userId?: string,
   ): Promise<ExamAttemptResponse> {
     const attempt = await this.examAttemptService.findById(id);
 
@@ -232,7 +233,7 @@ export class ExamAttemptController {
   @Get('analytics/my-analytics')
   @UseGuards(JwtAuthGuard)
   async getMyAnalytics(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Query('examTypeId') examTypeId?: string,
   ): Promise<AnalyticsResponse> {
     return this.examAttemptService.getAnalytics(userId, examTypeId);

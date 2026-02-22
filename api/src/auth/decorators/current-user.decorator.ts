@@ -14,8 +14,9 @@ import { JwtPayload } from '../services/jwt.service';
  *   }
  */
 export const CurrentUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): JwtPayload => {
+  (data: keyof JwtPayload | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    return request.user;
+    const user: JwtPayload = request.user;
+    return data ? user?.[data] : user;
   },
 );

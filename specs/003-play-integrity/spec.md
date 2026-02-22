@@ -258,3 +258,173 @@ This glossary standardizes terminology used throughout the specification to ensu
   - Advanced CI/CD pipelines beyond GitHub integration (GitHub → Railway auto-deploy sufficient; GitLab CI/GitHub Actions workflows out of scope)
   - Canary or blue-green deployment strategies (Railway instant rollback capability sufficient; complex strategies out of scope)
   - Database read replicas or advanced clustering (Neon auto-suspend and single-database approach sufficient)
+
+---
+
+## Phase 4: Multi-App Monorepo Architecture
+
+**Status**: 📋 Ready for Implementation  
+**Prerequisites**: Phase 3 (003-play-integrity Phases 1-8) ✅ Complete  
+**Input**: Transform the single-app project into a monorepo that produces multiple Play Store apps from one shared codebase, eliminating code duplication across exam types.
+
+### Overview
+
+The current architecture already supports multi-tenancy on the backend (ExamType entity, domain-per-exam-type, admin portal with ExamTypeSwitcher). However, the mobile app (`mobile/`) is a single Expo project hardcoded to `EXAM_TYPE_ID = 'CLF-C02'`. To ship multiple exam apps (AWS SAA, GCP ACE, Azure AZ-900, etc.), the naive approach of cloning `mobile/` per exam would create an 10x maintenance burden, exponential testing, and version drift across clones.
+
+Phase 4 refactors the project into an npm workspaces monorepo where shared mobile code lives in `packages/shared/` and each exam app is a thin wrapper in `apps/{exam-id}/` containing only config, branding, and assets. The backend and admin portal remain unchanged structurally, but the admin portal gains ExamType CRUD so new exams can be created without developer intervention.
+
+**Key Outcome**: Adding a new exam app takes ~30 minutes (admin creates ExamType + developer runs `create-app` script) instead of days of cloning and modifying. Bug fixes and features propagate instantly to all apps.
+
+### Dependencies
+
+#### Phase 3 (003-play-integrity) - Prerequisite
+
+- ✅ All Phase 1-8 tasks (T151-T205) complete
+- ✅ Play Integrity Guard fully operational
+- ✅ Railway + Neon production deployment operational
+- ✅ All existing tests passing
+
+#### External
+
+- **npm workspaces**: Built-in to npm 7+, no additional tooling needed
+- **Expo monorepo support**: Expo SDK 50+ fully supports monorepo configurations with Metro bundler
+- **EAS Build**: Supports building individual apps within a monorepo
+
+#### No Changes Required
+
+- **Prisma Schema**: Zero database schema changes. ExamType model already supports multi-tenant. No new tables, no migrations.
+- **Backend API Endpoints**: Public endpoints (`GET /exam-types/{id}`, `GET /exam-types/{id}/questions`) already work for any exam type. No changes to business logic.
+- **Play Integrity Guard**: Integrity verification is device-scoped and app-independent. Each app wrapper inherits the same Play Integrity service from shared code.
+- **Authentication & Cloud Sync**: Phase 2 auth/sync infrastructure works identically for all exam apps.
+
+### User Scenarios & Testing
+
+#### User Story 5 - Admin Creates New Exam Type via Portal (Priority: P1)
+
+As an admin, I want to create a new exam type through the admin portal with its domains, passing score, and configuration, so that new exam apps can be launched without code changes to the backend.
+
+**Why this priority**: This unblocks the entire multi-app workflow. Without admin-managed exam types, every new exam requires manual database seeding by a developer.
+
+**Independent Test**: Log in to admin portal → navigate to Exam Types → click "Create Exam Type" → fill in form (id: `SAA-C03`, name: `AWS Solutions Architect Associate`, domains, passing score 72%, time limit 130 min) → submit → verify exam type appears in list and is accessible via `GET /exam-types/SAA-C03` API.
+
+**Acceptance Scenarios**:
+
+1. **Given** an admin is logged in, **When** they navigate to the Exam Types page, **Then** they see a list of all exam types with a "Create New" button.
+2. **Given** the admin clicks "Create New", **When** the ExamType form loads, **Then** it displays fields for: ID (text), name, displayName, description, passingScore, timeLimit, questionCount, and a dynamic domain editor.
+3. **Given** the admin fills in all required fields and at least one domain, **When** they submit the form, **Then** the exam type is created in the database and appears in the list.
+4. **Given** the admin enters an ID that already exists, **When** they submit, **Then** the form shows a validation error without creating a duplicate.
+5. **Given** an exam type is created, **When** a mobile app configured with that exam type ID makes API calls, **Then** the API returns the correct configuration and empty question bank.
+
+---
+
+#### User Story 6 - Developer Creates New App from Shared Code (Priority: P1)
+
+As a developer, I want to create a new exam app by running a single script and providing only exam-specific config and branding, so that new app creation takes less than 30 minutes.
+
+**Why this priority**: This is the core engineering outcome. If creating new apps still requires extensive manual work, the monorepo architecture fails to deliver its value.
+
+**Independent Test**: Run `npm run create-app -- --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03"` → verify `apps/aws-saa/` is created with correct config → run `cd apps/aws-saa && npx expo start` → app launches and connects to backend → displays empty question bank (no questions for SAA-C03 yet).
+
+**Acceptance Scenarios**:
+
+1. **Given** a developer runs the create-app script with valid parameters, **When** the script completes, **Then** a new directory `apps/{app-name}/` is created with app.json, App.tsx, config, and placeholder assets.
+2. **Given** the new app is created, **When** the developer runs `npx expo start` from the app directory, **Then** the app launches using shared code from `packages/shared/` and displays the correct exam type name.
+3. **Given** the new app imports shared code, **When** a bug is fixed in `packages/shared/`, **Then** the fix is immediately available to all apps without any additional action.
+4. **Given** a new app is created, **When** compared to the existing AWS CLP app, **Then** all screens, components, and services function identically—only the exam type ID, app name, and branding differ.
+
+---
+
+#### User Story 7 - All Apps Share Bug Fixes Instantly (Priority: P1)
+
+As a developer maintaining multiple exam apps, I want all apps to automatically receive bug fixes and feature updates from shared code, so that I only fix bugs once and the maintenance burden remains at 1x regardless of app count.
+
+**Why this priority**: Without code sharing, 10 apps = 10x maintenance. This story validates that the monorepo architecture achieves its primary goal of 1x maintenance.
+
+**Independent Test**: Introduce an intentional bug in `packages/shared/src/components/QuestionCard.tsx` → verify the bug appears in ALL apps (aws-clp, aws-saa) → fix the bug in shared → verify ALL apps are fixed with a single change.
+
+**Acceptance Scenarios**:
+
+1. **Given** shared code is modified, **When** any individual app is run, **Then** it immediately uses the updated shared code without any manual sync, copy, or version bump.
+2. **Given** 5 exam apps exist, **When** a developer runs `npm test` from the root, **Then** ALL apps' tests run against the same shared code.
+3. **Given** a developer updates a shared component, **When** they build any individual app, **Then** only that app's build runs (not all apps), while still using the latest shared code.
+
+---
+
+#### User Story 8 - Per-App Branding and Identity (Priority: P2)
+
+As a user browsing the Play Store, I want each exam app to have a distinct name, icon, and description, so that I can easily find and distinguish between different certification exam prep apps.
+
+**Why this priority**: Important for Play Store presence but does not affect core functionality. Can use placeholder branding initially and refine later.
+
+**Independent Test**: Build both aws-clp and aws-saa apps → install both on a device → verify they appear as separate apps with different names and icons in the app drawer.
+
+**Acceptance Scenarios**:
+
+1. **Given** two apps are built, **When** both are installed on the same device, **Then** they appear as separate applications with distinct names and icons.
+2. **Given** each app has its own `app.json`, **When** the app launches, **Then** it shows the correct splash screen and branding for that exam type.
+3. **Given** each app has a unique Android package name, **When** published to Play Store, **Then** they appear as completely independent listings.
+
+---
+
+#### User Story 9 - Admin Edits Existing Exam Type (Priority: P2)
+
+As an admin, I want to edit an existing exam type's configuration (domains, passing score, time limit), so that I can update exam parameters as certifications evolve without requiring developer intervention.
+
+**Why this priority**: Certifications change their exam structure periodically. Admin-editable exam types ensure the system stays current without code deployments.
+
+**Acceptance Scenarios**:
+
+1. **Given** an exam type exists, **When** the admin navigates to its detail page, **Then** they see an "Edit" button that opens the form pre-filled with current values.
+2. **Given** the admin modifies domain weights, **When** they submit, **Then** the updated domains are saved and immediately reflected in API responses.
+3. **Given** the admin wants to retire an exam type, **When** they toggle the isActive flag to false, **Then** mobile apps for that exam type stop receiving new questions and the exam type is hidden from the admin list (unless an "include inactive" filter is applied).
+
+### Requirements
+
+#### Functional Requirements: Monorepo Structure
+
+- **FR-026**: The project MUST use npm workspaces for monorepo package management. The root `package.json` MUST define `workspaces` pointing to `packages/*` and `apps/*`.
+- **FR-027**: All shared mobile code (components, services, stores, storage, screens, navigation) MUST be extracted into `packages/shared/` as a workspace package named `@exam-app/shared`.
+- **FR-028**: Each exam app MUST be a thin wrapper in `apps/{app-name}/` containing ONLY: `app.json` (app identity), `App.tsx` (root component importing shared), `src/config/` (EXAM_TYPE_ID and branding), `assets/` (icons, splash), and `package.json` (declaring `@exam-app/shared` as dependency).
+- **FR-029**: Metro bundler MUST be configured per-app to resolve `@exam-app/shared` from the workspace root using `metro.config.js` with `watchFolders` and `nodeModulesPaths`.
+- **FR-030**: ALL existing tests (unit, integration, E2E, performance) MUST pass after monorepo migration with zero code logic changes. Only import paths may change.
+
+#### Functional Requirements: Admin Portal - ExamType CRUD
+
+- **FR-031**: The admin portal MUST provide a page listing all exam types with "Create New" and "Edit" actions.
+- **FR-032**: The admin portal MUST provide a form for creating a new exam type with fields: `id` (required, unique, alphanumeric + hyphens), `name` (required, min 3 chars), `displayName` (required), `description` (optional), `passingScore` (required, 0-100), `timeLimit` (required, minutes), `questionCount` (required, 1-500).
+- **FR-033**: The admin portal MUST provide a dynamic domain editor allowing admins to add, remove, and reorder domains. Each domain has: `id` (required, unique within exam type), `name` (required), `weight` (required, 0-100, all weights must sum to 100), `questionCount` (required, integer).
+- **FR-034**: The backend MUST expose `POST /admin/exam-types` to create a new exam type. Request body matches the ExamType schema. Returns 201 on success, 409 on duplicate ID.
+- **FR-035**: The backend MUST expose `PUT /admin/exam-types/:id` to update an existing exam type (all fields except `id`). Returns 200 on success, 404 if not found.
+- **FR-036**: The backend MUST expose `PATCH /admin/exam-types/:id` to toggle `isActive` for soft-delete/reactivation. Returns 200 on success.
+- **FR-037**: All admin exam type endpoints MUST require JWT authentication (using existing `JwtAuthGuard`).
+
+#### Functional Requirements: App Wrapper Configuration
+
+- **FR-038**: Each app's `app.json` MUST have a unique `android.package` (e.g., `com.danilocasim.dojoexam.{examid}`) and `ios.bundleIdentifier`.
+- **FR-039**: Each app's `App.tsx` MUST import and render the shared `AppRoot` component from `@exam-app/shared`, passing `examTypeId` and optional branding overrides as props.
+- **FR-040**: The shared `AppRoot` MUST accept `examTypeId: string` as a required prop and use it to configure all API calls, question syncing, and exam flow.
+- **FR-041**: EAS Build configuration MUST support per-app builds using `eas.json` in each app directory with unique `projectId` and build profiles.
+
+#### Functional Requirements: Build System & Tooling
+
+- **FR-042**: A `scripts/create-app.sh` (or equivalent) MUST exist to scaffold a new app from a template. Required parameters: exam type ID, app display name, Android package name. The script MUST generate all required files from the template.
+- **FR-043**: Build scripts MUST support building a single app (`npm run build --workspace=apps/aws-clp`) or all apps (`npm run build:all`).
+- **FR-044**: The existing `apps/aws-clp/` app (migrated from `mobile/`) MUST produce an identical APK/AAB to the current `mobile/` build. Zero functional regression.
+- **FR-045**: TypeScript path aliases MUST resolve `@exam-app/shared` correctly in all apps, tests, and IDE tooling.
+
+### Key Entities (Phase 4 additions)
+
+- **AppConfig**: Per-app configuration stored in `apps/{app-name}/src/config/app.config.ts`. Contains `EXAM_TYPE_ID`, app-specific branding (colors, theme), and API URL overrides. Imported by the app's `App.tsx` and passed to shared code.
+
+- **AppTemplate**: Skeleton in `apps/template/` used by `create-app` script to generate new apps. Contains placeholder values (e.g., `__EXAM_TYPE_ID__`, `__APP_NAME__`, `__PACKAGE_NAME__`) that are replaced during generation.
+
+### Phase 4 Out of Scope
+
+- Advanced monorepo tooling (Turborepo, Nx, Lerna) — npm workspaces is sufficient for this project size
+- Automated Play Store deployment (manual upload of AAB per app)
+- Cross-app shared user accounts (each app is independent; users purchase separately)
+- White-labeling or runtime theme switching (branding is set at build time only)
+- Shared analytics dashboard across apps (each app tracks independently)
+- iOS App Store deployment (Android/Play Store only in current scope)
+- Automated icon/splash screen generation from templates (manual asset creation per app)
+- Monorepo CI/CD with app-specific change detection (all apps rebuild on shared code changes)

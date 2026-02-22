@@ -390,6 +390,7 @@ describe('ExamAttempts Controller (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .get('/exam-attempts/attempt-uuid-1')
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       expect(response.body).toMatchObject({
@@ -411,6 +412,7 @@ describe('ExamAttempts Controller (e2e)', () => {
 
       await request(app.getHttpServer())
         .get('/exam-attempts/non-existent-id')
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
     });
 
