@@ -100,7 +100,10 @@ export const AnalyticsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => (navigation as any).navigate('HomeTab')}
+            style={styles.backButton}
+          >
             <ArrowLeft size={22} color={colors.textHeading} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Analytics</Text>
@@ -121,7 +124,10 @@ export const AnalyticsScreen: React.FC = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => (navigation as any).navigate('HomeTab')}
+          style={styles.backButton}
+        >
           <ArrowLeft size={22} color={colors.textHeading} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analytics</Text>
@@ -152,7 +158,7 @@ export const AnalyticsScreen: React.FC = () => {
             </Text>
             <TouchableOpacity
               style={styles.startButton}
-              onPress={() => navigation.navigate('Home')}
+              onPress={() => navigation.navigate('MainTabs')}
             >
               <Text style={styles.startButtonText}>Start Studying</Text>
             </TouchableOpacity>

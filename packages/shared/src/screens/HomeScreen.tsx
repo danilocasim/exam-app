@@ -20,7 +20,6 @@ import { WebView } from 'react-native-webview';
 import * as WebBrowser from 'expo-web-browser';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Circle } from 'react-native-svg';
 import {
   Cloud,
   Play,
@@ -38,6 +37,9 @@ import {
   X,
   ArrowLeft,
   MessageSquare,
+  Crown,
+  Target,
+  Clock,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
@@ -76,52 +78,6 @@ const colors = {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
-
-// ── Progress Ring ──
-interface ProgressRingProps {
-  progress: number; // 0-1
-  size: number;
-  strokeWidth: number;
-  color: string;
-  trackColor: string;
-}
-
-const ProgressRing: React.FC<ProgressRingProps> = ({
-  progress,
-  size,
-  strokeWidth,
-  color,
-  trackColor,
-}) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - Math.min(progress, 1));
-
-  return (
-    <Svg width={size} height={size}>
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={trackColor}
-        strokeWidth={strokeWidth}
-        fill="transparent"
-      />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={color}
-        strokeWidth={strokeWidth}
-        fill="transparent"
-        strokeDasharray={`${circumference}`}
-        strokeDashoffset={strokeDashoffset}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </Svg>
-  );
-};
 
 // ── Thin progress bar for WebView loading ──
 const WebViewProgressBar: React.FC = () => {
@@ -300,9 +256,6 @@ export const HomeScreen: React.FC = () => {
     );
   }
 
-  // ── Derived values ──
-  const progressRatio = questionCount > 0 ? questionsAnswered / questionCount : 0;
-
   // ── Resource definitions ──
   const resources = [
     {
@@ -348,31 +301,42 @@ export const HomeScreen: React.FC = () => {
   // ── Quick action definitions ──
   const quickActions = [
     {
-      key: 'practice',
-      label: 'Practice',
-      sub: 'By domain',
-      icon: <ClipboardList size={20} color={colors.primaryOrange} strokeWidth={1.5} />,
-      gradient: ['rgba(255, 153, 0, 0.12)', 'rgba(236, 114, 17, 0.06)'] as [string, string],
-      borderColor: 'rgba(255, 153, 0, 0.25)',
-      onPress: () => navigation.navigate('PracticeSetup'),
+      key: 'mock',
+      label: 'Mock Exam',
+      sub: 'Simulate real exam',
+      icon: <Target size={22} color={colors.primaryOrange} strokeWidth={1.8} />,
+      iconBg: 'rgba(255, 153, 0, 0.15)',
+      onPress: () => {
+        if (hasInProgress) {
+          handleStartNewExam();
+        } else {
+          handleStartExam();
+        }
+      },
     },
     {
-      key: 'analytics',
-      label: 'Analytics',
-      sub: 'Performance',
-      icon: <BarChart2 size={20} color={colors.info} strokeWidth={1.5} />,
-      gradient: ['rgba(59, 130, 246, 0.12)', 'rgba(59, 130, 246, 0.04)'] as [string, string],
-      borderColor: 'rgba(59, 130, 246, 0.25)',
-      onPress: () => navigation.navigate('Analytics'),
+      key: 'practice',
+      label: 'Practice Exam',
+      sub: 'Practice by domain',
+      icon: <ClipboardList size={22} color={colors.info} strokeWidth={1.8} />,
+      iconBg: 'rgba(59, 130, 246, 0.15)',
+      onPress: () => (navigation as any).navigate('PracticeTab'),
     },
     {
       key: 'history',
       label: 'History',
-      sub: 'Past exams',
-      icon: <BookOpen size={20} color={colors.success} strokeWidth={1.5} />,
-      gradient: ['rgba(16, 185, 129, 0.12)', 'rgba(16, 185, 129, 0.04)'] as [string, string],
-      borderColor: 'rgba(16, 185, 129, 0.25)',
-      onPress: () => navigation.navigate('ExamHistory'),
+      sub: 'Past attempts',
+      icon: <Clock size={22} color={colors.success} strokeWidth={1.8} />,
+      iconBg: 'rgba(16, 185, 129, 0.15)',
+      onPress: () => (navigation as any).navigate('HistoryTab'),
+    },
+    {
+      key: 'stats',
+      label: 'Stats',
+      sub: 'Performance insights',
+      icon: <BarChart2 size={22} color="#8B5CF6" strokeWidth={1.8} />,
+      iconBg: 'rgba(139, 92, 246, 0.15)',
+      onPress: () => (navigation as any).navigate('StatsTab'),
     },
   ];
 
@@ -417,30 +381,31 @@ export const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Inline Stats Strip ── */}
-        <View style={styles.statsStrip}>
-          <View style={styles.stripItem}>
-            <Text style={styles.stripValue}>{questionCount}</Text>
-            <Text style={styles.stripLabel}>In Bank</Text>
-          </View>
-          <View style={styles.stripDot} />
-          <View style={styles.stripItem}>
-            <Text style={styles.stripValue}>{EXAM_CONFIG.QUESTIONS_PER_EXAM}</Text>
-            <Text style={styles.stripLabel}>Per Exam</Text>
-          </View>
-          <View style={styles.stripDot} />
-          <View style={styles.stripItem}>
-            <Text style={styles.stripValue}>{EXAM_CONFIG.TIME_LIMIT_MINUTES}m</Text>
-            <Text style={styles.stripLabel}>Time</Text>
-          </View>
-          <View style={styles.stripDot} />
-          <View style={styles.stripItem}>
-            <Text style={[styles.stripValue, { color: colors.successLight }]}>
-              {EXAM_CONFIG.PASSING_SCORE}%
+        {/* ── Promotion Banner ── */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Upgrade' as any)}
+          activeOpacity={0.85}
+          style={styles.promoBanner}
+        >
+          <View style={styles.promoCard}>
+            <View style={styles.promoTopRow}>
+              <View style={styles.promoIconCircle}>
+                <Crown size={18} color={colors.primaryOrange} strokeWidth={2.5} />
+              </View>
+              <View style={styles.promoBadge}>
+                <Text style={styles.promoBadgeText}>LIMITED</Text>
+              </View>
+            </View>
+            <Text style={styles.promoTitle}>Get 49% off forever access</Text>
+            <Text style={styles.promoSub}>
+              Unlimited exams, full question bank & lifetime updates
             </Text>
-            <Text style={styles.stripLabel}>Pass</Text>
+            <View style={styles.promoBtn}>
+              <Text style={styles.promoBtnText}>Upgrade Now</Text>
+              <ChevronRight size={14} color={colors.textHeading} strokeWidth={2.5} />
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.content}>
           {/* ── Primary CTA ── */}
@@ -555,105 +520,28 @@ export const HomeScreen: React.FC = () => {
             </View>
           )}
 
-          {/* ── Progress & Insights ── */}
-          <View style={styles.insightCard}>
-            <View style={styles.insightLeft}>
-              <View style={styles.ringContainer}>
-                <ProgressRing
-                  progress={progressRatio}
-                  size={72}
-                  strokeWidth={6}
-                  color={colors.primaryOrange}
-                  trackColor={colors.surfaceHover}
-                />
-                <View style={styles.ringLabel}>
-                  <Text style={styles.ringValue}>
-                    {questionsAnswered > 999
-                      ? `${(questionsAnswered / 1000).toFixed(1)}k`
-                      : questionsAnswered}
-                  </Text>
-                  <Text style={styles.ringCaption}>done</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.insightRight}>
-              <Text style={styles.insightTitle}>
-                {questionsAnswered === 0
-                  ? 'Ready to begin?'
-                  : `${questionsAnswered} of ${questionCount} answered`}
-              </Text>
-              <View style={styles.insightMetrics}>
-                {totalExams > 0 && (
-                  <View style={styles.metricChip}>
-                    <Text style={styles.metricValue}>{passRate}%</Text>
-                    <Text style={styles.metricLabel}>pass rate</Text>
-                  </View>
-                )}
-                {totalExams > 0 && (
-                  <View style={styles.metricChip}>
-                    <Text style={styles.metricValue}>{totalExams}</Text>
-                    <Text style={styles.metricLabel}>{totalExams === 1 ? 'exam' : 'exams'}</Text>
-                  </View>
-                )}
-                {totalExams === 0 && (
-                  <Text style={styles.insightHint}>Take your first exam to track progress</Text>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* ── Weak Domain Nudge ── */}
-          {weakDomainName && (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('PracticeSetup')}
-              activeOpacity={0.7}
-              style={styles.nudge}
-            >
-              <View style={styles.nudgeLeft}>
-                <View style={styles.nudgeIcon}>
-                  <AlertTriangle size={14} color={colors.error} strokeWidth={2} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.nudgeTitle} numberOfLines={1}>
-                    Weak area: {weakDomainName}
-                  </Text>
-                  <Text style={styles.nudgeSub}>Tap to practice this domain</Text>
-                </View>
-              </View>
-              <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
-            </TouchableOpacity>
-          )}
-
-          {/* ── Quick Actions ── */}
+          {/* ── Quick Actions (2x2 grid) ── */}
           <Text style={styles.sectionLabel}>Quick Actions</Text>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.actionsRow}
-        >
+        <View style={styles.actionsGrid}>
           {quickActions.map((action) => (
             <TouchableOpacity
               key={action.key}
               onPress={action.onPress}
-              activeOpacity={0.75}
-              style={styles.actionCard}
+              activeOpacity={0.7}
+              style={styles.actionCardGrid}
             >
-              <LinearGradient
-                colors={action.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.actionGradient, { borderColor: action.borderColor }]}
-              >
-                <View style={styles.actionIconWrap}>{action.icon}</View>
+              <View style={styles.actionCardInner}>
+                <View style={[styles.actionIconWrap, { backgroundColor: action.iconBg }]}>
+                  {action.icon}
+                </View>
                 <Text style={styles.actionTitle}>{action.label}</Text>
                 <Text style={styles.actionSub}>{action.sub}</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         {/* ── Resources Button ── */}
         <View style={styles.content}>
@@ -840,27 +728,78 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // Stats Strip
-  statsStrip: {
+  // Promotion Banner
+  promoBanner: {
+    marginHorizontal: 20,
+    marginTop: 6,
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  promoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 153, 0, 0.2)',
+  },
+  promoTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  promoIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.orangeDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoBadge: {
+    backgroundColor: 'rgba(255, 153, 0, 0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  promoBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.primaryOrange,
+    letterSpacing: 0.8,
+  },
+  promoTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textHeading,
+    marginBottom: 4,
+  },
+  promoSub: {
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  promoBtn: {
+    backgroundColor: colors.primaryOrange,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    marginHorizontal: 20,
-    marginBottom: 8,
+    alignSelf: 'flex-start',
+    gap: 4,
   },
-  stripItem: { alignItems: 'center', paddingHorizontal: 12 },
-  stripValue: { fontSize: 16, fontWeight: '700', color: colors.textHeading },
-  stripLabel: { fontSize: 10, color: colors.textMuted, marginTop: 1 },
-  stripDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.trackGray,
+  promoBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textHeading,
   },
 
   // Primary CTA
-  ctaSection: { marginBottom: 12 },
+  ctaSection: { marginBottom: 8 },
   ctaWrapper: { borderRadius: 14, overflow: 'hidden', marginBottom: 4 },
   ctaDisabled: { opacity: 0.5 },
   ctaGradient: { paddingVertical: 18, paddingHorizontal: 20 },
@@ -898,99 +837,49 @@ const styles = StyleSheet.create({
   },
   warningText: { color: colors.errorLight, fontSize: 13, flex: 1 },
 
-  // Progress Insight Card
-  insightCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    alignItems: 'center',
-  },
-  insightLeft: { marginRight: 16 },
-  ringContainer: { position: 'relative', width: 72, height: 72 },
-  ringLabel: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringValue: { fontSize: 16, fontWeight: 'bold', color: colors.textHeading },
-  ringCaption: { fontSize: 9, color: colors.textMuted, marginTop: -1 },
-  insightRight: { flex: 1 },
-  insightTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textHeading,
-    marginBottom: 6,
-  },
-  insightMetrics: { flexDirection: 'row', gap: 10 },
-  metricChip: {
-    backgroundColor: colors.surfaceHover,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    alignItems: 'center',
-  },
-  metricValue: { fontSize: 15, fontWeight: 'bold', color: colors.orangeLight },
-  metricLabel: { fontSize: 10, color: colors.textMuted, marginTop: 1 },
-  insightHint: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
-
-  // Weak Domain Nudge
-  nudge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.errorDark,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
-  },
-  nudgeLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  nudgeIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nudgeTitle: { fontSize: 13, fontWeight: '600', color: colors.textHeading },
-  nudgeSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-
   // Section Label
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 10,
-    marginTop: 4,
+    letterSpacing: 0.8,
+    marginBottom: 14,
+    marginTop: 8,
   },
 
-  // Quick Actions (Horizontal Scroll)
-  actionsRow: { paddingLeft: 20, paddingRight: 10, gap: 10 },
-  actionCard: { width: (SCREEN_WIDTH - 60) / 3.2, flexShrink: 0 },
-  actionGradient: {
+  // Quick Actions (2x2 Grid)
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  actionCardGrid: {
+    width: (SCREEN_WIDTH - 52) / 2,
+    flexShrink: 0,
+  },
+  actionCardInner: {
+    backgroundColor: colors.surface,
     borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 14,
     alignItems: 'center',
     borderWidth: 1,
+    borderColor: colors.borderDefault,
+    minHeight: 120,
+    justifyContent: 'center',
   },
-  actionIconWrap: { marginBottom: 10 },
-  actionTitle: { fontSize: 13, fontWeight: '600', color: colors.textHeading },
-  actionSub: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  actionIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  actionTitle: { fontSize: 14, fontWeight: '700', color: colors.textHeading },
+  actionSub: { fontSize: 12, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
 
   // Resources Button
   resourcesBtn: {
@@ -1001,7 +890,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    marginTop: 20,
+    marginTop: 24,
     borderWidth: 1,
     borderColor: colors.borderDefault,
   },

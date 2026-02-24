@@ -146,7 +146,7 @@ export const PracticeScreen: React.FC = () => {
       if (sessionId) {
         navigation.replace('PracticeSummary', { sessionId });
       } else {
-        navigation.navigate('Home');
+        navigation.navigate('MainTabs');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to end session';

@@ -120,7 +120,7 @@ export const ExamResultsScreen: React.FC = () => {
 
   const handleGoHome = () => {
     resetExamState();
-    navigation.navigate('Home');
+    navigation.navigate('MainTabs');
   };
 
   const handleReviewExam = () => {

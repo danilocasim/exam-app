@@ -23,3 +23,6 @@ export { AuthScreen } from './AuthScreen';
 
 // Cloud Analytics screen (T142)
 export { CloudAnalyticsScreen } from './CloudAnalyticsScreen';
+
+// Upgrade screen
+export { UpgradeScreen } from './UpgradeScreen';

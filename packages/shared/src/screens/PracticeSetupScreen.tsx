@@ -134,7 +134,7 @@ export const PracticeSetupScreen: React.FC = () => {
   };
 
   const handleGoBack = () => {
-    navigation.goBack();
+    (navigation as any).navigate('HomeTab');
   };
 
   const canStart = availableQuestionCount > 0 && !isLoading;
@@ -229,7 +229,6 @@ export const PracticeSetupScreen: React.FC = () => {
           )}
         </View>
       </View>
-      <View style={{ paddingBottom: insets.bottom }} />
     </SafeAreaView>
   );
 };

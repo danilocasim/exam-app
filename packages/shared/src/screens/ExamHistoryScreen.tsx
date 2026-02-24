@@ -145,7 +145,7 @@ export const ExamHistoryScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => (navigation as any).navigate('HomeTab')}
           activeOpacity={0.7}
           style={styles.backButton}
         >
@@ -170,7 +170,7 @@ export const ExamHistoryScreen: React.FC = () => {
           <Text style={styles.emptyTitle}>No Exam History</Text>
           <Text style={styles.emptySubtitle}>Complete your first exam to see results here</Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => navigation.navigate('MainTabs')}
             activeOpacity={0.7}
             style={styles.emptyButton}
           >
