@@ -530,56 +530,58 @@ exam-app/
 └── specs/003-play-integrity/           # (UPDATED) This documentation
 ```
 
+### Current Implementation Status (as of February 25, 2026)
+
+**Codebase features beyond original spec** (implemented but not previously documented):
+- **UpgradeScreen**: Static "Forever Access" upgrade UI in `packages/shared/src/screens/UpgradeScreen.tsx` — one-time purchase branding ($14.99), benefits list, CTA button. No billing integration yet.
+- **Bundle Service**: `packages/shared/src/services/bundle.service.ts` — loads initial question bank from bundled JSON assets for offline-first experience.
+- **14 screens**: HomeScreen, ExamScreen, ExamResultsScreen, PracticeScreen, PracticeSetupScreen, PracticeSummaryScreen, ReviewScreen, ExamHistoryScreen, AnalyticsScreen, CloudAnalyticsScreen, AuthScreen, SettingsScreen, UpgradeScreen + navigation route for each.
+- **14+ components**: Including DifficultySelector, DomainSelector, ErrorBoundary, FeedbackCard, Skeleton, SyncStatusIndicator, Timer, analytics subfolder (DomainPerformanceCard, ScoreTrendChart, StudyStatsCard).
+- **7 Zustand stores**: analytics, auth, exam-attempt, exam, play-integrity, practice, review.
+- **18 services**: Including network.service.ts, token-refresh-service.ts, api-interceptor.ts, bundle.service.ts.
+- **8 storage repositories**: question, exam-attempt, exam-answer, exam-submission, integrity, practice-answer, practice-session, user-stats.
+- **Performance benchmarks**: vitest setup with launch.bench.ts, rendering.bench.ts, transitions.bench.ts.
+- **mobile/ directory removed**: Fully migrated to `packages/shared/` + `apps/aws-clp/`.
+
 ### Implementation Phases (Phase 4)
 
-#### Phase 10: Monorepo Foundation (T207–T214, ~6 dev-hours)
+#### Phase 10: Monorepo Foundation (T207–T214, ~6 dev-hours) ✅ COMPLETE
 
 **Goal**: Set up npm workspaces, create packages/shared/, and extract shared code.
 
-| Task | Description | Est. |
-|------|-------------|------|
-| T207 | Initialize npm workspaces at root, create packages/shared/package.json | 30 min |
-| T208 | Create packages/shared/ directory structure and tsconfig.json | 30 min |
-| T209 | Extract shared components from mobile/src/components/ → packages/shared/src/components/ | 45 min |
-| T210 | Extract shared services from mobile/src/services/ → packages/shared/src/services/ | 45 min |
-| T211 | Extract shared stores from mobile/src/stores/ → packages/shared/src/stores/ | 30 min |
-| T212 | Extract shared storage from mobile/src/storage/ → packages/shared/src/storage/ | 30 min |
-| T213 | Extract shared screens from mobile/src/screens/ → packages/shared/src/screens/ | 45 min |
-| T214 | Extract shared navigation from mobile/src/navigation/ → packages/shared/src/navigation/ | 30 min |
+| Task | Description | Est. | Status |
+|------|-------------|------|--------|
+| T207 | Initialize npm workspaces at root, create packages/shared/package.json | 30 min | ✅ |
+| T208 | Create packages/shared/ directory structure and tsconfig.json | 30 min | ✅ |
+| T209 | Extract shared components from mobile/src/components/ → packages/shared/src/components/ | 45 min | ✅ |
+| T210 | Extract shared services from mobile/src/services/ → packages/shared/src/services/ | 45 min | ✅ |
+| T211 | Extract shared stores from mobile/src/stores/ → packages/shared/src/stores/ | 30 min | ✅ |
+| T212 | Extract shared storage from mobile/src/storage/ → packages/shared/src/storage/ | 30 min | ✅ |
+| T213 | Extract shared screens from mobile/src/screens/ → packages/shared/src/screens/ | 45 min | ✅ |
+| T214 | Extract shared navigation from mobile/src/navigation/ → packages/shared/src/navigation/ | 30 min | ✅ |
 
-**Checkpoint**: packages/shared/ contains all reusable code. Not yet imported by any app.
+**Checkpoint**: ✅ packages/shared/ contains all reusable code (18 services, 14 screens, 14+ components, 7 stores, 8 repositories). Barrel export in src/index.ts.
 
-#### Phase 11: App Wrapper Migration (T215–T220, ~5 dev-hours)
+#### Phase 11: App Wrapper Migration (T215–T220, ~5 dev-hours) ✅ COMPLETE
 
 **Goal**: Convert mobile/ into apps/aws-clp/ thin wrapper using shared code.
 
-| Task | Description | Est. |
-|------|-------------|------|
-| T215 | Create apps/aws-clp/ directory, move mobile/ app-specific files (app.json, assets/, eas.json) | 45 min |
-| T216 | Configure Metro bundler in apps/aws-clp/metro.config.js for workspace package resolution | 30 min |
-| T217 | Configure Babel in apps/aws-clp/babel.config.js for workspace module resolution | 20 min |
-| T218 | Create apps/aws-clp/App.tsx importing AppRoot from @exam-app/shared with examTypeId='CLF-C02' | 30 min |
-| T219 | Create packages/shared/src/AppRoot.tsx that accepts examTypeId prop and renders the full app tree | 45 min |
-| T220 | Verify apps/aws-clp builds and runs identically to original mobile/ (zero regression) | 60 min |
+| Task | Description | Est. | Status |
+|------|-------------|------|--------|
+| T215 | Create apps/aws-clp/ directory, move mobile/ app-specific files (app.json, assets/, eas.json) | 45 min | ✅ |
+| T216 | Configure Metro bundler in apps/aws-clp/metro.config.js for workspace package resolution | 30 min | ✅ |
+| T217 | Configure Babel in apps/aws-clp/babel.config.js for workspace module resolution | 20 min | ✅ |
+| T218 | Create apps/aws-clp/src/config/app.config.ts with examTypeId='CLF-C02', branding config | 30 min | ✅ |
+| T219 | Create packages/shared/src/AppRoot.tsx (246 lines) — full init sequence: Google Sign-In → token refresh → SQLite → Play Integrity → user DB switch → sync → persistence → RootNavigator | 45 min | ✅ |
+| T220 | Verify apps/aws-clp builds and runs identically to original mobile/ (zero regression) | 60 min | ✅ |
 
-**Checkpoint**: aws-clp app runs from apps/aws-clp/ using shared code. Original mobile/ behavior preserved exactly.
+**Checkpoint**: ✅ apps/aws-clp is the active app. `mobile/` directory fully removed. AppRoot accepts `AppRootProps { examTypeId, appName, branding? }`.
 
-#### Phase 12: App Template & Scaffold Script (T221–T224, ~3 dev-hours)
+#### Phase 12: Admin Portal — ExamType CRUD Backend (T225–T230, ~5 dev-hours)
 
-**Goal**: Create template and script so new apps can be generated in <5 minutes.
+**Goal**: Add backend endpoints for creating, updating, and deactivating exam types. **Prioritized before template/scaffold to ensure exam data is available for new apps.**
 
-| Task | Description | Est. |
-|------|-------------|------|
-| T221 | Create apps/template/ skeleton with placeholder tokens (__EXAM_TYPE_ID__, __APP_NAME__, __PACKAGE_NAME__) | 30 min |
-| T222 | Create scripts/create-app.sh — accepts exam-type, name, package; copies template with substitution | 45 min |
-| T223 | Create first new app (apps/aws-saa/) using create-app script for SAA-C03 exam type | 30 min |
-| T224 | Verify apps/aws-saa builds, connects to backend, displays correct exam type config | 30 min |
-
-**Checkpoint**: New apps can be created in minutes. aws-saa successfully runs against backend.
-
-#### Phase 13: Admin Portal — ExamType CRUD Backend (T225–T230, ~5 dev-hours)
-
-**Goal**: Add backend endpoints for creating, updating, and deactivating exam types.
+**Rationale**: Admin portal must be able to create exam types (e.g., SAA-C03) before the scaffold script generates a new app for that exam. Without backend CRUD, new exam types require manual database seeding.
 
 | Task | Description | Est. |
 |------|-------------|------|
@@ -590,11 +592,15 @@ exam-app/
 | T229 | Add PUT /admin/exam-types/:id endpoint to AdminExamTypesController (update exam type, return 200) | 30 min |
 | T230 | Add PATCH /admin/exam-types/:id endpoint to AdminExamTypesController (toggle isActive, return 200) | 20 min |
 
+**Current state**: AdminExamTypesController only has `GET /admin/exam-types` and `GET /admin/stats` (read-only). No POST/PUT/PATCH endpoints exist yet.
+
 **Checkpoint**: Backend CRUD for ExamType fully operational. Testable with curl/Postman.
 
-#### Phase 14: Admin Portal — ExamType CRUD Frontend (T231–T238, ~6 dev-hours)
+#### Phase 13: Admin Portal — ExamType CRUD Frontend (T231–T238, ~6 dev-hours)
 
 **Goal**: Add admin portal UI for managing exam types.
+
+**Current admin portal state**: 4 pages (LoginPage, DashboardPage, QuestionListPage, QuestionDetailPage), 4 components (Layout, ExamTypeSwitcher, QuestionCard, QuestionForm). No ExamType management pages.
 
 | Task | Description | Est. |
 |------|-------------|------|
@@ -607,7 +613,20 @@ exam-app/
 | T237 | Add form validation: ID format (alphanumeric + hyphens), domain weights sum to 100, required fields | 30 min |
 | T238 | Add confirmation dialogs for deactivate/reactivate actions with explanation of impact | 15 min |
 
-**Checkpoint**: Admin portal supports full ExamType lifecycle. Admins can create new exam types without developer help.
+**Checkpoint**: Admin portal supports full ExamType lifecycle. Admins can create SAA-C03, GCP-ACE, AZ-900 exam types entirely through the UI.
+
+#### Phase 14: App Template & Scaffold Script (T221–T224, ~3 dev-hours)
+
+**Goal**: Create template and script so new apps can be generated in <5 minutes. **Depends on admin portal being complete** so exam types exist in the backend before apps are scaffolded.
+
+| Task | Description | Est. |
+|------|-------------|------|
+| T221 | Create apps/template/ skeleton with placeholder tokens (__EXAM_TYPE_ID__, __APP_NAME__, __PACKAGE_NAME__) | 30 min |
+| T222 | Create scripts/create-app.sh — accepts exam-type, name, package; copies template with substitution | 45 min |
+| T223 | Create first new app (apps/aws-saa/) using create-app script for SAA-C03 exam type | 30 min |
+| T224 | Verify apps/aws-saa builds, connects to backend, displays correct exam type config | 30 min |
+
+**Checkpoint**: New apps can be created in minutes. aws-saa successfully runs against backend with admin-created SAA-C03 exam type.
 
 #### Phase 15: Testing, EAS Build & Documentation (T239–T246, ~6 dev-hours)
 
@@ -615,7 +634,7 @@ exam-app/
 
 | Task | Description | Est. |
 |------|-------------|------|
-| T239 | Run ALL existing tests (99 tests from Phase 1-8) in monorepo structure — fix any import path issues | 60 min |
+| T239 | Run ALL existing tests in monorepo structure — fix any import path issues | 60 min |
 | T240 | Create api/test/admin-exam-types.e2e-spec.ts — E2E tests for POST, PUT, PATCH /admin/exam-types endpoints | 45 min |
 | T241 | Create admin portal unit tests for ExamTypeFormPage and DomainEditor components | 30 min |
 | T242 | Configure EAS Build in apps/aws-clp/eas.json with existing projectId and signing config | 30 min |
@@ -696,34 +715,39 @@ exam-app/
 - ✅ Zero code duplication across apps
 - ✅ Admin CRUD test coverage >85%
 
-### Timeline Estimate (Phase 4)
+### Timeline Estimate (Phase 4-6)
 
-| Phase | Duration | Dependencies |
-|-------|----------|--------------|
-| Phase 10: Monorepo Foundation | 1 week (6 hrs) | Phase 1-8 complete |
-| Phase 11: App Wrapper Migration | 1 week (5 hrs) | Phase 10 complete |
-| Phase 12: Template & Script | 0.5 week (3 hrs) | Phase 11 complete |
-| Phase 13: Admin CRUD Backend | 1 week (5 hrs) | Can parallel with Phase 10-12 |
-| Phase 14: Admin CRUD Frontend | 1 week (6 hrs) | Phase 13 complete |
-| Phase 15: Testing & Docs | 1 week (6 hrs) | All previous phases |
-| **Total** | **~4-5 weeks** | **~31 dev-hours (1 developer)** |
+| Phase | Duration | Dependencies | Status |
+|-------|----------|--------------|--------|
+| Phase 10: Monorepo Foundation | 1 week (6 hrs) | Phase 1-8 complete | ✅ Complete |
+| Phase 11: App Wrapper Migration | 1 week (5 hrs) | Phase 10 complete | ✅ Complete |
+| Phase 12: Admin CRUD Backend | 1 week (5 hrs) | Phase 11 complete | 📋 Not Started |
+| Phase 13: Admin CRUD Frontend | 1 week (6 hrs) | Phase 12 complete | 📋 Not Started |
+| Phase 14: Template & Script | 0.5 week (3 hrs) | Phase 13 complete | 📋 Not Started |
+| Phase 15: Testing & Docs | 1 week (6 hrs) | Phase 14 complete | 📋 Not Started |
+| Phase 16: Login-Gated Free Tier | 1.5 weeks (10 hrs) | Phase 15 complete | 📋 Not Started |
+| Phase 17: Play Billing Integration | 1.5 weeks (10 hrs) | Phase 16 complete + Play monetization access | 📋 Blocked (no Play access) |
+| **Total** | **~7-8 weeks** | **~51 dev-hours (1 developer)** | |
 
-### Recommended Execution (1-2 Developers)
+### Recommended Execution (1 Developer — Updated Order)
 
-**Week 1**:
-- Dev A: T207-T214 (Monorepo foundation, extract shared code)
-- Dev B (optional): T225-T230 (Backend ExamType CRUD — independent of monorepo)
+**Week 1** (Admin Portal Backend):
+- T225-T230: Backend ExamType CRUD endpoints (POST, PUT, PATCH)
 
-**Week 2**:
-- Dev A: T215-T220 (App wrapper migration, verify zero regression)
-- Dev B (optional): T231-T238 (Admin portal frontend)
+**Week 2** (Admin Portal Frontend):
+- T231-T238: Admin portal ExamType management UI
 
-**Week 3**:
-- Dev A: T221-T224 (Template and scaffold script)
-- Dev B: T231-T238 (Admin portal frontend, continued)
+**Week 3** (Template & Scaffold):
+- T221-T224: App template skeleton + create-app.sh script + verify with SAA-C03
 
-**Week 4**:
-- Both: T239-T246 (Testing, EAS build, documentation)
+**Week 4** (Testing & Docs):
+- T239-T246: Regression tests, E2E tests, EAS build config, documentation
+
+**Week 5-6** (Free Tier — after MVP stable):
+- T247-T258: Login-gated free tier, 15 free questions, upgrade flow
+
+**Week 7-8** (Play Billing — last, requires Play access):
+- T259-T270: Play Billing API integration, one-time purchase, purchase validation
 
 ### Comparison: Clone vs Monorepo
 
@@ -737,3 +761,145 @@ exam-app/
 | **New App Time** | Days (clone + modify) | 30 minutes (script + config) |
 | **Version Drift** | High risk | Impossible — single source of truth |
 | **Recommended** | ❌ No | ✅ Yes |
+
+---
+
+## Phase 5: Monetization — Login-Gated Free Tier + Play Billing (T247–T270)
+
+**Status**: 📋 Ready for Implementation (Phase 16-17)  
+**Prerequisites**: Phase 4 (T207-T246) ✅ Complete, all MVP features stable  
+**Spec**: [spec.md § Phase 5](spec.md#phase-5-monetization--login-gated-free-tier--play-billing)  
+**Goal**: Convert from paid app model to freemium model: require Google login for all users, provide 15 free exam questions, and integrate Play Billing API for a one-time "Forever Access" purchase to unlock the full question bank.
+
+### Summary
+
+The current UpgradeScreen (`packages/shared/src/screens/UpgradeScreen.tsx`) already has the "Forever Access" UI with pricing ($14.99), benefits list, and CTA button — but no actual billing integration. Phase 5 adds the backend and mobile logic to make it functional.
+
+**Why this order**: Monetization is intentionally placed after all MVP features are stable. The free tier provides conversion funnel data, and Play Billing requires active Play Console monetization access (currently unavailable). This separation ensures the core app experience is polished before adding billing complexity.
+
+**Multi-app compatibility**: Each exam app has its own Play Store listing and its own product SKU. Purchase status is per-app, per-user — no cross-app entitlement issues. The free question limit and billing logic live in `packages/shared/` so all apps share the same implementation.
+
+### Technical Context
+
+**Billing Library**: `react-native-iap` (React Native In-App Purchases) — supports Google Play Billing Library v6+  
+**Purchase Type**: One-time (non-consumable) in-app purchase per app  
+**Free Tier**: 15 questions accessible without purchase, login required  
+**Question Gating**: Client-side enforcement using purchase store + server-side validation optional  
+**Existing Foundation**: UpgradeScreen UI, Google OAuth login, question repository, Zustand stores
+
+### Constitution Check (Phase 5)
+
+✅ **Passes Constitution**:
+
+- ✅ **No new projects**: Adds billing service + purchase store to existing packages/shared/
+- ✅ **Architecture preserved**: Offline-first preserved (purchase status cached locally). Multi-tenant preserved (per-app SKUs).
+- ✅ **Backward compatible**: Existing users who already have the app continue to work. Free tier is the new default for new installs.
+- ✅ **Incremental**: Phase 16 (free tier) works independently of Phase 17 (billing). Phase 16 can ship while waiting for Play access.
+- ✅ **Test coverage**: Unit tests for gating logic, E2E tests for purchase flow
+- ✅ **Development-friendly**: Dev mode bypasses purchase check (similar to Play Integrity bypass)
+
+### Implementation Phases (Phase 5)
+
+#### Phase 16: Login-Gated Free Tier (T247–T258, ~10 dev-hours)
+
+**Goal**: Require Google login for all users. Free tier gives access to 15 questions. Motivate upgrade via limited access + UpgradeScreen.
+
+| Task | Description | Est. |
+|------|-------------|------|
+| T247 | Define tier constants in packages/shared/src/config/tiers.ts: `FREE_QUESTION_LIMIT = 15`, `TierLevel = 'FREE' \| 'PREMIUM'` | 20 min |
+| T248 | Create packages/shared/src/stores/purchase.store.ts (Zustand): `tierLevel`, `isPremium`, `setPremium()`, `reset()`. Persist to SQLite. | 45 min |
+| T249 | Create packages/shared/src/storage/repositories/purchase.repository.ts: `getPurchaseStatus()`, `savePurchaseStatus()`, `clearPurchaseStatus()` with SQLite table `PurchaseStatus` | 45 min |
+| T250 | Update packages/shared/src/storage/database.ts: add PurchaseStatus table migration (`id TEXT PRIMARY KEY DEFAULT 'singleton'`, `tier_level TEXT NOT NULL DEFAULT 'FREE'`, `product_id TEXT`, `purchase_token TEXT`, `purchased_at TEXT`, `created_at TEXT`, `updated_at TEXT`) | 30 min |
+| T251 | Make login mandatory: update packages/shared/src/AppRoot.tsx to require Google authentication before granting any access. Show AuthScreen as gate if not logged in. | 45 min |
+| T252 | Implement question gating in packages/shared/src/storage/repositories/question.repository.ts: add `getQuestionsForTier(tier, limit?)` method that returns all questions for PREMIUM or first N for FREE. Use consistent ordering (by domain, then id) so free users always see the same 15. | 60 min |
+| T253 | Update packages/shared/src/services/exam-generator.service.ts: respect tier limits when generating exams. FREE tier generates mini-exams from the 15 available questions. PREMIUM generates full exams. | 45 min |
+| T254 | Update packages/shared/src/services/practice.service.ts: respect tier limits in practice mode. FREE tier limits practice to the 15 free questions. | 30 min |
+| T255 | Update packages/shared/src/screens/HomeScreen.tsx: show free tier indicator (e.g., "15/200 questions available"), upgrade prompt card, and link to UpgradeScreen. | 45 min |
+| T256 | Add locked question UI indicators in packages/shared/src/components/QuestionCard.tsx: show lock icon and "Upgrade to access" overlay for premium-only questions in listing views. | 30 min |
+| T257 | Create packages/shared/__tests__/purchase-tier.test.ts: unit tests for tier gating logic, question limiting, exam generation with tier limits, purchase store state transitions. | 60 min |
+| T258 | Update packages/shared/src/screens/UpgradeScreen.tsx: add free vs premium comparison table, update CTA to prepare for billing integration (placeholder handler). | 30 min |
+
+**Checkpoint**: Login required. Free tier limited to 15 questions. Upgrade prompt visible. UpgradeScreen accessible. No billing yet.
+
+#### Phase 17: Play Billing One-Time Purchase (T259–T270, ~10 dev-hours)
+
+**Goal**: Integrate Google Play Billing API for "Forever Access" one-time purchase. Unlock full question bank on purchase. **BLOCKED: Requires Play Console monetization access.**
+
+**Prerequisite**: Active Google Play Console monetization profile and in-app product created.
+
+| Task | Description | Est. |
+|------|-------------|------|
+| T259 | Add `react-native-iap` dependency to packages/shared/package.json and apps/aws-clp/package.json. Configure native module linking for Android. | 30 min |
+| T260 | Create packages/shared/src/services/billing.service.ts: `initBilling()`, `getProducts()`, `purchaseProduct(sku)`, `restorePurchases()`, `validatePurchase()`. Handle connection lifecycle. | 90 min |
+| T261 | Implement one-time purchase flow in billing.service.ts: connect to Play Store → fetch product details → initiate purchase → handle success/failure/pending → update purchase store → acknowledge purchase. | 60 min |
+| T262 | (Optional) Create api/src/billing/ module for server-side purchase validation: `POST /api/billing/verify` endpoint that validates purchase token with Google Play Developer API. Provides additional security against purchase spoofing. | 60 min |
+| T263 | Update packages/shared/src/stores/purchase.store.ts: integrate with billing service — on purchase success, set `tierLevel = 'PREMIUM'`, persist to SQLite via purchase repository. | 30 min |
+| T264 | Implement purchase restoration in billing.service.ts: on app reinstall or new device, check for existing purchases via `restorePurchases()`. Restore PREMIUM status if purchase found. | 45 min |
+| T265 | Update packages/shared/src/screens/UpgradeScreen.tsx: connect "Upgrade Now" button to billing.service.purchaseProduct(). Show loading state during purchase, success confirmation, error handling. | 45 min |
+| T266 | Handle billing edge cases in billing.service.ts: pending purchases (PAYMENT_PENDING), cancelled purchases, refunded purchases (check via server validation in T262), network errors during purchase, Play Store unavailable. | 45 min |
+| T267 | Configure per-app product IDs: each app scopes its SKU using examTypeId (e.g., `forever_access_clf_c02`, `forever_access_saa_c03`). Product ID pattern: `forever_access_{examTypeId.toLowerCase().replace('-', '_')}`. Add to app.config.ts. | 30 min |
+| T268 | Create packages/shared/__tests__/billing.service.test.ts: unit tests for purchase flow, restoration, edge cases. Mock react-native-iap. | 60 min |
+| T269 | Create documentation: Play Console setup guide (create in-app product, set price, configure testing), product ID naming convention, testing with license testers. | 30 min |
+| T270 | End-to-end purchase validation: test full flow from UpgradeScreen → Play Store → purchase → unlock → verify questions accessible. Test with Play Store internal testing track. | 45 min |
+
+**Checkpoint**: "Forever Access" purchase works end-to-end. Free users see 15 questions. Paid users see all questions. Purchase persists across reinstalls via restore.
+
+### Implementation Constraints & Guidelines (Phase 5)
+
+#### ✅ DO: Non-Breaking Monetization
+
+- ✅ Free tier is the default — no purchase required to use core app features
+- ✅ Login required but frictionless via existing Google OAuth
+- ✅ Purchase status cached locally for offline-first compatibility
+- ✅ Per-app product IDs prevent cross-app purchase conflicts
+- ✅ `__DEV__` bypass for billing (skip purchase check in dev mode)
+- ✅ Restore purchases on reinstall (no double-charging)
+
+#### ❌ DON'T: Breaking Changes
+
+- ❌ Do NOT remove or modify Play Integrity logic — it remains independent of billing
+- ❌ Do NOT gate ALL features behind purchase — free tier must be functional
+- ❌ Do NOT require network for purchase validation on every launch (cache locally)
+- ❌ Do NOT share purchase entitlements across different exam apps
+- ❌ Do NOT hardcode prices — use Play Billing API to fetch localized prices
+- ❌ Do NOT store sensitive purchase tokens in plain text (use purchase repository with SQLite)
+
+### Architecture Preservation (Phase 5)
+
+| Component | Before (Phase 4) | After (Phase 5) | Impact |
+|-----------|-----------------|-----------------|--------|
+| **App Access** | Full access after Play Integrity | **Login required + free tier** | Additive gate |
+| **Question Access** | All questions available | **15 free, rest behind purchase** | Additive gating |
+| **UpgradeScreen** | Static UI (no billing) | **Connected to Play Billing** | Enhanced existing |
+| **Play Integrity** | Blocks sideloaded APKs | Unchanged | Zero impact |
+| **Offline-First** | Full offline after verification | Purchase status cached locally | Preserved |
+| **Multi-App** | Per-app config | **+ per-app product SKU** | Additive only |
+| **Auth** | Optional Google login | **Required Google login** | Enforcement change |
+| **Backend** | Stateless integrity proxy | **+ optional billing verification** | Additive only |
+
+### Risk Mitigation (Phase 5)
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Play Console access delays | High | Phase 17 blocked | Phase 16 (free tier) ships independently. Phase 17 waits. |
+| Users dislike mandatory login | Medium | Lower adoption | Free tier is generous (15 questions). Login enables cloud sync benefits. |
+| Purchase spoofing | Low | Revenue loss | Server-side validation (T262) + Play Integrity blocks sideloaded apps |
+| react-native-iap compatibility issues | Medium | Billing broken | Library is mature (10K+ GitHub stars). Test on multiple devices. |
+| Cross-app SKU conflicts | Low | Wrong purchase | Per-app product IDs with examTypeId in SKU name prevents conflicts |
+| Refund handling | Medium | User confusion | Server-side validation periodically re-checks purchase status |
+
+### Success Metrics (Phase 5)
+
+#### Functional Success
+- ✅ SC-015: Login required for all users (no anonymous access)
+- ✅ SC-016: Free tier limited to exactly 15 questions (consistent set per exam type)
+- ✅ SC-017: One-time purchase unlocks full question bank immediately
+- ✅ SC-018: Purchase persists across reinstalls via Google Play restore
+- ✅ SC-019: Each app has unique product SKU (no cross-app conflicts)
+- ✅ SC-020: Dev mode bypasses purchase check
+- ✅ SC-021: Offline access preserved after purchase (no network required)
+
+#### Code Quality
+- ✅ Billing service test coverage >85%
+- ✅ Purchase gating logic test coverage >90%
+- ✅ Zero breaking changes to existing Play Integrity, auth, sync logic

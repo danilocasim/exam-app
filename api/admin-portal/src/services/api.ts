@@ -20,9 +20,11 @@ function clearAuth() {
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -124,6 +126,34 @@ export interface AdminStats {
   byDomain: Record<string, number>;
 }
 
+export interface ExamTypeDomainInput {
+  id: string;
+  name: string;
+  weight: number;
+  questionCount: number;
+}
+
+export interface CreateExamTypeInput {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  domains: ExamTypeDomainInput[];
+  passingScore: number;
+  timeLimit: number;
+  questionCount: number;
+}
+
+export interface UpdateExamTypeInput {
+  name: string;
+  displayName: string;
+  description?: string;
+  domains: ExamTypeDomainInput[];
+  passingScore: number;
+  timeLimit: number;
+  questionCount: number;
+}
+
 // --- API functions ---
 
 export const api = {
@@ -138,6 +168,26 @@ export const api = {
   // Exam Types
   getExamTypes() {
     return request<ExamType[]>('/admin/exam-types');
+  },
+
+  createExamType(input: CreateExamTypeInput) {
+    return request<ExamType>('/admin/exam-types', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateExamType(id: string, input: UpdateExamTypeInput) {
+    return request<ExamType>(`/admin/exam-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  toggleExamType(id: string) {
+    return request<ExamType>(`/admin/exam-types/${id}`, {
+      method: 'PATCH',
+    });
   },
 
   // Stats

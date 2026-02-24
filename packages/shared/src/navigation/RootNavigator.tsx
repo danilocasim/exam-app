@@ -5,15 +5,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // Import actual screens (T041, T042, T046, T053, T054, T058)
 import {
-  HomeScreen,
   ExamScreen,
   ExamResultsScreen,
-  PracticeSetupScreen,
   PracticeScreen,
   PracticeSummaryScreen,
-  AnalyticsScreen,
   CloudAnalyticsScreen,
 } from '../screens';
+import { MainTabNavigator } from './MainTabNavigator';
 
 // Color constants matching the app theme
 const colors = {
@@ -27,8 +25,8 @@ const colors = {
 
 // Navigation param types
 export type RootStackParamList = {
-  // Home screen
-  Home: undefined;
+  // Main tabs (bottom navigation)
+  MainTabs: undefined;
 
   // Exam flow screens
   ExamScreen: { resumeAttemptId?: string };
@@ -52,6 +50,12 @@ export type RootStackParamList = {
 
   // Settings
   Settings: undefined;
+
+  // Upgrade
+  Upgrade: undefined;
+
+  // Legacy aliases (kept for navigation compatibility)
+  Home: undefined;
 };
 
 // Create the stack navigator
@@ -113,6 +117,12 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 // Auth screen (T134)
 import { AuthScreen } from '../screens/AuthScreen';
 
+// Upgrade screen
+import { UpgradeScreen } from '../screens/UpgradeScreen';
+
+// Re-export MainTabParamList for type usage
+export type { MainTabParamList } from './MainTabNavigator';
+
 /**
  * Root navigation component
  * Wraps the app in NavigationContainer and defines all screens
@@ -121,7 +131,8 @@ export const RootNavigator: React.FC = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        id="RootStack"
+        initialRouteName="MainTabs"
         screenOptions={{
           headerStyle: {
             backgroundColor: colors.slate900,
@@ -137,8 +148,12 @@ export const RootNavigator: React.FC = () => {
           animation: 'slide_from_right',
         }}
       >
-        {/* Home - no header, custom header in screen */}
-        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+        {/* Main Tabs - bottom tab navigation */}
+        <Stack.Screen
+          name="MainTabs"
+          component={MainTabNavigator}
+          options={{ headerShown: false }}
+        />
 
         {/* Exam Flow - no headers, custom UI */}
         <Stack.Screen
@@ -159,11 +174,6 @@ export const RootNavigator: React.FC = () => {
         />
 
         {/* Practice Flow */}
-        <Stack.Screen
-          name="PracticeSetup"
-          component={PracticeSetupScreen}
-          options={{ headerShown: false }}
-        />
         <Stack.Screen
           name="PracticeScreen"
           component={PracticeScreen}
@@ -194,13 +204,6 @@ export const RootNavigator: React.FC = () => {
           options={{ headerShown: false }}
         />
 
-        {/* Analytics */}
-        <Stack.Screen
-          name="Analytics"
-          component={AnalyticsScreen}
-          options={{ headerShown: false }}
-        />
-
         {/* Cloud Analytics (T142) */}
         <Stack.Screen
           name="CloudAnalytics"
@@ -213,6 +216,9 @@ export const RootNavigator: React.FC = () => {
 
         {/* Settings */}
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+
+        {/* Upgrade */}
+        <Stack.Screen name="Upgrade" component={UpgradeScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

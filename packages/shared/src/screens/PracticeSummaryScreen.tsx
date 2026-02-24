@@ -156,7 +156,7 @@ export const PracticeSummaryScreen: React.FC = () => {
 
   const handleGoHome = () => {
     resetPracticeState();
-    navigation.navigate('Home');
+    navigation.navigate('MainTabs');
   };
 
   const handlePracticeAgain = () => {

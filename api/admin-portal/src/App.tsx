@@ -4,6 +4,8 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { QuestionListPage } from './pages/QuestionListPage';
 import { QuestionDetailPage } from './pages/QuestionDetailPage';
+import { ExamTypeListPage } from './pages/ExamTypeListPage';
+import { ExamTypeFormPage } from './pages/ExamTypeFormPage';
 import { Layout } from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -24,6 +26,15 @@ export function App() {
               <Layout>
                 <Routes>
                   <Route path="/" element={<DashboardPage />} />
+                  <Route path="/exam-types" element={<ExamTypeListPage />} />
+                  <Route
+                    path="/exam-types/new"
+                    element={<ExamTypeFormPage />}
+                  />
+                  <Route
+                    path="/exam-types/:id"
+                    element={<ExamTypeFormPage />}
+                  />
                   <Route path="/questions" element={<QuestionListPage />} />
                   <Route
                     path="/questions/new"

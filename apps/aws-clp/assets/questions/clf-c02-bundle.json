@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 1,
   "examTypeId": "CLF-C02",
   "generatedAt": "2026-02-12T00:00:00.000Z",
   "questions": [
@@ -31,8 +31,11 @@
           "text": "Amazon S3"
         }
       ],
-      "correctAnswers": ["a", "b"],
-      "explanation": "AWS offers multiple cloud-based storage options that you can use for your infrastructure. Each has a unique combination of performance, durability, availability, cost, and interface, as well as other characteristics such as scalability and elasticity. These additional characteristics are critical for web-scale cloud-based solutions. As with traditional on-premises applications, you can use multiple cloud storage options together to form a comprehensive data storage hierarchy.\n\nAmazon S3 is optimal for storing numerous classes of information that are relatively static and benefit from its durability, availability, and elasticity features. However, in a number of situations, Amazon S3 is not the optimal solution.\n\nRapidly changing data – Data that must be updated very frequently might be better served by a storage solution with lower read / write latencies, such as Amazon EBS volumes, Amazon RDS or other relational databases, or Amazon DynamoDB.\n\nHence, the correct answers are Amazon EBS and Amazon RDS just as mentioned above. These services are suitable to use in storing rapidly changing data with low read and write latencies.\n\nAWS Snowball is incorrect because this is a petabyte-scale data migration solution that uses hardware devices to transfer large amounts of data into and out of the AWS Cloud.\n\nAmazon S3 is incorrect because this service is optimal for storing numerous classes of information that are relatively static and not rapidly changing data just as what was mentioned in this scenario.\n\nAmazon AppStream 2.0 is incorrect because this is a fully managed application streaming service which you can use to centrally manage your desktop applications.",
+      "correctAnswers": [
+        "a",
+        "b"
+      ],
+      "explanation": "AWS offers multiple cloud-based storage options that you can use for your infrastructure. Each has a unique combination of performance, durability, availability, cost, and interface, as well as other characteristics such as scalability and elasticity. These additional characteristics are critical for web-scale cloud-based solutions. As with traditional on-premises applications, you can use multiple cloud storage options together to form a comprehensive data storage hierarchy.\n\nAmazon S3 is optimal for storing numerous classes of information that are relatively static and benefit from its durability, availability, and elasticity features. However, in a number of situations, Amazon S3 is not the optimal solution.\n\nRapidly changing data \u2013 Data that must be updated very frequently might be better served by a storage solution with lower read / write latencies, such as Amazon EBS volumes, Amazon RDS or other relational databases, or Amazon DynamoDB.\n\nHence, the correct answers are Amazon EBS and Amazon RDS just as mentioned above. These services are suitable to use in storing rapidly changing data with low read and write latencies.\n\nAWS Snowball is incorrect because this is a petabyte-scale data migration solution that uses hardware devices to transfer large amounts of data into and out of the AWS Cloud.\n\nAmazon S3 is incorrect because this service is optimal for storing numerous classes of information that are relatively static and not rapidly changing data just as what was mentioned in this scenario.\n\nAmazon AppStream 2.0 is incorrect because this is a fully managed application streaming service which you can use to centrally manage your desktop applications.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
       "updatedAt": "2026-02-12T00:00:00.000Z"
@@ -65,7 +68,10 @@
           "text": "AWS Organizations"
         }
       ],
-      "correctAnswers": ["a", "c"],
+      "correctAnswers": [
+        "a",
+        "c"
+      ],
       "explanation": "The AWS Command Line Interface (AWS CLI) is an open-source tool that enables you to interact with AWS services using commands in your command-line shell. You can also use Software Development Kits (SDKs) to interact with your AWS services. SDKs take the complexity out of coding by providing language-specific APIs for AWS services.\n\nHence, the correct answers are: AWS Command Line Interface and AWS SDKs.\n\nElastic Network Interface is incorrect because this is a logical networking component in a VPC that represents a virtual network card.\n\nAWS Artifact is incorrect because this service provides on-demand access to AWS' security and compliance reports.\n\nAWS Organizations is incorrect because this is an account management service that enables you to consolidate multiple AWS accounts into an organization.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -95,7 +101,9 @@
           "text": "AWS Infrastructure Event Management"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "AWS CloudTrail is a service that enables governance, compliance, operational auditing, and risk auditing of your AWS account. With CloudTrail, you can log, continuously monitor, and retain account activity related to actions across your AWS infrastructure. CloudTrail provides event history of your AWS account activity, including actions taken through the AWS Management Console, AWS SDKs, command-line tools, and other AWS services.\n\nHence, the correct answer is: AWS CloudTrail.\n\nAmazon CloudWatch is incorrect because this service is primarily used to collect monitoring and operational data in the form of logs, metrics, and events.\n\nAWS Config is incorrect because this is just a service that enables you to assess, audit, and evaluate the configurations of your AWS resources.\n\nAWS Infrastructure Event Management is incorrect because this is a structured program available to Enterprise Support customers that helps you plan for large-scale events.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -129,7 +137,10 @@
           "text": "A hybrid cloud storage service"
         }
       ],
-      "correctAnswers": ["b", "c"],
+      "correctAnswers": [
+        "b",
+        "c"
+      ],
       "explanation": "Amazon Simple Storage Service (Amazon S3) is an object storage service that offers industry-leading scalability, data availability, security, and performance with virtually unlimited storage space. Amazon S3 is designed for 99.999999999% (11 9's) of durability and stores data for millions of applications for companies all around the world.\n\nHence, the correct options are: A storage service with virtually unlimited space and A highly durable object storage infrastructure.\n\nA durable, high throughput file system describes Amazon EFS. A high-performance block storage service describes Amazon EBS. A hybrid cloud storage service describes AWS Storage Gateway.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -159,7 +170,9 @@
           "text": "Patching of the host operating system"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "Customer Specific controls are solely the responsibility of the customer based on the application they are deploying within AWS services. Examples include: Service and Communications Protection or Zone Security which may require a customer to route or zone data within specific security environments.\n\nConfiguration Management and Awareness & Training are shared controls between AWS and the customer. Patching of the host operating system is the responsibility of AWS.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -189,7 +202,9 @@
           "text": "Platform as a Service (PaaS)"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "Since the company has web servers running on Amazon EC2 instances that access a RESTful API hosted on their on-premises data center, they are considered to be using a hybrid cloud computing deployment model.\n\nHence, the correct answer is: Hybrid Architecture.\n\nServerless Architecture is incorrect because the company is using EC2 instances. Platform as a Service (PaaS) and Software as a Service (SaaS) are types of Cloud Computing Models, not architectures.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -219,7 +234,9 @@
           "text": "Operations perspective"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "The Business Perspective within the AWS CAF focuses on aligning the organization's strategic objectives with its cloud adoption goals. It aims to address the business challenges, risks, and opportunities associated in transitioning to the cloud. The primary goal is to maximize the business value derived from cloud services while minimizing disruptions to operations.\n\nHence the correct answer is: Business perspective.\n\nGovernance perspective focuses on establishing policies, controls, and processes. People perspective ensures the organization has necessary skills and resources. Operations perspective helps ensure cloud services are delivered at agreed-upon levels.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -249,7 +266,9 @@
           "text": "Spot Instance"
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "Amazon EC2 Spot Instances lets you take advantage of unused EC2 capacity in the AWS cloud. Spot Instances are available at up to a 90% discount compared to On-Demand prices.\n\nHence, the correct answer is: Spot Instance.\n\nStandard Reserved Instance provides up to 75% discount, not 90%. Convertible Reserved Instance provides up to 54% discount. Dedicated Hosts is a physical EC2 server dedicated for your use.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -279,7 +298,9 @@
           "text": "No Upfront Convertible Reserved Instance pricing for a 3-year term."
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "As a general rule, Standard RI provides more savings than Convertible RI. The All Upfront option provides you with the largest discount. Opting for a longer 3-year term gives greater discount as opposed to a shorter 1-year renewable term.\n\nTherefore, using an All Upfront, Standard Reserved Instance pricing for a 3-year term is the most cost-effective option in this scenario.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -309,7 +330,9 @@
           "text": "VPC"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "Availability Zones consist of one or more discrete data centers, each with redundant power, networking, and connectivity, housed in separate facilities.\n\nHence, the correct answer is: Availability Zone.\n\nEdge location is a site that CloudFront uses to cache copies of your content. AWS Region consists of multiple Availability Zones. VPC lets you provision a logically isolated section of the AWS Cloud.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -339,7 +362,9 @@
           "text": "AWS Technical Account Manager"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "AWS Professional Services shares a collection of offerings to help you achieve specific outcomes related to enterprise cloud adoption. Each offering delivers a set of activities, best practices, and documentation reflecting our experience supporting hundreds of customers in their journey to the AWS Cloud.\n\nHence, the correct answer is: AWS Professional Services.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -369,7 +394,9 @@
           "text": "An automated security assessment service"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "Amazon CloudWatch is basically a metrics and logs repository. An AWS service, such as Amazon EC2, puts metrics into CloudWatch, and you can view statistics based on those metrics.\n\nHence, the correct answer is: A repository for metrics and logs.\n\nAn audit service describes AWS CloudTrail. A repository for compliance rules describes AWS Config. An automated security assessment service describes Amazon Inspector.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -399,7 +426,9 @@
           "text": "SSH keys"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "The AWS Access Key ID and AWS Secret Access Key are long-term credentials that you use to make programmatic calls to an AWS service via API or CLI.\n\nHence, the correct answer is Access keys.\n\nIAM username and passwords are for the web-based Management Console. API keys are for Amazon API Gateway. SSH keys are for EC2 SSH connections.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -429,7 +458,9 @@
           "text": "IAM Policy"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "Access keys are long-term credentials for an IAM user or the AWS account root user. You can use access keys to sign programmatic requests to the AWS CLI or AWS API.\n\nHence, the correct answer is: IAM User.\n\nIAM Role is not associated with access keys. IAM Group is a collection of IAM users. IAM Policy is not an IAM identity.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -463,7 +494,10 @@
           "text": "Consolidate together the billing and payment of both AWS accounts and Amazon Internet Services Pvt. Ltd (AISPL) accounts"
         }
       ],
-      "correctAnswers": ["a", "b"],
+      "correctAnswers": [
+        "a",
+        "b"
+      ],
       "explanation": "Consolidated billing has the following benefits: One bill for multiple accounts, easy tracking, combined usage for volume pricing discounts and Reserved Instance discounts, and no extra fee.\n\nHence, the correct answers are: You get one bill for multiple accounts and Share the volume pricing and Reserved Instance discounts.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -493,7 +527,9 @@
           "text": "Opportunity to replace variable capital expenses (CAPEX) with low upfront costs."
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "One of the key benefits of cloud computing is the opportunity to replace upfront capital infrastructure expenses with low variable costs that scale with your business.\n\nHence, the correct answer is: Opportunity to replace upfront capital expenses (CAPEX) with low variable cost.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -523,7 +559,9 @@
           "text": "AWS Elastic Disaster Recovery"
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "AWS Elastic Disaster Recovery (AWS DRS) minimizes downtime and data loss with fast, reliable recovery of on-premises and cloud-based applications using affordable storage, minimal compute, and point-in-time recovery.\n\nHence, the correct answer is: AWS Elastic Disaster Recovery.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -553,7 +591,9 @@
           "text": "In-person classes with an accredited AWS instructor"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "All AWS customers automatically have around-the-clock access to customer service, support forums, service health checks, and documentation, whitepapers, and best-practice guides with the Basic support plan.\n\nHence, the correct answer is: AWS online documentation, whitepapers, blogs and support forums.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -583,7 +623,9 @@
           "text": "Consolidated Billing"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "To estimate a bill, use the AWS Pricing Calculator. It is an easy-to-use online tool that enables you to estimate the monthly cost of AWS services for your use case based on your expected usage.\n\nHence, the correct answer is: AWS Pricing Calculator.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -613,7 +655,9 @@
           "text": "Amazon Lightsail"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "Amazon Route 53 is a highly available and scalable cloud Domain Name System (DNS) web service. It is designed to give developers and businesses an extremely reliable and cost-effective way to route end users to Internet applications.\n\nHence, the correct answer is: Amazon Route 53.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -647,7 +691,10 @@
           "text": "Configure a strong password policy for your users."
         }
       ],
-      "correctAnswers": ["d", "e"],
+      "correctAnswers": [
+        "d",
+        "e"
+      ],
       "explanation": "IAM best practices include: rotating credentials regularly, configuring a strong password policy for your users, and enabling MFA for all users.\n\nHence, the correct answers are: Enable Multi-Factor Authentication (MFA) and Configure a strong password policy for your users.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -677,7 +724,9 @@
           "text": "Both the Application Load Balancer and Network Load Balancer"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "Application Load Balancers support path-based routing, host-based routing, WebSockets and support for containerized applications. It operates at Layer 7.\n\nHence, the correct answer is: Application Load Balancer.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -711,7 +760,10 @@
           "text": "No access to the AWS Support API"
         }
       ],
-      "correctAnswers": ["b", "e"],
+      "correctAnswers": [
+        "b",
+        "e"
+      ],
       "explanation": "The Developer support plan has limited access to the 7 Core Trusted Advisor checks and no access to the AWS Support API. The AWS Support API is only available to Business and Enterprise support plans.\n\nHence, the correct answers are: Limited access to the 7 Core Trusted Advisor checks and No access to the AWS Support API.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -745,7 +797,10 @@
           "text": "Makes it easy to set up, operate, and scale a relational database"
         }
       ],
-      "correctAnswers": ["a", "e"],
+      "correctAnswers": [
+        "a",
+        "e"
+      ],
       "explanation": "Amazon RDS makes it easy to set up, operate, and scale a relational database in the cloud. It provides cost-efficient and resizable capacity while automating time-consuming administration tasks.\n\nHence, the correct answers are: Simplifies the management of time-consuming database administration tasks and Makes it easy to set up, operate, and scale a relational database.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -779,7 +834,10 @@
           "text": "Amazon Route 53"
         }
       ],
-      "correctAnswers": ["b", "e"],
+      "correctAnswers": [
+        "b",
+        "e"
+      ],
       "explanation": "A virtual private gateway is the anchor on the AWS side of a VPN connection. Amazon Route 53 Resolver provides recursive DNS for your Amazon VPC and on-premises networks over AWS Direct Connect or VPN.\n\nHence, the correct answers are: Virtual Private Gateway and Amazon Route 53.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -809,7 +867,9 @@
           "text": "Enterprise"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "The AWS Support API is available to customers who have a Business or Enterprise support plan. Since the Business support plan is more affordable than the Enterprise, the most cost-effective support plan to use is Business.\n\nHence, the correct answer is: Business support plan.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -839,7 +899,9 @@
           "text": "Bucket Policy"
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "For your bucket, you can add a bucket policy to grant other AWS accounts or IAM users permissions for the bucket and the objects in it.\n\nHence, the correct answer is: Bucket Policy.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -873,7 +935,10 @@
           "text": "AWS Batch"
         }
       ],
-      "correctAnswers": ["b", "d"],
+      "correctAnswers": [
+        "b",
+        "d"
+      ],
       "explanation": "AWS Systems Manager allows you to manage servers running on AWS and in your on-premises data center through a single interface. AWS CodeDeploy automates code deployments to any instance, including instances running on-premises.\n\nHence, the correct answers are: AWS Systems Manager and AWS CodeDeploy.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -907,7 +972,10 @@
           "text": "Amazon CloudFront"
         }
       ],
-      "correctAnswers": ["b", "e"],
+      "correctAnswers": [
+        "b",
+        "e"
+      ],
       "explanation": "You can configure your application to deliver static content and decrease end-user latency using Amazon S3 and Amazon CloudFront. CloudFront speeds up content delivery by caching your content close to your end-users at edge locations.\n\nHence, the correct answers are: Amazon S3 and Amazon CloudFront.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -937,7 +1005,9 @@
           "text": "The ability to have one member account to pay the charges of all the master accounts."
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "For billing purposes, AWS treats all the accounts in the organization as if they were one account. Some services have volume pricing tiers that give you lower prices the more you use the service. With consolidated billing, AWS combines the usage from all accounts to determine which volume pricing tiers to apply.\n\nHence, the correct answer is: Volume pricing.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -967,7 +1037,9 @@
           "text": "Adopt a monolithic application architecture."
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "Availability Zones are the core of the AWS infrastructure architecture. Using multiple Availability Zones provides fault tolerance and high availability by distributing resources across physically separate data centers.\n\nHence, the correct answer is: Use multiple Availability Zones to ensure that the application can handle the failure of any single component.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1001,7 +1073,10 @@
           "text": "AWS Batch"
         }
       ],
-      "correctAnswers": ["a", "e"],
+      "correctAnswers": [
+        "a",
+        "e"
+      ],
       "explanation": "AWS Batch is a regional service. Amazon EFS is a regional service storing data within and across multiple Availability Zones. STS and Route 53 are global services. EC2 is a zonal service.\n\nHence, the correct answers are: Amazon EFS and AWS Batch.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1031,7 +1106,9 @@
           "text": "Amazon S3"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.\n\nHence, the correct answer is: Amazon DynamoDB.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1061,7 +1138,9 @@
           "text": "Technical Account Management"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "APN Consulting Partners are professional services firms that help customers of all sizes design, architect, migrate, or build new applications on AWS.\n\nHence, the correct answer is: APN Consulting Partners.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1095,7 +1174,10 @@
           "text": "Amazon Aurora Backtrack"
         }
       ],
-      "correctAnswers": ["b", "c"],
+      "correctAnswers": [
+        "b",
+        "c"
+      ],
       "explanation": "SQL Server on Amazon EC2 gives you complete control, just like when it's installed on-premises. Amazon RDS is a managed service that takes care of all the maintenance.\n\nHence, the correct answers are: Amazon EC2 and Amazon RDS.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1125,7 +1207,9 @@
           "text": "It provides express service to deliver your servers to your data centers fast."
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "AWS provides you with various ways and tools to programmatically provision IT resources, such as AWS CLI, AWS API, and the web-based AWS Management Console.\n\nHence, the correct answer is: It provides various ways to programmatically provision IT resources.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1155,7 +1239,9 @@
           "text": "Amazon Aurora Backtrack"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "A tag is a label that you or AWS assigns to an AWS resource. You can use cost allocation tags to track your AWS costs on a detailed level.\n\nHence, the correct answer is: Cost Allocation Tags.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1185,7 +1271,9 @@
           "text": "Awareness and training"
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "Shared Controls apply to both the infrastructure layer and customer layers. Examples include: Patch Management, Configuration Management, and Awareness & Training where AWS trains AWS employees, but a customer must train their own employees.\n\nHence, the correct answer is: Awareness and training.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1219,7 +1307,10 @@
           "text": "Amazon Route 53"
         }
       ],
-      "correctAnswers": ["a", "c"],
+      "correctAnswers": [
+        "a",
+        "c"
+      ],
       "explanation": "You can leverage multiple layers of security in your VPC, including security groups and network access control lists, to help control access to Amazon EC2 instances in each subnet.\n\nHence, the correct answers are: Network ACLs and Security Groups.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1249,7 +1340,9 @@
           "text": "Amazon Inspector"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "AWS Trusted Advisor is an online tool that provides you with real-time guidance to help you provision your resources following AWS best practices. It inspects your AWS environment and makes recommendations for saving money, improving system performance and reliability, or closing security gaps.\n\nHence, the correct answer is: AWS Trusted Advisor.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1279,7 +1372,9 @@
           "text": "Amazon Kinesis"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "Amazon EventBridge is a serverless event bus service that enables the rapid development of event-driven applications. By decoupling your application components, you can reduce the complexity of your architecture.\n\nHence the correct answer is: Amazon EventBridge (Amazon CloudWatch Events).",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1309,7 +1404,9 @@
           "text": "Amazon Timestream"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "Amazon Aurora is a MySQL and PostgreSQL-compatible relational database built for the cloud. It is up to five times faster than standard MySQL databases.\n\nHence, the correct answer is: Amazon Aurora.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1339,7 +1436,9 @@
           "text": "Standard RI"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "Convertible Reserved Instances provide you with a significant discount and can be exchanged during the term for another Convertible Reserved Instance with new attributes including instance family, instance type, platform, scope, or tenancy.\n\nHence, the correct answer is: Convertible RI.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1369,7 +1468,9 @@
           "text": "Amazon EC2"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "AWS Security Hub is a service that helps customers to improve their security posture by providing a comprehensive view of security and compliance across their AWS accounts. It aggregates security findings and offers automated compliance checks against industry standards.\n\nHence the correct answer is: AWS Security Hub.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1399,7 +1500,9 @@
           "text": "AWS Budgets"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "AWS Cost and Usage Reports is your one-stop shop for accessing the most granular data about your AWS costs and usage. You can also load your cost and usage information into Amazon Athena, Amazon Redshift, AWS QuickSight, or a tool of your choice.\n\nHence, the correct answer is: AWS Cost and Usage Reports.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1429,7 +1532,9 @@
           "text": "Amazon Lightsail"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "AWS Auto Scaling enables you to configure automatic scaling for the AWS resources that are part of your application.\n\nHence, the correct answer is: AWS Auto Scaling.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1463,7 +1568,10 @@
           "text": "Storage Capacity"
         }
       ],
-      "correctAnswers": ["a", "d"],
+      "correctAnswers": [
+        "a",
+        "d"
+      ],
       "explanation": "Trusted Advisor includes checks in five categories: Cost Optimization, Security, Fault Tolerance, Performance, and Service Limits.\n\nHence, the correct answers are: Performance and Fault Tolerance.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1497,7 +1605,10 @@
           "text": "Provides highly scalable object storage for your static content"
         }
       ],
-      "correctAnswers": ["a", "c"],
+      "correctAnswers": [
+        "a",
+        "c"
+      ],
       "explanation": "Edge locations are sites that CloudFront uses to cache copies of your content for faster delivery. Benefits include delivering content closer to users and caching to reduce load on origin servers.\n\nHence, the correct answers are: Improves application performance by delivering content closer to your users and Provides caching which reduces the load on your origin servers.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1527,7 +1638,9 @@
           "text": "A fast monitoring engine used to detect if any of your AWS accounts deviate from the AWS best practices."
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "AWS Control Tower offers the easiest way to set up and govern a secure, multi-account AWS environment. It establishes a landing zone that is based on best-practices blueprints.\n\nHence, the correct answer is: An easy way to establish a landing zone that implements an AWS well-architected, multi-account environment and applies the AWS best practices.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1557,7 +1670,9 @@
           "text": "AWS Cost and Usage report"
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "The Cost and Usage Report is your one-stop shop for accessing the most granular data about your AWS costs and usage. It can track your Amazon EC2 Reserved Instance (RI) usage.\n\nHence, the correct answer is: AWS Cost and Usage report.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1587,7 +1702,9 @@
           "text": "Dedicated Host"
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "An Amazon EC2 Dedicated Host is a physical server with EC2 instance capacity fully dedicated to your use. Dedicated Hosts allow you to use your existing per-socket, per-core, or per-VM software licenses.\n\nHence, the correct answer is: Dedicated Host.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1617,7 +1734,9 @@
           "text": "Amazon EFS"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "S3 Glacier Flexible Retrieval provides three options for access to archives, from a few minutes to several hours with low-cost archive storage.\n\nHence, the correct answer is: Amazon S3 Glacier Flexible Retrieval.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1647,7 +1766,9 @@
           "text": "Amazon DynamoDB"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "Amazon EC2 gives you more control over your instance, allowing you to install any database and manage its guest operating system, including the required updates and security patches.\n\nHence, the correct answer is: Amazon EC2.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1677,7 +1798,9 @@
           "text": "Lower variable costs and lower upfront costs."
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "AWS helps customers reduce large capital investments with lower variable costs. One of the key benefits of cloud computing is the opportunity to replace upfront capital infrastructure expenses with low variable costs that scale with your business.\n\nHence, the correct answer is lower variable costs and lower upfront costs.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1707,7 +1830,9 @@
           "text": "Platform Perspective"
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "The security perspective supports the company data and cloud workloads' confidentiality, integrity, and availability. It focuses on ensuring the migration is done securely.\n\nHence, the correct answer is: Security Perspective.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1737,7 +1862,9 @@
           "text": "An edge location contains multiple AWS Regions."
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "Each AWS Region provides full redundancy and connectivity to the network. Regions consist of multiple Availability Zones, each of which is a fully isolated partition of the AWS infrastructure.\n\nHence, the correct answer is: An AWS Region contains multiple Availability Zones.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1771,7 +1898,10 @@
           "text": "AWS Systems Manager"
         }
       ],
-      "correctAnswers": ["a", "d"],
+      "correctAnswers": [
+        "a",
+        "d"
+      ],
       "explanation": "You can launch a new RDS database cluster using the AWS Management Console, AWS CLI, AWS SDK and AWS CloudFormation.\n\nHence, the correct answers are: AWS Management Console and AWS CloudFormation.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1801,7 +1931,9 @@
           "text": "Amazon ElastiCache"
         }
       ],
-      "correctAnswers": ["d"],
+      "correctAnswers": [
+        "d"
+      ],
       "explanation": "Amazon ElastiCache offers fully managed Redis and Memcached for in-memory caching. In-memory caching improves application performance by storing critical pieces of data including the results of I/O-intensive database queries.\n\nHence, the correct answer is: Amazon ElastiCache.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1831,7 +1963,9 @@
           "text": "AWS Cost Explorer"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "AWS Budgets gives you the ability to set custom budgets that alert you when your costs or usage exceed your budgeted amount. You can also use AWS Budgets to set reservation utilization or coverage targets and receive alerts when your utilization drops below the threshold you define.\n\nHence, the correct answer is AWS Budgets.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1865,7 +1999,10 @@
           "text": "Availability Zone Security."
         }
       ],
-      "correctAnswers": ["a", "c"],
+      "correctAnswers": [
+        "a",
+        "c"
+      ],
       "explanation": "When choosing an AWS Region, key factors include reducing latency to end users and supporting data sovereignty compliance requirements.\n\nHence, the correct answers are: Enhance customer experiences by reducing latency to users and Support country-specific data sovereignty compliance requirements.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1895,7 +2032,9 @@
           "text": "4"
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "At the very minimum, you have to select at least two Availability Zones from your VPC for your Application Load Balancer.\n\nHence, the correct answer is 2.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1925,7 +2064,9 @@
           "text": "AWS Systems Manager Parameter Store"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "AWS IAM Access Analyzer identifies resources shared with an external entity, validates IAM policies, and generates IAM policies based on access activity in your AWS CloudTrail logs.\n\nHence, the correct answer is: AWS IAM Access Analyzer.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1955,7 +2096,9 @@
           "text": "AWS Certificate Manager"
         }
       ],
-      "correctAnswers": ["c"],
+      "correctAnswers": [
+        "c"
+      ],
       "explanation": "AWS Artifact is your go-to, central resource for compliance-related information. It provides on-demand access to AWS' security and compliance reports including SOC reports, PCI reports, and certifications.\n\nHence, the correct answer is: AWS Artifact.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -1985,7 +2128,9 @@
           "text": "It is a virtual server that allows you to run your applications in the AWS Cloud."
         }
       ],
-      "correctAnswers": ["b"],
+      "correctAnswers": [
+        "b"
+      ],
       "explanation": "AWS Elastic Load Balancing automatically distributes incoming application traffic across multiple targets, such as Amazon EC2 instances, containers, IP addresses, and Lambda functions in multiple Availability Zones.\n\nHence, the correct answer is: It distributes incoming application traffic across multiple targets, such as Amazon EC2 instances, in multiple Availability Zones.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",
@@ -2015,7 +2160,9 @@
           "text": "Apply permissions to multiple IAM Users by using a cross-account role."
         }
       ],
-      "correctAnswers": ["a"],
+      "correctAnswers": [
+        "a"
+      ],
       "explanation": "An IAM group is a collection of IAM users. Groups let you specify permissions for multiple users, which can make it easier to manage the permissions for those users.\n\nHence, the correct answer is: Attach the necessary policies or permissions required to a new IAM Group then afterwards, add the IAM Users to the IAM group.",
       "version": 1,
       "createdAt": "2026-02-12T00:00:00.000Z",

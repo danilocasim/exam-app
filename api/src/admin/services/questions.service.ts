@@ -212,7 +212,7 @@ export class QuestionsService {
 
   /**
    * T085: Approve a question (must be PENDING status)
-   * T090: Auto-increment SyncVersion on approval
+   * Version is based on total approved question count, not an incrementing counter
    */
   async approve(id: string, adminId: string): Promise<AdminQuestionDto> {
     const existing = await this.prisma.question.findUnique({
@@ -228,39 +228,21 @@ export class QuestionsService {
       );
     }
 
-    // T090: Use a transaction to approve + increment SyncVersion atomically
-    const question = await this.prisma.$transaction(async (tx) => {
-      // Increment SyncVersion for this exam type
-      await tx.syncVersion.upsert({
-        where: { examTypeId: existing.examTypeId },
-        update: { version: { increment: 1 } },
-        create: { examTypeId: existing.examTypeId, version: 1 },
-      });
-
-      // Get the new version number
-      const syncVersion = await tx.syncVersion.findUnique({
-        where: { examTypeId: existing.examTypeId },
-      });
-
-      // Update question with approval info and version from SyncVersion
-      return tx.question.update({
-        where: { id },
-        data: {
-          status: QuestionStatus.APPROVED,
-          approvedById: adminId,
-          approvedAt: new Date(),
-          version: syncVersion!.version,
-        },
-        include: {
-          createdBy: true,
-          approvedBy: true,
-        },
-      });
+    // Update question with approval info
+    const question = await this.prisma.question.update({
+      where: { id },
+      data: {
+        status: QuestionStatus.APPROVED,
+        approvedById: adminId,
+        approvedAt: new Date(),
+      },
+      include: {
+        createdBy: true,
+        approvedBy: true,
+      },
     });
 
-    this.logger.log(
-      `Question approved: ${question.id} by admin ${adminId}, version ${question.version}`,
-    );
+    this.logger.log(`Question approved: ${question.id} by admin ${adminId}`);
     return this.toAdminQuestionDto(question);
   }
 
