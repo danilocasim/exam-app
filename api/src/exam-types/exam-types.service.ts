@@ -37,13 +37,28 @@ export class ExamTypesService {
     let domainsParsed: ExamDomainDto[] = [];
     try {
       // Defensive: domains may be string or object
-      domainsParsed = typeof examType.domains === 'string'
-        ? JSON.parse(examType.domains)
-        : examType.domains;
+      domainsParsed =
+        typeof examType.domains === 'string'
+          ? JSON.parse(examType.domains)
+          : examType.domains;
     } catch (err) {
-      console.error('[ExamTypesService.findOne] Domains parse error:', err, 'domains:', examType.domains);
+      console.error(
+        '[ExamTypesService.findOne] Domains parse error:',
+        err,
+        'domains:',
+        examType.domains,
+      );
       throw new Error('ExamType domains field is invalid JSON');
     }
+
+    // Get live count of approved questions from the database
+    const liveQuestionCount = await this.prisma.question.count({
+      where: {
+        examTypeId: id,
+        status: QuestionStatus.APPROVED,
+      },
+    });
+
     return {
       id: examType.id,
       name: examType.name,
@@ -52,14 +67,15 @@ export class ExamTypesService {
       domains: domainsParsed,
       passingScore: examType.passingScore,
       timeLimit: examType.timeLimit,
-      questionCount: examType.questionCount,
+      questionCount: liveQuestionCount,
       isActive: examType.isActive,
     };
   }
 
   /**
-   * Get questions for an exam type with optional pagination
+   * Get questions for an exam type with pagination
    * T031: GET /exam-types/{examTypeId}/questions
+   * Version = total count of approved questions
    */
   async getQuestions(
     examTypeId: string,
@@ -69,34 +85,31 @@ export class ExamTypesService {
     // Verify exam type exists and is active
     await this.findOne(examTypeId);
 
-    // Build query conditions
+    // Build query conditions - fetch all approved questions
     const whereCondition = {
       examTypeId,
       status: QuestionStatus.APPROVED,
-      ...(since !== undefined && { version: { gt: since } }),
     };
 
-    // Get questions ordered by version (oldest first for sync)
+    // Get questions ordered by createdAt (oldest first for sync)
     const questions = await this.prisma.question.findMany({
       where: whereCondition,
-      orderBy: { version: 'asc' },
+      orderBy: { createdAt: 'asc' },
       take: limit + 1, // Get one extra to check if there's more
+      ...(since !== undefined && { skip: since }), // Use offset-based pagination
     });
 
     // Determine if there are more questions
     const hasMore = questions.length > limit;
     const returnQuestions = hasMore ? questions.slice(0, limit) : questions;
 
-    // Get the latest version across all approved questions
-    const latestVersionResult = await this.prisma.question.aggregate({
+    // Get total count of approved questions (this IS the version)
+    const totalCount = await this.prisma.question.count({
       where: {
         examTypeId,
         status: QuestionStatus.APPROVED,
       },
-      _max: { version: true },
     });
-
-    const latestVersion = latestVersionResult._max.version ?? 0;
 
     // Map to DTOs
     const questionDtos: QuestionDto[] = returnQuestions.map((q) =>
@@ -105,12 +118,12 @@ export class ExamTypesService {
 
     const response: QuestionBankResponseDto = {
       questions: questionDtos,
-      latestVersion,
+      latestVersion: 1,
       hasMore,
     };
 
-    if (hasMore && returnQuestions.length > 0) {
-      response.nextSince = returnQuestions[returnQuestions.length - 1].version;
+    if (hasMore) {
+      response.nextSince = (since ?? 0) + limit;
     }
 
     return response;
@@ -119,6 +132,7 @@ export class ExamTypesService {
   /**
    * Get the latest version info for question bank
    * T032: GET /exam-types/{examTypeId}/questions/version
+   * Version = total count of approved questions (not an incrementing counter)
    */
   async getVersion(examTypeId: string): Promise<VersionResponseDto> {
     // Verify exam type exists and is active
@@ -130,13 +144,15 @@ export class ExamTypesService {
         examTypeId,
         status: QuestionStatus.APPROVED,
       },
-      _max: { version: true, updatedAt: true },
+      _max: { updatedAt: true },
       _count: { id: true },
     });
 
+    const questionCount = stats._count.id;
+
     return {
-      latestVersion: stats._max.version ?? 0,
-      questionCount: stats._count.id,
+      latestVersion: 1,
+      questionCount,
       lastUpdatedAt: stats._max.updatedAt?.toISOString(),
     };
   }
@@ -166,7 +182,7 @@ export class ExamTypesService {
       options: question.options as QuestionOptionDto[],
       correctAnswers: question.correctAnswers,
       explanation: question.explanation,
-      version: question.version,
+      version: 1,
       createdAt: question.createdAt.toISOString(),
       updatedAt: question.updatedAt.toISOString(),
     };

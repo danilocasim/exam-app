@@ -217,15 +217,19 @@ export const fetchQuestions = async (
 };
 
 /**
- * Get last sync version from local database
+ * Get local question count from SQLite database
+ */
+export const getLocalQuestionCount = async (): Promise<number> => {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM Question');
+  return row?.count ?? 0;
+};
+
+/**
+ * Get last sync version from local database (kept for backward compat)
  */
 export const getLastSyncVersion = async (): Promise<number> => {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<{ value: string }>(
-    'SELECT value FROM SyncMeta WHERE key = ?',
-    [SYNC_META_KEYS.LAST_SYNC_VERSION],
-  );
-  return row ? parseInt(row.value, 10) : 0;
+  return getLocalQuestionCount();
 };
 
 /**
@@ -339,27 +343,58 @@ const upsertQuestions = async (
 
 /**
  * Sync questions from API to local database
- * Fetches all questions since the last sync version with retry support
+ * Compares local question count vs remote count; if different, clears local and re-downloads all
  */
 export const syncQuestions = async (examTypeId: string = EXAM_TYPE_ID): Promise<SyncResult> => {
   console.warn(`[SyncService] syncQuestions called for examType: ${examTypeId}`);
   try {
-    const lastVersion = await getLastSyncVersion();
-    console.warn(`[SyncService] Last sync version: ${lastVersion}`);
-    let totalAdded = 0;
-    let totalUpdated = 0;
-    let latestVersion = lastVersion;
-    let hasMore = true;
-    let sinceVersion: number | undefined = lastVersion > 0 ? lastVersion : undefined;
-    let totalRetries = 0;
+    const localCount = await getLocalQuestionCount();
+    console.warn(`[SyncService] Local question count: ${localCount}`);
 
-    // Fetch all pages of questions with retry
+    // Check remote version (which is the total approved question count)
+    const { result: versionInfo, retriesUsed: versionRetries } = await withRetry(
+      () => fetchLatestVersion(examTypeId),
+      'fetchLatestVersion',
+    );
+    const remoteCount = versionInfo.questionCount;
+    console.warn(`[SyncService] Remote question count: ${remoteCount}`);
+
+    // If counts match, no sync needed
+    if (localCount === remoteCount) {
+      console.warn(`[SyncService] Already up to date (${localCount} questions)`);
+      return {
+        success: true,
+        questionsAdded: 0,
+        questionsUpdated: 0,
+        latestVersion: 1,
+        retriesUsed: versionRetries,
+      };
+    }
+
+    // Counts differ — clear local questions and re-download fresh set
+    console.warn(
+      `[SyncService] Count mismatch (local=${localCount}, remote=${remoteCount}), clearing local questions...`,
+    );
+    const db = await getDatabase();
+    // Clear all tables that reference Question to avoid foreign key constraint violations
+    await db.runAsync('DELETE FROM PracticeAnswer');
+    await db.runAsync('DELETE FROM PracticeSession');
+    await db.runAsync('DELETE FROM ExamAnswer');
+    await db.runAsync('DELETE FROM ExamSubmission');
+    await db.runAsync('DELETE FROM ExamAttempt');
+    await db.runAsync('DELETE FROM Question');
+
+    let totalAdded = 0;
+    let hasMore = true;
+    let offset: number | undefined = undefined;
+    let totalRetries = versionRetries;
+
     while (hasMore) {
-      console.warn(`[SyncService] Fetching questions since version ${sinceVersion}`);
-      const currentSince = sinceVersion;
+      console.warn(`[SyncService] Fetching questions offset=${offset ?? 0}`);
+      const currentOffset = offset;
       const { result: response, retriesUsed } = await withRetry(
-        () => fetchQuestions(examTypeId, currentSince),
-        `fetchQuestions(since=${currentSince})`,
+        () => fetchQuestions(examTypeId, currentOffset),
+        `fetchQuestions(offset=${currentOffset ?? 0})`,
       );
       totalRetries += retriesUsed;
       console.warn(
@@ -367,28 +402,26 @@ export const syncQuestions = async (examTypeId: string = EXAM_TYPE_ID): Promise<
       );
 
       if (response.questions.length > 0) {
-        const { added, updated } = await upsertQuestions(response.questions);
+        const { added } = await upsertQuestions(response.questions);
         totalAdded += added;
-        totalUpdated += updated;
       }
 
-      latestVersion = response.latestVersion;
       hasMore = response.hasMore;
-      sinceVersion = response.nextSince;
+      offset = response.nextSince;
     }
 
     // Update sync metadata
-    await saveSyncMeta(SYNC_META_KEYS.LAST_SYNC_VERSION, String(latestVersion));
+    await saveSyncMeta(SYNC_META_KEYS.LAST_SYNC_VERSION, '1');
     await saveSyncMeta(SYNC_META_KEYS.LAST_SYNC_AT, new Date().toISOString());
 
     console.warn(
-      `[SyncService] Sync complete: added=${totalAdded}, updated=${totalUpdated}, latestVersion=${latestVersion}, retries=${totalRetries}`,
+      `[SyncService] Sync complete: added=${totalAdded}, remoteCount=${remoteCount}, retries=${totalRetries}`,
     );
     return {
       success: true,
       questionsAdded: totalAdded,
-      questionsUpdated: totalUpdated,
-      latestVersion,
+      questionsUpdated: 0,
+      latestVersion: 1,
       retriesUsed: totalRetries,
     };
   } catch (error) {
@@ -429,10 +462,6 @@ export const isSyncNeeded = async (): Promise<boolean> => {
 export const performFullSync = async (examTypeId: string = EXAM_TYPE_ID): Promise<SyncResult> => {
   console.warn(`[SyncService] performFullSync called for examType: ${examTypeId}`);
   try {
-    // Reset sync version to force full re-sync (temporary for dev)
-    console.warn('[SyncService] Resetting sync version to 0 for fresh sync...');
-    await saveSyncMeta(SYNC_META_KEYS.LAST_SYNC_VERSION, '0');
-
     // Fetch and save exam type config with retry
     console.warn('[SyncService] Fetching exam type config...');
     const { result: config } = await withRetry(
@@ -442,7 +471,7 @@ export const performFullSync = async (examTypeId: string = EXAM_TYPE_ID): Promis
     await saveExamTypeConfig(config);
     console.warn(`[SyncService] Config saved: ${config.questionCount} questions required`);
 
-    // Sync questions (already has internal retry)
+    // Sync questions (compares local count vs remote count)
     return await syncQuestions(examTypeId);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error during full sync';

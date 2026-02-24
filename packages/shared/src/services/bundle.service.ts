@@ -139,7 +139,7 @@ export const loadBundledQuestions = async (
     now,
   ]);
 
-  // If no sync has occurred yet, set the last sync version to bundle version
+  // If no sync has occurred yet, set the last sync version to 1 (version is always 1)
   const lastSyncRow = await db.getFirstAsync<{ value: string }>(
     'SELECT value FROM SyncMeta WHERE key = ?',
     [SYNC_META_KEYS.LAST_SYNC_VERSION],
@@ -148,7 +148,7 @@ export const loadBundledQuestions = async (
   if (!lastSyncRow) {
     await db.runAsync(`INSERT OR REPLACE INTO SyncMeta (key, value, updatedAt) VALUES (?, ?, ?)`, [
       SYNC_META_KEYS.LAST_SYNC_VERSION,
-      String(bundle.version),
+      '1',
       now,
     ]);
   }

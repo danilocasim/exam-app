@@ -30,7 +30,9 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors();
+  app.enableCors({
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
 
   await app.listen(port, '0.0.0.0');
   logger.log(`Application running on: http://localhost:${port}`);

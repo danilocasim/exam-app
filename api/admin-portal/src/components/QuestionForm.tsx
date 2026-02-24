@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { QuestionInput, ExamType } from '../services/api';
 import { colors, radius } from '../theme';
 
@@ -41,6 +41,28 @@ export function QuestionForm({
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Sync examTypeId and domain when selectedExamType loads asynchronously
+  useEffect(() => {
+    if (
+      !initialValues?.examTypeId &&
+      selectedExamType &&
+      !formData.examTypeId
+    ) {
+      const et = examTypes.find((t) => t.id === selectedExamType);
+      const firstDomain = et?.domains?.[0]?.id || '';
+      setFormData((prev) => ({
+        ...prev,
+        examTypeId: selectedExamType,
+        domain: prev.domain || firstDomain,
+      }));
+    }
+  }, [
+    selectedExamType,
+    examTypes,
+    initialValues?.examTypeId,
+    formData.examTypeId,
+  ]);
 
   const updateField = <K extends keyof QuestionInput>(
     key: K,

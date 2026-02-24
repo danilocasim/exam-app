@@ -60,17 +60,9 @@ async function main() {
 
   console.log(`✅ Created exam type: ${clfC02.name} (${clfC02.id})`);
 
-  // Create initial SyncVersion for CLF-C02
-  await prisma.syncVersion.upsert({
-    where: { examTypeId: 'CLF-C02' },
-    update: {},
-    create: {
-      examTypeId: 'CLF-C02',
-      version: 1,
-    },
-  });
-
-  console.log('✅ Created sync version for CLF-C02');
+  console.log(
+    '✅ Skipping SyncVersion (version is now based on question count)',
+  );
 
   // Create sample admin user (password: admin123)
   const bcrypt = await import('bcrypt');
@@ -119,6 +111,7 @@ async function main() {
         correctAnswers: q.correctAnswers,
         explanation: q.explanation,
         status: 'APPROVED',
+        version: 1,
         createdById: admin.id,
         approvedById: admin.id,
         approvedAt: now,

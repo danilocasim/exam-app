@@ -457,7 +457,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Backend DTO Tasks
 
-- [ ] T225 Create api/src/admin/dto/create-exam-type.dto.ts:
+- [x] T225 Create api/src/admin/dto/create-exam-type.dto.ts:
   ```ts
   export class CreateExamTypeDomainDto {
     @IsString() id: string;
@@ -480,7 +480,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   ```
   Add custom validator: domain weights must sum to 100.
 
-- [ ] T226 [P] Create api/src/admin/dto/update-exam-type.dto.ts using OmitType/PartialType pattern:
+- [x] T226 [P] Create api/src/admin/dto/update-exam-type.dto.ts using OmitType/PartialType pattern:
   ```ts
   export class UpdateExamTypeDto extends OmitType(CreateExamTypeDto, ['id'] as const) {}
   ```
@@ -488,7 +488,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Backend Service Tasks
 
-- [ ] T227 Create api/src/admin/services/exam-types.service.ts (AdminExamTypesService) with methods:
+- [x] T227 Create api/src/admin/services/exam-types.service.ts (AdminExamTypesService) with methods:
   - `create(dto: CreateExamTypeDto): Promise<ExamType>` — validates unique ID, creates in DB, returns new entity
   - `update(id: string, dto: UpdateExamTypeDto): Promise<ExamType>` — validates exists, updates all fields, returns updated entity
   - `toggleActive(id: string): Promise<ExamType>` — flips isActive boolean, returns updated entity
@@ -497,7 +497,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Backend Controller Tasks
 
-- [ ] T228 [US5] Add POST /admin/exam-types endpoint to api/src/admin/controllers/admin-exam-types.controller.ts:
+- [x] T228 [US5] Add POST /admin/exam-types endpoint to api/src/admin/controllers/admin-exam-types.controller.ts:
   ```ts
   @Post('exam-types')
   @HttpCode(HttpStatus.CREATED)
@@ -507,7 +507,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   ```
   Return 201 on success, 409 on duplicate ID, 400 on validation failure.
 
-- [ ] T229 [US9] Add PUT /admin/exam-types/:id endpoint:
+- [x] T229 [US9] Add PUT /admin/exam-types/:id endpoint:
   ```ts
   @Put('exam-types/:id')
   async updateExamType(@Param('id') id: string, @Body() dto: UpdateExamTypeDto): Promise<ExamType> {
@@ -516,7 +516,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   ```
   Return 200 on success, 404 if not found, 400 on validation failure.
 
-- [ ] T230 [US9] Add PATCH /admin/exam-types/:id endpoint for toggling isActive:
+- [x] T230 [US9] Add PATCH /admin/exam-types/:id endpoint for toggling isActive:
   ```ts
   @Patch('exam-types/:id')
   async toggleExamType(@Param('id') id: string): Promise<ExamType> {
@@ -535,7 +535,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Admin API Service Tasks
 
-- [ ] T231 Add exam type CRUD methods to api/admin-portal/src/services/api.ts:
+- [x] T231 Add exam type CRUD methods to api/admin-portal/src/services/api.ts:
   ```ts
   createExamType(input: CreateExamTypeInput): Promise<ExamType>;
   updateExamType(id: string, input: UpdateExamTypeInput): Promise<ExamType>;
@@ -545,14 +545,14 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Admin Portal Page Tasks
 
-- [ ] T232 [US5] Create api/admin-portal/src/pages/ExamTypeListPage.tsx:
+- [x] T232 [US5] Create api/admin-portal/src/pages/ExamTypeListPage.tsx:
   - Table displaying all exam types: id, displayName, questionCount, passingScore, isActive status
   - "Create New" button → navigates to /exam-types/new
   - "Edit" button per row → navigates to /exam-types/:id
   - "Deactivate"/"Reactivate" toggle per row → calls toggleExamType API
   - Style consistent with existing DashboardPage and QuestionListPage
 
-- [ ] T233 Create api/admin-portal/src/components/DomainEditor.tsx:
+- [x] T233 Create api/admin-portal/src/components/DomainEditor.tsx:
   - Renders list of domain rows, each with: id (text input), name (text input), weight (number input 0-100), questionCount (number input)
   - "Add Domain" button appends empty row
   - "Remove" button per row (with confirmation)
@@ -560,7 +560,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - Live validation: shows total weight and warning if not 100
   - Props: `domains: Domain[]`, `onChange: (domains: Domain[]) => void`
 
-- [ ] T234 [US5] [US9] Create api/admin-portal/src/pages/ExamTypeFormPage.tsx:
+- [x] T234 [US5] [US9] Create api/admin-portal/src/pages/ExamTypeFormPage.tsx:
   - Create mode (path: /exam-types/new): empty form
   - Edit mode (path: /exam-types/:id): pre-filled form (fetch exam type on mount)
   - Fields: id (text, read-only in edit mode), name, displayName, description (textarea), passingScore (number), timeLimit (number), questionCount (number)
@@ -572,7 +572,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Admin Portal Routing & Navigation Tasks
 
-- [ ] T235 Update api/admin-portal/src/App.tsx to add exam type routes:
+- [x] T235 Update api/admin-portal/src/App.tsx to add exam type routes:
   ```tsx
   <Route path="/exam-types" element={<ExamTypeListPage />} />
   <Route path="/exam-types/new" element={<ExamTypeFormPage />} />
@@ -580,14 +580,14 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   ```
   Import ExamTypeListPage and ExamTypeFormPage.
 
-- [ ] T236 [P] Update api/admin-portal/src/components/Layout.tsx:
+- [x] T236 [P] Update api/admin-portal/src/components/Layout.tsx:
   - Add "Exam Types" link in sidebar navigation (between Dashboard and Questions)
   - Icon: settings/cog or document icon
   - Active state styling consistent with existing nav links
 
 ### Admin Portal Validation Tasks
 
-- [ ] T237 [P] Add client-side validation to ExamTypeFormPage:
+- [x] T237 [P] Add client-side validation to ExamTypeFormPage:
   - ID format: alphanumeric + hyphens only (regex: `/^[A-Za-z0-9-]+$/`)
   - Name: minimum 3 characters
   - DisplayName: minimum 2 characters
@@ -598,7 +598,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - Show inline error messages on invalid fields
   - Disable submit button until all validations pass
 
-- [ ] T238 [P] Add confirmation dialogs for state-changing actions:
+- [x] T238 [P] Add confirmation dialogs for state-changing actions:
   - Deactivate: "Deactivating this exam type will prevent mobile apps from receiving new questions. Existing questions remain accessible. Continue?"
   - Reactivate: "Reactivating this exam type will make it available to mobile apps again. Continue?"
   - Style: modal dialog consistent with existing app patterns
