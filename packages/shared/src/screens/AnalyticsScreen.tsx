@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
@@ -16,6 +17,9 @@ import { ArrowLeft, BarChart2, Trophy, Target, AlertTriangle, BookOpen } from 'l
 import { useShallow } from 'zustand/react/shallow';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAnalyticsStore, selectHasData } from '../stores/analytics.store';
+import { useExamStore } from '../stores';
+import { abandonCurrentExam } from '../services';
+import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 import { ScoreTrendChart } from '../components/analytics/ScoreTrendChart';
 import { DomainPerformanceCard } from '../components/analytics/DomainPerformanceCard';
 import { StudyStatsCard } from '../components/analytics/StudyStatsCard';
@@ -53,6 +57,28 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Analytics'>
 export const AnalyticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const { startExam } = useExamStore();
+
+  const handleStartExam = async () => {
+    try {
+      await startExam();
+      navigation.navigate('ExamScreen', {});
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('already in progress')) {
+        try {
+          const inProgress = await getInProgressExamAttempt();
+          if (inProgress) await abandonCurrentExam(inProgress.id);
+          await startExam();
+          navigation.navigate('ExamScreen', {});
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      Alert.alert('Error', message || 'Failed to start exam');
+    }
+  };
 
   const { analyticsData, isLoading, error } = useAnalyticsStore(
     useShallow((state) => ({
@@ -158,7 +184,7 @@ export const AnalyticsScreen: React.FC = () => {
             </Text>
             <TouchableOpacity
               style={styles.startButton}
-              onPress={() => navigation.navigate('MainTabs')}
+              onPress={handleStartExam}
             >
               <Text style={styles.startButtonText}>Start Studying</Text>
             </TouchableOpacity>
