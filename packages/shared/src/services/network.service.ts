@@ -24,7 +24,8 @@ export const checkConnectivity = async (): Promise<boolean> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
 
-    const response = await fetch(`${API_CONFIG.BASE_URL}/health`, {
+    const baseUrl = API_CONFIG.BASE_URL.replace(/\/+$/, '');
+    const response = await fetch(`${baseUrl}/health`, {
       method: 'GET',
       signal: controller.signal,
     });

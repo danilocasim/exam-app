@@ -15,6 +15,8 @@ export interface QuestionCardProps {
   showResultBanner?: boolean;
   /** Hide the explanation section at the bottom (default: true) */
   showExplanation?: boolean;
+  /** Font scale multiplier (default: 1.0). Use getFontScale() from FontSizeControl. */
+  fontScale?: number;
 }
 
 // AWS Modern Color Palette
@@ -57,6 +59,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   disabled = false,
   showResultBanner = true,
   showExplanation = true,
+  fontScale = 1,
 }) => {
   const isMultipleChoice = question.type === 'MULTIPLE_CHOICE';
 
@@ -140,7 +143,17 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
         {/* Question text */}
         <View style={styles.questionBox}>
-          <Text style={styles.questionText}>{question.text}</Text>
+          <Text
+            style={[
+              styles.questionText,
+              {
+                fontSize: Math.round(20 * fontScale),
+                lineHeight: Math.round(30 * fontScale),
+              },
+            ]}
+          >
+            {question.text}
+          </Text>
         </View>
 
         {/* Options */}
@@ -161,6 +174,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                     {
                       color: getOptionTextColor(option),
                       fontWeight: selectedAnswers.includes(option.id) ? '600' : '400',
+                      fontSize: Math.round(16 * fontScale),
+                      lineHeight: Math.round(24 * fontScale),
                     },
                   ]}
                 >

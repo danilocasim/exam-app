@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { X, Send } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import {
   useExamStore,
@@ -24,6 +24,8 @@ import {
 import { QuestionCard } from '../components/QuestionCard';
 import { Timer } from '../components/Timer';
 import { QuestionNavigator } from '../components/QuestionNavigator';
+import { FontSizeControl, getFontScale } from '../components/FontSizeControl';
+import type { FontSizeLevel } from '../components/FontSizeControl';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExamScreen'>;
 
@@ -61,6 +63,10 @@ export const ExamScreen: React.FC = () => {
 
   // Local state for selected answers (before saving)
   const [pendingAnswers, setPendingAnswers] = useState<string[]>([]);
+
+  // Font size preference
+  const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>(2);
+  const fontScale = getFontScale(fontSizeLevel);
 
   // Initialize pending answers when question changes
   useEffect(() => {
@@ -235,22 +241,8 @@ export const ExamScreen: React.FC = () => {
             persistInterval={30000}
           />
 
-          {/* Submit button */}
-          <TouchableOpacity
-            onPress={handleSubmitPress}
-            disabled={isSubmitting}
-            activeOpacity={0.8}
-            style={styles.submitButton}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <View style={styles.submitContent}>
-                <Text style={styles.submitText}>Submit</Text>
-                <Send size={14} color="#9CA3AF" strokeWidth={2} />
-              </View>
-            )}
-          </TouchableOpacity>
+          {/* Font size control */}
+          <FontSizeControl level={fontSizeLevel} onChangeLevel={setFontSizeLevel} />
         </View>
 
         {/* Question card */}
@@ -260,6 +252,7 @@ export const ExamScreen: React.FC = () => {
             selectedAnswers={pendingAnswers}
             onSelectAnswer={handleSelectAnswer}
             disabled={isSubmitting}
+            fontScale={fontScale}
           />
         </View>
 
@@ -279,8 +272,10 @@ export const ExamScreen: React.FC = () => {
             onFlag={handleToggleFlag}
             onPrevious={goToPreviousQuestion}
             onNext={goToNextQuestion}
+            onSubmit={handleSubmitPress}
             hasPrevious={hasPrevious}
             hasNext={hasNext}
+            isSubmitting={isSubmitting}
           />
         </View>
       </View>
@@ -335,24 +330,6 @@ const styles = StyleSheet.create({
     borderColor: '#374151',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  submitButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#374151',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  submitContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  submitText: {
-    color: '#9CA3AF',
-    fontWeight: '600',
-    fontSize: 14,
   },
   questionContainer: {
     flex: 1,

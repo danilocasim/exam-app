@@ -31,4 +31,5 @@ export const playIntegrityConfig = registerAs('playIntegrity', () => ({
   googleCloudProjectNumber: process.env.GOOGLE_CLOUD_PROJECT_NUMBER || '',
   googleServiceAccountKeyPath:
     process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || '',
+  googleServiceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '',
 }));

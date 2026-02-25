@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, ChevronRight, Clock, BarChart2 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { getExamHistory, ExamHistoryEntry } from '../services/review.service';
+import { useExamStore } from '../stores';
+import { abandonCurrentExam } from '../services';
+import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 
 // AWS Modern Color Palette
 const colors = {
@@ -45,10 +49,32 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExamHistory
 export const ExamHistoryScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const { startExam } = useExamStore();
 
   const [entries, setEntries] = useState<ExamHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleStartExam = async () => {
+    try {
+      await startExam();
+      navigation.navigate('ExamScreen', {});
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('already in progress')) {
+        try {
+          const inProgress = await getInProgressExamAttempt();
+          if (inProgress) await abandonCurrentExam(inProgress.id);
+          await startExam();
+          navigation.navigate('ExamScreen', {});
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      Alert.alert('Error', message || 'Failed to start exam');
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -170,7 +196,7 @@ export const ExamHistoryScreen: React.FC = () => {
           <Text style={styles.emptyTitle}>No Exam History</Text>
           <Text style={styles.emptySubtitle}>Complete your first exam to see results here</Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('MainTabs')}
+            onPress={handleStartExam}
             activeOpacity={0.7}
             style={styles.emptyButton}
           >

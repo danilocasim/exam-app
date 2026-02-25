@@ -65,17 +65,32 @@ export class IntegrityService {
     }
 
     try {
-      // Resolve service account key path
-      const keyPath = path.resolve(process.cwd(), this.serviceAccountKeyPath);
+      // Try inline JSON env var first, then fall back to file path
+      const inlineKey = this.configService.get<string>(
+        'playIntegrity.googleServiceAccountKey',
+      );
+      let credentials: Record<string, unknown>;
 
-      // Check if file exists
-      if (!fs.existsSync(keyPath)) {
-        throw new Error(`Service account key file not found at: ${keyPath}`);
+      if (inlineKey) {
+        this.logger.log(
+          'Using inline GOOGLE_SERVICE_ACCOUNT_KEY environment variable',
+        );
+        credentials = JSON.parse(inlineKey);
+      } else {
+        // Resolve service account key path
+        const keyPath = path.resolve(process.cwd(), this.serviceAccountKeyPath);
+
+        // Check if file exists
+        if (!fs.existsSync(keyPath)) {
+          throw new Error(
+            `Service account key file not found at: ${keyPath}. Set GOOGLE_SERVICE_ACCOUNT_KEY env var or provide the file.`,
+          );
+        }
+
+        // Read and parse service account credentials
+        const keyFileContent = fs.readFileSync(keyPath, 'utf8');
+        credentials = JSON.parse(keyFileContent);
       }
-
-      // Read and parse service account credentials
-      const keyFileContent = fs.readFileSync(keyPath, 'utf8');
-      const credentials = JSON.parse(keyFileContent);
 
       // Create Google Auth client
       this.googleAuth = new GoogleAuth({

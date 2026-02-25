@@ -12,8 +12,8 @@
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "404307950460-pjn95o851nqdhkkvof74oo3otb3oe0kg.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "404307950460-pjn95o851nqdhkkvof74oo3otb3oe0kg.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "75406198346-3q6mqj2g3c2i7g1cvi8kopg7kqgd3np4.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "75406198346-72hv73jt4uif3hvp824ml5h9v2mv83s3.apps.googleusercontent.com"
       }
     },
     "development": {}

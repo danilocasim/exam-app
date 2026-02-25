@@ -9,7 +9,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { ChevronLeft, ChevronRight, Flag, Grid3x3, X, Check } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Flag, Grid3x3, X, Check, Send } from 'lucide-react-native';
 import { ExamAnswer } from '../storage/schema';
 
 // AWS Modern Color Palette
@@ -43,8 +43,10 @@ export interface QuestionNavigatorProps {
   onFlag: () => void;
   onPrevious: () => void;
   onNext: () => void;
+  onSubmit: () => void;
   hasPrevious: boolean;
   hasNext: boolean;
+  isSubmitting?: boolean;
 }
 
 /**
@@ -58,8 +60,10 @@ export const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
   onFlag,
   onPrevious,
   onNext,
+  onSubmit,
   hasPrevious,
   hasNext,
+  isSubmitting = false,
 }) => {
   const [showGrid, setShowGrid] = useState(false);
 
@@ -188,27 +192,27 @@ export const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Next */}
-          <TouchableOpacity
-            onPress={onNext}
-            disabled={!hasNext}
-            activeOpacity={0.8}
-            style={[styles.navButton, hasNext ? styles.nextButtonActive : styles.navButtonInactive]}
-          >
-            <Text
-              style={[
-                styles.navButtonText,
-                { color: hasNext ? colors.textHeading : colors.textDisabled },
-              ]}
+          {/* Next / Submit */}
+          {hasNext ? (
+            <TouchableOpacity
+              onPress={onNext}
+              activeOpacity={0.8}
+              style={[styles.navButton, styles.nextButtonActive]}
             >
-              Next
-            </Text>
-            <ChevronRight
-              size={18}
-              color={hasNext ? colors.textHeading : colors.textDisabled}
-              strokeWidth={2}
-            />
-          </TouchableOpacity>
+              <Text style={[styles.navButtonText, { color: colors.textHeading }]}>Next</Text>
+              <ChevronRight size={18} color={colors.textHeading} strokeWidth={2} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={onSubmit}
+              disabled={isSubmitting}
+              activeOpacity={0.8}
+              style={[styles.navButton, styles.submitButtonActive]}
+            >
+              <Text style={[styles.navButtonText, { color: colors.textHeading }]}>Submit</Text>
+              <Send size={14} color={colors.textHeading} strokeWidth={2} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -375,6 +379,9 @@ const styles = StyleSheet.create({
   },
   nextButtonActive: {
     backgroundColor: colors.primaryOrange,
+  },
+  submitButtonActive: {
+    backgroundColor: colors.success,
   },
   navButtonText: {
     fontWeight: '600',

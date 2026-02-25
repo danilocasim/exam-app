@@ -3,6 +3,8 @@ export { QuestionCard } from './QuestionCard';
 export { Timer, CompactTimer } from './Timer';
 export { QuestionNavigator } from './QuestionNavigator';
 export { CircularProgress } from './CircularProgress';
+export { FontSizeControl, getFontScale, FONT_SIZE_LABELS } from './FontSizeControl';
+export type { FontSizeLevel, FontSizeControlProps } from './FontSizeControl';
 
 // Practice components (T055, T056, T057)
 export { FeedbackCard } from './FeedbackCard';

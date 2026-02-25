@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dojo Exam CLFC02",
     "slug": "dojo-exam-clfc02",
-    "version": "1.2.2",
+    "version": "1.2.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.danilocasim.dojoexam.clfc02",
-      "versionCode": 10
+      "versionCode": 17
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,8 +32,8 @@
     "plugins": ["expo-sqlite"],
     "scheme": "cloudprep",
     "extra": {
-      "googleWebClientId": "404307950460-pjn95o851nqdhkkvof74oo3otb3oe0kg.apps.googleusercontent.com",
-      "googleAndroidClientId": "404307950460-mp63rpuj3clr85b9o6eq4ge9rdrqvv04.apps.googleusercontent.com",
+      "googleWebClientId": "75406198346-3q6mqj2g3c2i7g1cvi8kopg7kqgd3np4.apps.googleusercontent.com",
+      "googleAndroidClientId": "75406198346-72hv73jt4uif3hvp824ml5h9v2mv83s3.apps.googleusercontent.com",
       "eas": {
         "projectId": "25f5a1dd-c4eb-4791-b89c-0f6eada11bcc"
       }
