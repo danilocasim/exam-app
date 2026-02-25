@@ -16,6 +16,7 @@ import {
 } from '../services';
 import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
 import { useExamAttemptStore } from './exam-attempt.store';
+import { useStreakStore } from './streak.store';
 import { useAuthStore } from './auth-store';
 import { EXAM_TYPE_ID } from '../config';
 
@@ -224,6 +225,13 @@ export const useExamStore = create<ExamStore>((set, get) => ({
       } catch (syncErr) {
         console.warn('[ExamStore] Failed to queue for cloud sync:', syncErr);
         // Non-blocking: exam submission still succeeds locally
+      }
+
+      // Update streak store for UI reactivity
+      try {
+        await useStreakStore.getState().onExamCompleted();
+      } catch {
+        // Non-blocking
       }
 
       set({

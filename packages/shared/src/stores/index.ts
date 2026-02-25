@@ -51,3 +51,12 @@ export type { AnalyticsState, AnalyticsActions, AnalyticsStore } from './analyti
 
 // ExamAttempt store (T133)
 export { useExamAttemptStore } from './exam-attempt.store';
+
+// Streak store
+export {
+  useStreakStore,
+  selectCurrentStreak,
+  selectLongestStreak,
+  selectExamDate,
+} from './streak.store';
+export type { StreakState, StreakActions, StreakStore } from './streak.store';

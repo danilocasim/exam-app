@@ -37,13 +37,15 @@ import {
   X,
   ArrowLeft,
   MessageSquare,
-  Crown,
   Target,
   Clock,
+  Calendar,
+  Flame,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
 import { useAuthStore } from '../stores/auth-store';
+import { useStreakStore } from '../stores/streak.store';
 import { hasInProgressExam, abandonCurrentExam } from '../services';
 import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 import { getTotalQuestionCount } from '../storage/repositories/question.repository';
@@ -51,6 +53,8 @@ import { canGenerateExam } from '../services/exam-generator.service';
 import { getUserStats } from '../storage/repositories/user-stats.repository';
 import { getOverallStats, calculateAggregatedDomainPerformance } from '../services/scoring.service';
 import { EXAM_CONFIG } from '../config';
+import { CalendarStrip } from '../components/CalendarStrip';
+import { DatePickerModal } from '../components/DatePickerModal';
 
 // AWS Modern Color Palette
 const colors = {
@@ -118,6 +122,8 @@ export const HomeScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { startExam, resumeExam, isLoading, error, setError } = useExamStore();
   const { isSignedIn, user } = useAuthStore();
+  const { streak, motivation, completedToday, daysUntilExam, loadStreak, saveExamDate } =
+    useStreakStore();
 
   const [hasInProgress, setHasInProgress] = useState(false);
   const [questionCount, setQuestionCount] = useState(0);
@@ -132,10 +138,12 @@ export const HomeScreen: React.FC = () => {
   const [showResources, setShowResources] = useState(false);
   const [webViewUrl, setWebViewUrl] = useState<string | null>(null);
   const [webViewLoading, setWebViewLoading] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       checkExamStatus();
+      loadStreak();
     }, []),
   );
 
@@ -381,31 +389,45 @@ export const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Promotion Banner ── */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Upgrade' as any)}
-          activeOpacity={0.85}
-          style={styles.promoBanner}
-        >
-          <View style={styles.promoCard}>
-            <View style={styles.promoTopRow}>
-              <View style={styles.promoIconCircle}>
-                <Crown size={18} color={colors.primaryOrange} strokeWidth={2.5} />
-              </View>
-              <View style={styles.promoBadge}>
-                <Text style={styles.promoBadgeText}>LIMITED</Text>
-              </View>
-            </View>
-            <Text style={styles.promoTitle}>Get 49% off forever access</Text>
-            <Text style={styles.promoSub}>
-              Unlimited exams, full question bank & lifetime updates
+        {/* ── Row 2: Countdown + Streak ── */}
+        <View style={styles.statsRow}>
+          {/* Countdown */}
+          <TouchableOpacity
+            style={styles.statsCard}
+            activeOpacity={0.7}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Calendar size={16} color={colors.primaryOrange} strokeWidth={2} />
+            <Text style={styles.statsValue}>
+              {streak?.examDate ? `${Math.max(0, daysUntilExam ?? 0)}` : '—'}
             </Text>
-            <View style={styles.promoBtn}>
-              <Text style={styles.promoBtnText}>Upgrade Now</Text>
-              <ChevronRight size={14} color={colors.textHeading} strokeWidth={2.5} />
-            </View>
+            <Text style={styles.statsLabel}>{streak?.examDate ? 'Days Left' : 'Set Date'}</Text>
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.statsRowDivider} />
+
+          {/* Streak */}
+          <View style={styles.statsCard}>
+            <Flame
+              size={16}
+              color={
+                (streak?.currentStreak ?? 0) >= 7
+                  ? '#EF4444'
+                  : (streak?.currentStreak ?? 0) >= 3
+                    ? colors.primaryOrange
+                    : colors.textMuted
+              }
+              strokeWidth={2}
+            />
+            <Text style={styles.statsValue}>{streak?.currentStreak ?? 0}</Text>
+            <Text style={styles.statsLabel}>Day Streak</Text>
+            {completedToday && <View style={styles.streakDoneDot} />}
           </View>
-        </TouchableOpacity>
+        </View>
+
+        {/* ── Row 3: Calendar Strip ── */}
+        <CalendarStrip examDate={streak?.examDate} />
 
         <View style={styles.content}>
           {/* ── Primary CTA ── */}
@@ -669,6 +691,21 @@ export const HomeScreen: React.FC = () => {
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* ── Date Picker Modal ── */}
+      <DatePickerModal
+        visible={showDatePicker}
+        currentDate={streak?.examDate ?? null}
+        onSave={async (date) => {
+          await saveExamDate(date);
+          setShowDatePicker(false);
+        }}
+        onClear={async () => {
+          await saveExamDate(null);
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -677,7 +714,7 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 20 },
+  content: { paddingHorizontal: 20, marginTop: 12 },
 
   // Loading
   loadingContainer: {
@@ -728,74 +765,50 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // Promotion Banner
-  promoBanner: {
+  // Row 2: Countdown + Streak
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 20,
-    marginTop: 6,
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  promoCard: {
+    marginTop: 12,
+    marginBottom: 0,
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 153, 0, 0.2)',
+    borderColor: colors.borderDefault,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
   },
-  promoTopRow: {
+  statsCard: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  promoIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.orangeDark,
-    alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
-  promoBadge: {
-    backgroundColor: 'rgba(255, 153, 0, 0.12)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  promoBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.primaryOrange,
-    letterSpacing: 0.8,
-  },
-  promoTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+  statsValue: {
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.textHeading,
-    marginBottom: 4,
+    lineHeight: 26,
   },
-  promoSub: {
+  statsLabel: {
     fontSize: 13,
+    fontWeight: '500',
     color: colors.textMuted,
-    lineHeight: 18,
-    marginBottom: 14,
   },
-  promoBtn: {
-    backgroundColor: colors.primaryOrange,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
+  statsRowDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.borderDefault,
   },
-  promoBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textHeading,
+  streakDoneDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.success,
+    marginLeft: -2,
+    marginTop: -8,
   },
 
   // Primary CTA

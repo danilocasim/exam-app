@@ -104,3 +104,15 @@ export {
   isOnline,
 } from './network.service';
 export type { NetworkStatus } from './network.service';
+
+// Streak service
+export {
+  recordExamCompletion,
+  getCurrentStreak,
+  getStreakData,
+  setExamDate as setStreakExamDate,
+  getDaysUntilExam,
+  getStreakMotivation,
+  hasCompletedToday,
+  getLocalToday,
+} from './streak.service';

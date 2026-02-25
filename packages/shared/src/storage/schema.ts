@@ -343,3 +343,34 @@ export interface ExamResult {
   completedAt: string;
   timeSpentMs: number;
 }
+
+// =============================================================================
+// STUDY STREAK
+// =============================================================================
+
+/**
+ * Study streak tracking (singleton row, like UserStats)
+ */
+export interface StudyStreak {
+  /** Always 1 (singleton) */
+  id: 1;
+  /** Current consecutive-day streak */
+  currentStreak: number;
+  /** All-time longest streak */
+  longestStreak: number;
+  /** ISO date (YYYY-MM-DD) of last exam completion that counted toward streak */
+  lastCompletionDate: string | null;
+  /** ISO date (YYYY-MM-DD) of target exam date (set in Settings) */
+  examDate: string | null;
+}
+
+/**
+ * Study streak row as stored in SQLite
+ */
+export interface StudyStreakRow {
+  id: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastCompletionDate: string | null;
+  examDate: string | null;
+}

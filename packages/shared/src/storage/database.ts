@@ -191,6 +191,18 @@ export const initializeDatabase = async (): Promise<void> => {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Create StudyStreak table (singleton row, tracks daily exam streak)
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS StudyStreak (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      currentStreak INTEGER NOT NULL DEFAULT 0,
+      longestStreak INTEGER NOT NULL DEFAULT 0,
+      lastCompletionDate TEXT,
+      examDate TEXT
+    );
+    INSERT OR IGNORE INTO StudyStreak (id) VALUES (1);
+  `);
 };
 
 /**
@@ -219,6 +231,7 @@ export const resetDatabase = async (): Promise<void> => {
     DROP TABLE IF EXISTS Question;
     DROP TABLE IF EXISTS SyncMeta;
     DROP TABLE IF EXISTS UserStats;
+    DROP TABLE IF EXISTS StudyStreak;
   `);
 
   await initializeDatabase();
@@ -237,6 +250,7 @@ export interface UserDataExport {
   practiceSessions: any[];
   practiceAnswers: any[];
   userStats: any | null;
+  studyStreak: any | null;
 }
 
 /**
@@ -253,6 +267,8 @@ export const exportUserData = async (): Promise<UserDataExport> => {
   const practiceAnswers = await database.getAllAsync('SELECT * FROM PracticeAnswer');
   const userStats = await database.getFirstAsync('SELECT * FROM UserStats WHERE id = 1');
 
+  const studyStreak = await database.getFirstAsync('SELECT * FROM StudyStreak WHERE id = 1');
+
   return {
     examAttempts,
     examAnswers,
@@ -260,6 +276,7 @@ export const exportUserData = async (): Promise<UserDataExport> => {
     practiceSessions,
     practiceAnswers,
     userStats,
+    studyStreak,
   };
 };
 
@@ -373,6 +390,24 @@ export const importUserData = async (data: UserDataExport): Promise<void> => {
       ],
     );
   }
+
+  // Merge StudyStreak (keep the higher streak values)
+  if (data.studyStreak) {
+    await database.runAsync(
+      `UPDATE StudyStreak SET
+        currentStreak = MAX(currentStreak, ?),
+        longestStreak = MAX(longestStreak, ?),
+        lastCompletionDate = COALESCE(?, lastCompletionDate),
+        examDate = COALESCE(?, examDate)
+      WHERE id = 1`,
+      [
+        data.studyStreak.currentStreak || 0,
+        data.studyStreak.longestStreak || 0,
+        data.studyStreak.lastCompletionDate,
+        data.studyStreak.examDate,
+      ],
+    );
+  }
 };
 
 /**
@@ -388,6 +423,7 @@ export const clearUserData = async (): Promise<void> => {
     DELETE FROM ExamSubmission;
     DELETE FROM ExamAttempt;
     UPDATE UserStats SET totalExams = 0, totalPractice = 0, totalQuestions = 0, totalTimeSpentMs = 0, lastActivityAt = NULL WHERE id = 1;
+    UPDATE StudyStreak SET currentStreak = 0, longestStreak = 0, lastCompletionDate = NULL WHERE id = 1;
   `);
 };
 

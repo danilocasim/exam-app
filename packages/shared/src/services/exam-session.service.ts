@@ -413,6 +413,14 @@ export const submitExam = async (examAttemptId: string): Promise<ExamResult> => 
   // T074: Update aggregate user stats
   await incrementExamCount(timeSpentMs, totalQuestions);
 
+  // Update daily study streak
+  try {
+    const { recordExamCompletion } = await import('./streak.service');
+    await recordExamCompletion();
+  } catch {
+    // Streak update is non-critical
+  }
+
   return {
     examAttemptId,
     score,

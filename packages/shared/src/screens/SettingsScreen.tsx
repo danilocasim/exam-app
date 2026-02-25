@@ -24,9 +24,12 @@ import {
   Info,
   User,
   Cloud,
+  Calendar,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../stores/auth-store';
+import { useStreakStore } from '../stores/streak.store';
+import { DatePickerModal } from '../components/DatePickerModal';
 import {
   performFullSync,
   getLastSyncVersion,
@@ -59,6 +62,7 @@ export const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { isSignedIn, user } = useAuthStore();
+  const { streak, saveExamDate, loadStreak } = useStreakStore();
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
@@ -66,6 +70,7 @@ export const SettingsScreen: React.FC = () => {
   const [questionCount, setQuestionCount] = useState(0);
   const [examTypeName, setExamTypeName] = useState('');
   const [needsSync, setNeedsSync] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -99,6 +104,7 @@ export const SettingsScreen: React.FC = () => {
 
   useEffect(() => {
     loadStatus();
+    loadStreak();
   }, [loadStatus]);
 
   const handleSync = async () => {
@@ -130,6 +136,19 @@ export const SettingsScreen: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatExamDate = (iso: string): string => {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const handleSetExamDate = () => {
+    setShowDatePicker(true);
   };
 
   return (
@@ -287,6 +306,55 @@ export const SettingsScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Study Plan Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Study Plan</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={handleSetExamDate}>
+              <Calendar size={20} color={colors.primaryOrange} />
+              <Text style={styles.rowLabel}>Target Exam Date</Text>
+              <Text style={styles.rowValue}>
+                {streak?.examDate ? formatExamDate(streak.examDate) : 'Not set'}
+              </Text>
+              <ChevronRight size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+            {streak?.examDate && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.row}>
+                  <Clock size={20} color={colors.info} />
+                  <Text style={styles.rowLabel}>Days remaining</Text>
+                  <Text
+                    style={[
+                      styles.rowValue,
+                      {
+                        color: (() => {
+                          const days = Math.ceil(
+                            (new Date(streak.examDate + 'T00:00:00').getTime() - Date.now()) /
+                              86400000,
+                          );
+                          return days <= 7
+                            ? colors.error
+                            : days <= 30
+                              ? colors.primaryOrange
+                              : colors.success;
+                        })(),
+                      },
+                    ]}
+                  >
+                    {Math.max(
+                      0,
+                      Math.ceil(
+                        (new Date(streak.examDate + 'T00:00:00').getTime() - Date.now()) / 86400000,
+                      ),
+                    )}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
         {/* App Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
@@ -313,6 +381,21 @@ export const SettingsScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Date Picker Modal */}
+      <DatePickerModal
+        visible={showDatePicker}
+        currentDate={streak?.examDate ?? null}
+        onSave={async (date) => {
+          await saveExamDate(date);
+          setShowDatePicker(false);
+        }}
+        onClear={async () => {
+          await saveExamDate(null);
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
     </SafeAreaView>
   );
 };
