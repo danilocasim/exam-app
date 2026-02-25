@@ -182,10 +182,7 @@ export const AnalyticsScreen: React.FC = () => {
             <Text style={styles.emptySubtext}>
               Complete exams and practice sessions to see your performance analytics.
             </Text>
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={handleStartExam}
-            >
+            <TouchableOpacity style={styles.startButton} onPress={handleStartExam}>
               <Text style={styles.startButtonText}>Start Studying</Text>
             </TouchableOpacity>
           </View>
