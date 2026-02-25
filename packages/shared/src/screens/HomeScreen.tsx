@@ -44,6 +44,7 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
+import { EXAM_TYPE_ID } from '../config';
 import { useAuthStore } from '../stores/auth-store';
 import { useStreakStore } from '../stores/streak.store';
 import { hasInProgressExam, abandonCurrentExam } from '../services';
@@ -360,7 +361,7 @@ export const HomeScreen: React.FC = () => {
             <View>
               <View style={styles.headerTitleRow}>
                 <Text style={styles.appTitle}>Dojo Exam</Text>
-                <Text style={styles.headerBadge}>CLF-C02</Text>
+                <Text style={styles.headerBadge}>{EXAM_TYPE_ID}</Text>
               </View>
               <Text style={styles.brandSubtitle}>by Tutorials Dojo</Text>
             </View>

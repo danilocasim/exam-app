@@ -1,12 +1,13 @@
 // SQLite database initialization
-// Supports per-user database files for multi-account data isolation
+// Supports per-user, per-exam-type database files for data isolation
 import * as SQLite from 'expo-sqlite';
+import { EXAM_TYPE_ID } from '../config';
 
 // Database instance (singleton per active session)
 let db: SQLite.SQLiteDatabase | null = null;
 
-// Default anonymous database name
-const ANONYMOUS_DB = 'dojoexam.db';
+// Default anonymous database name (includes exam type for multi-app isolation)
+const ANONYMOUS_DB = `dojoexam_${EXAM_TYPE_ID.toLowerCase().replace(/[^a-z0-9]/g, '_')}.db`;
 
 // Current active database name
 let currentDbName = ANONYMOUS_DB;
@@ -21,8 +22,10 @@ const sanitizeEmail = (email: string): string => email.toLowerCase().replace(/[^
  * Get the database filename for a given user email.
  * Returns the anonymous DB name if email is null.
  */
+const examTypeSlug = EXAM_TYPE_ID.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
 const getDbNameForUser = (email: string | null): string =>
-  email ? `dojoexam_${sanitizeEmail(email)}.db` : ANONYMOUS_DB;
+  email ? `dojoexam_${examTypeSlug}_${sanitizeEmail(email)}.db` : ANONYMOUS_DB;
 
 /**
  * Get the current active database name (for debugging).

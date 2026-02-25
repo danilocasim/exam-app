@@ -631,7 +631,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   ```
   Script: copies template → replaces tokens → runs npm install → prints next steps (update assets, configure EAS, test). Validate that exam type ID exists in backend before creating (optional: `curl /exam-types/{id}` check).
 
-- [ ] T223 Create first new app using the script: `./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03`. Verify apps/aws-saa/ is generated with correct files and placeholders replaced.
+- [x] T223 Create first new app using the script: `./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03`. Verify apps/aws-saa/ is generated with correct files and placeholders replaced.
 
 - [ ] T224 Verify apps/aws-saa/ builds and runs:
   1. `cd apps/aws-saa && npx expo start` — app launches
