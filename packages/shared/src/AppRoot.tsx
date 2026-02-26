@@ -126,12 +126,14 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
         const finalCount = await getTotalQuestionCount();
         console.warn(`[App] Total questions after sync: ${finalCount}`);
 
-        // Initialize persistence service for exam attempt sync
+        // Initialize persistence service for exam attempt sync + stats push
         setSyncStatus('Setting up sync service...');
-        await initPersistence({
-          autoSyncEnabled: true,
-          autoSyncInterval: 300000, // 5 minutes
-        });
+        await initPersistence(
+          { autoSyncEnabled: true, autoSyncInterval: 300000 },
+          authState.isSignedIn ? authState.user?.id : undefined,
+          // Token getter: always reads the freshest token from the auth store
+          () => useAuthStore.getState().accessToken,
+        );
 
         setIsReady(true);
       } catch (e) {

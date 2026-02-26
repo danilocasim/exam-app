@@ -116,3 +116,13 @@ export {
   hasCompletedToday,
   getLocalToday,
 } from './streak.service';
+
+// Stats sync service (cloud persistence for UserStats + StudyStreak)
+export {
+  pushUserStats,
+  pullAndMergeUserStats,
+  pushStreak,
+  pullAndMergeStreak,
+  pushAllStats,
+  pullAndMergeAllStats,
+} from './stats-sync.service';

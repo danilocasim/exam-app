@@ -118,6 +118,8 @@ model User {
   lastLoginAt DateTime?
 
   examAttempts ExamAttempt[]
+  userStats    UserStats?
+  studyStreak  StudyStreak?
 }
 
 // Phase 2: Exam submission record (extended in T120 with userId, syncStatus fields)
@@ -137,10 +139,42 @@ model ExamAttempt {
   syncedAt    DateTime?
   syncRetries Int        @default(0) // Number of failed sync attempts
 
+  // Idempotency: client-generated UUID prevents duplicate submissions on retry
+  localId String? // UUID generated on device at submission time
+
   user     User?    @relation(fields: [userId], references: [id])
   examType ExamType @relation(fields: [examTypeId], references: [id])
 
+  @@unique([userId, localId]) // Prevent duplicate submissions from same user+device
   @@index([userId])
   @@index([examTypeId])
   @@index([syncStatus])
+  @@index([localId])
+}
+
+// Aggregate user statistics synced from mobile devices
+model UserStats {
+  id               String    @id @default(uuid())
+  userId           String    @unique // FK to User
+  totalExams       Int       @default(0)
+  totalPractice    Int       @default(0)
+  totalQuestions   Int       @default(0)
+  totalTimeSpentMs BigInt    @default(0) // milliseconds; BigInt for large values
+  lastActivityAt   DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// Daily study streak synced from mobile devices
+model StudyStreak {
+  id                 String    @id @default(uuid())
+  userId             String    @unique // FK to User
+  currentStreak      Int       @default(0)
+  longestStreak      Int       @default(0)
+  lastCompletionDate String? // YYYY-MM-DD in device local time
+  examDate           String? // YYYY-MM-DD target exam date
+  updatedAt          DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }

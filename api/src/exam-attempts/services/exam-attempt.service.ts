@@ -9,6 +9,7 @@ export interface CreateExamAttemptDto {
   passed: boolean;
   duration: number;
   submittedAt?: Date;
+  localId?: string; // Client-generated UUID for idempotent re-submission
 }
 
 export interface ExamAttemptFilter {
@@ -28,11 +29,24 @@ export class ExamAttemptService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Create new exam attempt (submission)
-   * @param data - Exam attempt details
-   * @returns Created ExamAttempt record
+   * Create (or idempotently upsert) an exam attempt.
+   *
+   * When a localId is provided and the (userId, localId) pair already exists
+   * on the server, the existing record is returned unchanged.  This prevents
+   * duplicate rows when the mobile client retries a submission after a network
+   * timeout where the server had already persisted the first request.
    */
   async create(data: CreateExamAttemptDto): Promise<ExamAttempt> {
+    // Idempotency check: if we have a localId and userId, look for an existing record
+    if (data.localId && data.userId) {
+      const existing = await this.prisma.examAttempt.findUnique({
+        where: { userId_localId: { userId: data.userId, localId: data.localId } },
+      });
+      if (existing) {
+        return existing; // Duplicate submission — return the original record
+      }
+    }
+
     return this.prisma.examAttempt.create({
       data: {
         userId: data.userId || undefined,
@@ -41,7 +55,8 @@ export class ExamAttemptService {
         passed: data.passed,
         duration: data.duration,
         submittedAt: data.submittedAt || new Date(),
-        syncStatus: data.userId ? SyncStatus.PENDING : SyncStatus.SYNCED, // Unsigned exams stay local
+        syncStatus: data.userId ? SyncStatus.PENDING : SyncStatus.SYNCED,
+        localId: data.localId || undefined,
       },
     });
   }

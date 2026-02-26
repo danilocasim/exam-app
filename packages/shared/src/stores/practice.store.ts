@@ -11,6 +11,8 @@ import {
   PracticeAnswerResult,
   PracticeSummary,
 } from '../services/practice.service';
+import { useAuthStore } from './auth-store';
+import { pushAllStats } from '../services/stats-sync.service';
 
 /**
  * Practice store state
@@ -239,6 +241,18 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
         showFeedback: false,
         isLoading: false,
       });
+
+      // Push updated UserStats + StudyStreak to server immediately after practice completes
+      try {
+        const { accessToken, isSignedIn } = useAuthStore.getState();
+        if (isSignedIn && accessToken) {
+          pushAllStats(accessToken).catch((err) =>
+            console.warn('[PracticeStore] Immediate stats push failed (non-fatal):', err),
+          );
+        }
+      } catch {
+        // Non-blocking
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to end session';
       set({ error: message, isLoading: false });

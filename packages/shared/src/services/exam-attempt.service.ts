@@ -39,7 +39,8 @@ export class ExamAttemptService {
    * @returns Stored attempt with local ID
    */
   async submitExam(attempt: ExamAttempt): Promise<ExamAttempt> {
-    // Generate local ID if not provided
+    // Generate a stable UUID for this submission — also used as localId so the
+    // server can deduplicate retried HTTP requests.
     const id = attempt.id || `local-${Date.now()}-${Math.random()}`;
 
     const storedAttempt: ExamSubmissionRepo.ExamSubmission = {
@@ -53,6 +54,7 @@ export class ExamAttemptService {
       createdAt: new Date(),
       syncStatus: 'PENDING',
       syncRetries: 0,
+      localId: id, // Reused as idempotency key for the server
     };
 
     // Store in local database
@@ -112,8 +114,8 @@ export class ExamAttemptService {
 
     for (const attempt of pending) {
       try {
-        // Send to cloud API
-        const response = await getAxios().post(
+        // Send to cloud API — include localId for server-side idempotency
+        await getAxios().post(
           `${this.apiUrl}/exam-attempts/submit-authenticated`,
           {
             examTypeId: attempt.examTypeId,
@@ -121,10 +123,11 @@ export class ExamAttemptService {
             passed: attempt.passed,
             duration: attempt.duration,
             submittedAt: attempt.submittedAt,
+            localId: (attempt as ExamSubmissionRepo.ExamSubmission).localId,
           },
           {
             headers: {
-              Authorization: `Bearer ${userId}`, // Token from auth context
+              Authorization: `Bearer ${userId}`,
             },
           },
         );
@@ -179,8 +182,8 @@ export class ExamAttemptService {
         const delayMs = 5000 * Math.pow(2, attempt.syncRetries || 0);
         await this.sleep(delayMs);
 
-        // Retry sync
-        const response = await getAxios().post(
+        // Retry sync — include localId so server won't create a duplicate
+        await getAxios().post(
           `${this.apiUrl}/exam-attempts/submit-authenticated`,
           {
             examTypeId: attempt.examTypeId,
@@ -188,6 +191,7 @@ export class ExamAttemptService {
             passed: attempt.passed,
             duration: attempt.duration,
             submittedAt: attempt.submittedAt,
+            localId: (attempt as ExamSubmissionRepo.ExamSubmission).localId,
           },
           {
             headers: {

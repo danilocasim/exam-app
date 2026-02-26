@@ -15,6 +15,8 @@ export interface ExamSubmission {
   syncStatus: 'PENDING' | 'SYNCED' | 'FAILED';
   syncRetries: number;
   syncedAt?: Date;
+  /** Client-generated UUID sent to the server for idempotent re-submission */
+  localId?: string;
 }
 
 interface ExamSubmissionRow {
@@ -29,6 +31,7 @@ interface ExamSubmissionRow {
   syncStatus: 'PENDING' | 'SYNCED' | 'FAILED';
   syncRetries: number;
   syncedAt: string | null;
+  localId: string | null;
 }
 
 /**
@@ -46,6 +49,7 @@ const rowToExamSubmission = (row: ExamSubmissionRow): ExamSubmission => ({
   syncStatus: row.syncStatus,
   syncRetries: row.syncRetries,
   syncedAt: row.syncedAt ? new Date(row.syncedAt) : undefined,
+  localId: row.localId || undefined,
 });
 
 /**
@@ -63,6 +67,7 @@ const examsSubmissionToRow = (submission: ExamSubmission): ExamSubmissionRow => 
   syncStatus: submission.syncStatus,
   syncRetries: submission.syncRetries,
   syncedAt: submission.syncedAt?.toISOString() || null,
+  localId: submission.localId || null,
 });
 
 /**
@@ -138,8 +143,8 @@ export const saveExamSubmission = async (submission: ExamSubmission): Promise<Ex
   await db.runAsync(
     `INSERT INTO ExamSubmission (
       id, userId, examTypeId, score, passed, duration,
-      submittedAt, createdAt, syncStatus, syncRetries, syncedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      submittedAt, createdAt, syncStatus, syncRetries, syncedAt, localId
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       row.id,
       row.userId,
@@ -152,6 +157,7 @@ export const saveExamSubmission = async (submission: ExamSubmission): Promise<Ex
       row.syncStatus,
       row.syncRetries,
       row.syncedAt,
+      row.localId,
     ],
   );
 
@@ -169,7 +175,7 @@ export const updateExamSubmission = async (submission: ExamSubmission): Promise<
     `UPDATE ExamSubmission SET
       userId = ?, examTypeId = ?, score = ?, passed = ?,
       duration = ?, submittedAt = ?, createdAt = ?,
-      syncStatus = ?, syncRetries = ?, syncedAt = ?
+      syncStatus = ?, syncRetries = ?, syncedAt = ?, localId = ?
     WHERE id = ?`,
     [
       row.userId,
@@ -182,6 +188,7 @@ export const updateExamSubmission = async (submission: ExamSubmission): Promise<
       row.syncStatus,
       row.syncRetries,
       row.syncedAt,
+      row.localId,
       row.id,
     ],
   );

@@ -24,6 +24,7 @@ import {
   clearUserData,
   hasUserData,
 } from '../storage/database';
+import { pullAndMergeAllStats } from './stats-sync.service';
 
 // Complete any pending auth sessions (required for web-based OAuth)
 WebBrowser.maybeCompleteAuthSession();
@@ -264,6 +265,15 @@ export async function handleGoogleAuthSuccess(
     // Save JWT tokens locally (if backend succeeded)
     if (jwtAccessToken) {
       await TokenStorage.saveTokens(jwtAccessToken, jwtRefreshToken);
+    }
+
+    // 6. Pull UserStats + StudyStreak from server and merge into local DB.
+    //    Runs after the database switch so the merged data lands in the correct
+    //    user-scoped SQLite file.  Non-blocking — any failures are logged.
+    if (jwtAccessToken) {
+      pullAndMergeAllStats(jwtAccessToken).catch((err) =>
+        console.warn('[Auth] Stats pull failed (non-fatal):', err),
+      );
     }
 
     // Update auth store with user info

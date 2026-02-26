@@ -19,6 +19,7 @@ import { useExamAttemptStore } from './exam-attempt.store';
 import { useStreakStore } from './streak.store';
 import { useAuthStore } from './auth-store';
 import { EXAM_TYPE_ID } from '../config';
+import { pushAllStats } from '../services/stats-sync.service';
 
 /**
  * Exam store state
@@ -232,6 +233,19 @@ export const useExamStore = create<ExamStore>((set, get) => ({
         await useStreakStore.getState().onExamCompleted();
       } catch {
         // Non-blocking
+      }
+
+      // Push updated UserStats + StudyStreak to server immediately so they
+      // appear in Prisma Studio / backend without waiting for the 5-min timer.
+      try {
+        const { accessToken, isSignedIn } = useAuthStore.getState();
+        if (isSignedIn && accessToken) {
+          pushAllStats(accessToken).catch((err) =>
+            console.warn('[ExamStore] Immediate stats push failed (non-fatal):', err),
+          );
+        }
+      } catch {
+        // Non-blocking — local data is always safe
       }
 
       set({

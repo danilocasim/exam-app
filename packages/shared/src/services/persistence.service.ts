@@ -22,6 +22,7 @@ export const checkVersionAndClearIntegrityCache = async (): Promise<void> => {
 };
 import NetInfo from '@react-native-community/netinfo';
 import { useExamAttemptStore } from '../stores';
+import { pushAllStats } from './stats-sync.service';
 
 export interface PersistenceConfig {
   autoSyncEnabled: boolean;
@@ -41,17 +42,26 @@ let syncIntervalId: NodeJS.Timeout | null = null;
 let isOnline = true;
 let isSyncing = false;
 
+/** Accessor for the current JWT access token — injected at init time */
+let getAccessToken: (() => string | null) | null = null;
+
 /**
  * Initialize persistence service
  * Sets up network monitoring and automatic sync
  * @param config - Persistence configuration
- * @param userId - Current user ID (for authenticated sync)
+ * @param userId - Current user ID (for authenticated exam-attempt sync)
+ * @param tokenGetter - Callback that returns the current JWT access token
  */
 export const initPersistence = async (
   config: Partial<PersistenceConfig> = {},
   userId?: string,
+  tokenGetter?: () => string | null,
 ): Promise<void> => {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
+
+  if (tokenGetter) {
+    getAccessToken = tokenGetter;
+  }
 
   console.log('[PersistenceService] Initializing with config:', finalConfig);
 
@@ -101,7 +111,10 @@ const startAutoSync = (config: PersistenceConfig, userId?: string): void => {
 };
 
 /**
- * Perform sync now
+ * Perform a full sync cycle:
+ *  1. Sync pending exam attempts to the server
+ *  2. Retry any previously failed attempts
+ *  3. Push UserStats + StudyStreak to the server (fire-and-forget)
  */
 const syncNow = async (config: PersistenceConfig, userId?: string): Promise<void> => {
   if (isSyncing || !isOnline) {
@@ -114,16 +127,24 @@ const syncNow = async (config: PersistenceConfig, userId?: string): Promise<void
 
     const store = useExamAttemptStore.getState();
 
-    // Sync pending attempts first
+    // 1. Sync pending exam attempts
     const syncResult = await store.syncPendingAttempts(userId);
     console.log(
       `[PersistenceService] Sync complete: ${syncResult.synced} synced, ${syncResult.failed} failed`,
     );
 
-    // If there were failures or pending items, retry failed items
+    // 2. Retry previously failed attempts
     if (syncResult.failed > 0) {
       console.log('[PersistenceService] Retrying failed attempts...');
       await store.retryFailedAttempts(userId);
+    }
+
+    // 3. Push UserStats + Streak (non-blocking, best-effort)
+    const token = getAccessToken?.();
+    if (token) {
+      pushAllStats(token).catch((err) =>
+        console.warn('[PersistenceService] Stats push failed:', err),
+      );
     }
   } catch (error) {
     console.error('[PersistenceService] Sync failed:', error);

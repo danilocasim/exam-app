@@ -114,12 +114,20 @@ export const initializeDatabase = async (): Promise<void> => {
       createdAt TEXT NOT NULL,
       syncStatus TEXT NOT NULL CHECK (syncStatus IN ('PENDING', 'SYNCED', 'FAILED')) DEFAULT 'PENDING',
       syncRetries INTEGER NOT NULL DEFAULT 0,
-      syncedAt TEXT
+      syncedAt TEXT,
+      localId TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_submission_exam_type ON ExamSubmission(examTypeId);
     CREATE INDEX IF NOT EXISTS idx_submission_sync_status ON ExamSubmission(syncStatus);
     CREATE INDEX IF NOT EXISTS idx_submission_submitted_at ON ExamSubmission(submittedAt);
   `);
+
+  // Migration: add localId column to existing databases (idempotency key for cloud sync)
+  try {
+    await database.execAsync(`ALTER TABLE ExamSubmission ADD COLUMN localId TEXT;`);
+  } catch {
+    // Column already exists — ignore
+  }
 
   // Create ExamAnswer table
   await database.execAsync(`
@@ -340,8 +348,8 @@ export const importUserData = async (data: UserDataExport): Promise<void> => {
   // Import ExamSubmissions
   for (const row of data.examSubmissions) {
     await database.runAsync(
-      `INSERT OR IGNORE INTO ExamSubmission (id, userId, examTypeId, score, passed, duration, submittedAt, createdAt, syncStatus, syncRetries, syncedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO ExamSubmission (id, userId, examTypeId, score, passed, duration, submittedAt, createdAt, syncStatus, syncRetries, syncedAt, localId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         row.id,
         row.userId,
@@ -354,6 +362,7 @@ export const importUserData = async (data: UserDataExport): Promise<void> => {
         row.syncStatus,
         row.syncRetries,
         row.syncedAt,
+        row.localId ?? null,
       ],
     );
   }

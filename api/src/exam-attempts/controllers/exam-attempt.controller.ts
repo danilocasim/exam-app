@@ -24,6 +24,7 @@ export class SubmitExamAttemptDto {
   passed: boolean;
   duration: number; // Seconds
   submittedAt?: Date;
+  localId?: string; // Client-generated UUID for idempotent retries
 }
 
 export class ExamAttemptResponse {
@@ -126,6 +127,7 @@ export class ExamAttemptController {
       passed: dto.passed,
       duration: dto.duration,
       submittedAt: dto.submittedAt,
+      localId: dto.localId,
     });
 
     return this.mapToResponse(attempt);
