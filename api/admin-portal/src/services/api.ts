@@ -293,4 +293,16 @@ export const api = {
 
     return res.json();
   },
+
+  /**
+   * Delete an explanation image from S3
+   */
+  async deleteExplanationImage(filename: string): Promise<void> {
+    return request<void>(
+      `/admin/uploads/explanation-image/${encodeURIComponent(filename)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
 };

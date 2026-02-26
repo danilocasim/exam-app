@@ -412,18 +412,12 @@ export const HomeScreen: React.FC = () => {
           <View style={styles.statsCard}>
             <Flame
               size={16}
-              color={
-                (streak?.currentStreak ?? 0) >= 7
-                  ? '#EF4444'
-                  : (streak?.currentStreak ?? 0) >= 3
-                    ? colors.primaryOrange
-                    : colors.textMuted
-              }
+              color={completedToday ? colors.primaryOrange : colors.textMuted}
               strokeWidth={2}
+              fill={completedToday ? 'rgba(255, 153, 0, 0.3)' : 'none'}
             />
             <Text style={styles.statsValue}>{streak?.currentStreak ?? 0}</Text>
             <Text style={styles.statsLabel}>Day Streak</Text>
-            {completedToday && <View style={styles.streakDoneDot} />}
           </View>
         </View>
 
@@ -803,14 +797,7 @@ const styles = StyleSheet.create({
     height: 28,
     backgroundColor: colors.borderDefault,
   },
-  streakDoneDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.success,
-    marginLeft: -2,
-    marginTop: -8,
-  },
+
 
   // Primary CTA
   ctaSection: { marginBottom: 8 },

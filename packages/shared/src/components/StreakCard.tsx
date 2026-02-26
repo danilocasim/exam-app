@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Flame, Zap, Trophy } from 'lucide-react-native';
+import { Flame, Trophy } from 'lucide-react-native';
 
 // AWS Modern Color Palette
 const colors = {
@@ -36,11 +36,11 @@ export const StreakCard: React.FC<StreakCardProps> = ({
   completedToday,
   daysUntilExam,
 }) => {
-  const isHot = currentStreak >= 3;
-  const isOnFire = currentStreak >= 7;
+  // Fire is lit (colored) only when today's streak goal is accomplished
+  const isLit = completedToday;
 
   // Dynamic glow ring color
-  const accentColor = isOnFire ? '#EF4444' : isHot ? colors.primaryOrange : colors.textMuted;
+  const accentColor = isLit ? colors.primaryOrange : colors.textMuted;
 
   // Streak dots: show the last 7 days worth
   const dotCount = 7;
@@ -50,11 +50,9 @@ export const StreakCard: React.FC<StreakCardProps> = ({
     <View style={st.wrapper}>
       <LinearGradient
         colors={
-          isOnFire
-            ? ['rgba(239, 68, 68, 0.12)', 'rgba(255, 153, 0, 0.08)', 'rgba(31, 41, 55, 0)']
-            : isHot
-              ? ['rgba(255, 153, 0, 0.12)', 'rgba(31, 41, 55, 0)']
-              : ['rgba(255, 153, 0, 0.06)', 'rgba(31, 41, 55, 0)']
+          isLit
+            ? ['rgba(255, 153, 0, 0.12)', 'rgba(31, 41, 55, 0)']
+            : ['rgba(255, 153, 0, 0.06)', 'rgba(31, 41, 55, 0)']
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -65,13 +63,12 @@ export const StreakCard: React.FC<StreakCardProps> = ({
           {/* Left: Streak number */}
           <View style={st.streakSection}>
             <View style={[st.flameCircle, { borderColor: accentColor }]}>
-              {isOnFire ? (
-                <Flame size={22} color="#EF4444" strokeWidth={2} fill="rgba(239, 68, 68, 0.3)" />
-              ) : isHot ? (
-                <Flame size={22} color={colors.primaryOrange} strokeWidth={2} />
-              ) : (
-                <Zap size={20} color={colors.primaryOrange} strokeWidth={2} />
-              )}
+              <Flame
+                size={22}
+                color={isLit ? colors.primaryOrange : colors.textMuted}
+                strokeWidth={2}
+                fill={isLit ? 'rgba(255, 153, 0, 0.3)' : 'none'}
+              />
             </View>
             <View>
               <Text style={st.streakNumber}>{currentStreak}</Text>
@@ -102,7 +99,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
               style={[
                 st.dot,
                 i < filledDots
-                  ? { backgroundColor: isOnFire ? '#EF4444' : colors.primaryOrange }
+                  ? { backgroundColor: colors.primaryOrange }
                   : { backgroundColor: 'rgba(255, 255, 255, 0.08)' },
               ]}
             />
@@ -119,12 +116,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
           )}
         </View>
 
-        {/* Completed today indicator */}
-        {completedToday && (
-          <View style={st.todayBadge}>
-            <Text style={st.todayText}>✓ Done today</Text>
-          </View>
-        )}
+
       </LinearGradient>
     </View>
   );
@@ -246,17 +238,7 @@ const st = StyleSheet.create({
     color: colors.success,
   },
 
-  // Today badge
-  todayBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 14,
-  },
-  todayText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.success,
-  },
+
 });
 
 export default StreakCard;

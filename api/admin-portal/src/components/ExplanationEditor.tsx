@@ -40,6 +40,7 @@ export function ExplanationEditor({
   const [imageCaption, setImageCaption] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const blocks = explanationBlocks || [];
@@ -61,12 +62,39 @@ export function ExplanationEditor({
     [blocks, onBlocksChange],
   );
 
+  /**
+   * Extract S3 filename from a URL if it belongs to our explanations bucket.
+   * Returns null if the URL is not an S3 explanation image.
+   */
+  const extractS3Filename = useCallback((url: string): string | null => {
+    // Match URLs like: https://{bucket}.s3.{region}.amazonaws.com/explanations/{filename}
+    const match = url.match(
+      /^https:\/\/[^/]+\.s3\.[^/]+\.amazonaws\.com\/explanations\/(.+)$/,
+    );
+    return match ? match[1] : null;
+  }, []);
+
   const removeBlock = useCallback(
     (index: number) => {
+      const block = blocks[index];
+
+      // If removing an S3-hosted image block, delete from S3 (best-effort)
+      if (block?.type === 'image' && typeof block.content === 'string') {
+        const filename = extractS3Filename(block.content);
+        if (filename) {
+          api.deleteExplanationImage(filename).catch((err) => {
+            console.error('Failed to delete S3 image:', err);
+            setDeleteError(
+              `Failed to delete image from storage: ${err instanceof Error ? err.message : String(err)}. Check API server logs and ensure the AWS IAM user has s3:DeleteObject permission.`,
+            );
+          });
+        }
+      }
+
       const newBlocks = blocks.filter((_, i) => i !== index);
       onBlocksChange(newBlocks.length > 0 ? newBlocks : null);
     },
-    [blocks, onBlocksChange],
+    [blocks, onBlocksChange, extractS3Filename],
   );
 
   const handleInsertLink = useCallback(() => {
@@ -547,6 +575,37 @@ export function ExplanationEditor({
                   {uploadError}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* S3 delete error */}
+          {deleteError && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '10px 14px',
+                background: 'rgba(239,68,68,0.1)',
+                border: `1px solid ${colors.error}`,
+                borderRadius: radius.sm,
+                fontSize: 12,
+                color: colors.error,
+              }}
+            >
+              ⚠ {deleteError}
+              <button
+                type="button"
+                onClick={() => setDeleteError('')}
+                style={{
+                  marginLeft: 10,
+                  background: 'none',
+                  border: 'none',
+                  color: colors.error,
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                }}
+              >
+                ✕
+              </button>
             </div>
           )}
 

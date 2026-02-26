@@ -1,17 +1,19 @@
 import {
   Controller,
   Post,
+  Delete,
+  Param,
   UseGuards,
   Req,
   BadRequestException,
   Logger,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type { FastifyRequest } from 'fastify';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Service } from '../services/s3.service';
 import * as path from 'path';
-import * as crypto from 'crypto';
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -21,30 +23,8 @@ const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
 @UseGuards(JwtAuthGuard)
 export class UploadsController {
   private readonly logger = new Logger(UploadsController.name);
-  private readonly s3: S3Client;
-  private readonly bucket: string;
-  private readonly region: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.region = this.configService.get<string>('s3.region') || 'us-east-1';
-    this.bucket =
-      this.configService.get<string>('s3.bucket') || 'dojo-exam-explanations';
-
-    const accessKeyId = this.configService.get<string>('s3.accessKeyId');
-    const secretAccessKey =
-      this.configService.get<string>('s3.secretAccessKey');
-
-    this.s3 = new S3Client({
-      region: this.region,
-      ...(accessKeyId && secretAccessKey
-        ? { credentials: { accessKeyId, secretAccessKey } }
-        : {}),
-    });
-
-    this.logger.log(
-      `S3 uploads configured: bucket=${this.bucket}, region=${this.region}`,
-    );
-  }
+  constructor(private readonly s3Service: S3Service) {}
 
   /**
    * Upload an explanation image to S3
@@ -85,38 +65,38 @@ export class UploadsController {
       );
     }
 
-    // Generate unique filename
-    const hash = crypto
-      .createHash('md5')
-      .update(buffer)
-      .digest('hex')
-      .slice(0, 12);
-    const timestamp = Date.now();
-    const filename = `${timestamp}-${hash}${ext}`;
-    const key = `explanations/${filename}`;
-
     // Upload to S3
     try {
-      await this.s3.send(
-        new PutObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-          Body: buffer,
-          ContentType: data.mimetype,
-          CacheControl: 'public, max-age=31536000, immutable',
-        }),
+      return await this.s3Service.uploadExplanationImage(
+        buffer,
+        ext,
+        data.mimetype,
       );
     } catch (err) {
       this.logger.error(`S3 upload failed: ${err}`);
       throw new BadRequestException('Image upload failed. Please try again.');
     }
+  }
 
-    this.logger.log(
-      `Explanation image uploaded to S3: ${key} (${(buffer.length / 1024).toFixed(1)}KB)`,
-    );
+  /**
+   * Delete an explanation image from S3
+   * DELETE /admin/uploads/explanation-image/:filename
+   */
+  @Delete('explanation-image/:filename')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteExplanationImage(
+    @Param('filename') filename: string,
+  ): Promise<void> {
+    // Validate filename format to prevent path traversal
+    if (!filename || /[\/\\]/.test(filename)) {
+      throw new BadRequestException('Invalid filename');
+    }
 
-    // Return the public S3 URL
-    const url = `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
-    return { url, filename };
+    try {
+      await this.s3Service.deleteExplanationImage(filename);
+    } catch (err) {
+      this.logger.error(`S3 delete failed for ${filename}: ${err}`);
+      throw new BadRequestException('Image deletion failed. Please try again.');
+    }
   }
 }

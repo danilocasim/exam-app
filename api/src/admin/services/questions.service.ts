@@ -20,12 +20,16 @@ import {
 } from '../dto/admin-question.dto';
 import { QuestionInputDto } from '../dto/question-input.dto';
 import { AdminQuestionsQueryDto } from '../dto/admin-questions-query.dto';
+import { S3Service } from './s3.service';
 
 @Injectable()
 export class QuestionsService {
   private readonly logger = new Logger(QuestionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3Service: S3Service,
+  ) {}
 
   /**
    * T081: List questions with filters, pagination
@@ -153,6 +157,7 @@ export class QuestionsService {
 
   /**
    * T084: Update a question
+   * Also cleans up S3 images that were removed from explanationBlocks.
    */
   async update(id: string, input: QuestionInputDto): Promise<AdminQuestionDto> {
     // Verify question exists
@@ -189,6 +194,16 @@ export class QuestionsService {
     // Validate correctAnswers reference valid option IDs
     this.validateCorrectAnswers(input);
 
+    // Determine which S3 images were removed
+    const oldFilenames = this.s3Service.extractS3Filenames(
+      existing.explanationBlocks as any[],
+    );
+    const newFilenames = this.s3Service.extractS3Filenames(
+      input.explanationBlocks as any[],
+    );
+    const newFilenameSet = new Set(newFilenames);
+    const removedFilenames = oldFilenames.filter((f) => !newFilenameSet.has(f));
+
     const question = await this.prisma.question.update({
       where: { id },
       data: {
@@ -211,6 +226,15 @@ export class QuestionsService {
         approvedBy: true,
       },
     });
+
+    // Clean up removed S3 images (best-effort, non-blocking)
+    if (removedFilenames.length > 0) {
+      this.s3Service.deleteExplanationImages(removedFilenames).catch((err) => {
+        this.logger.warn(
+          `Failed to clean up ${removedFilenames.length} S3 image(s) for question ${id}: ${err}`,
+        );
+      });
+    }
 
     this.logger.log(`Question updated: ${question.id}`);
     return this.toAdminQuestionDto(question);
