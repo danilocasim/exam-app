@@ -740,7 +740,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 - **Phase 14 (Template & Script)**: Depends on Phase 13 (admin portal must be able to create exam types first)
 - **Phase 15 (Testing & Docs)**: Depends on Phase 14
 - **Phase 16 (Login-Gated Free Tier)**: Depends on Phase 15 (MVP stable first). Can ship independently of Phase 17.
-- **Phase 17 (Play Billing)**: Depends on Phase 16 + Play Console monetization access. **BLOCKED until Play access granted.**
+- **Phase 17 (Play Billing)**: Depends on Phase 16 + Play Console monetization access. **READY — Play access granted.**
 
 ### Updated Execution Order (1 Developer)
 
@@ -804,7 +804,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 7. **No Prisma schema changes for admin CRUD**: ExamType model already has all needed fields. CRUD operations use existing Prisma client. Zero migrations.
 8. **Preserve all environment variable patterns**: `EXPO_PUBLIC_*` variables must work identically in `apps/{name}/` as they did in `mobile/`.
 9. **UpgradeScreen already exists**: `packages/shared/src/screens/UpgradeScreen.tsx` has static UI. Phase 16-17 enhances it with actual logic.
-10. **Phase 16 is independent of Phase 17**: Free tier can ship without Play Billing access. Phase 17 only starts when Play Console monetization is active.
+10. **Phase 16 is independent of Phase 17**: Free tier can ship without Play Billing access. Phase 17 can start now that Play Console monetization is active.
 
 ---
 
@@ -907,7 +907,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 **Purpose**: Integrate Google Play Billing API for "Forever Access" one-time purchase. Unlock full question bank.  
 **Prerequisites**: Phase 16 (T247-T258) Complete + Active Google Play Console monetization profile  
-**Status**: 📋 **BLOCKED** — Requires Play Console monetization access (not yet available)
+**Status**: 📋 **READY FOR IMPLEMENTATION** — Play Console monetization access granted
 
 **Key Principle**: One-time purchase, no subscriptions. Per-app product SKU. Purchase restores on reinstall. Offline-first — purchase status cached locally.
 

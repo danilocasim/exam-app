@@ -156,7 +156,7 @@ POST   /admin/questions                         # Create question (requires exam
   - Phase 15 (Final Validation) — 📋 Not started (T241–T246)
 - **Phase 5** (`specs/003-play-integrity/`): Monetization — Login-Gated Free Tier + One-Time Purchase — 📋 Planned
   - Phase 16 (Login-Gated Free Tier, 15 questions) — 📋 Not started (T247–T258)
-  - Phase 17 (Play Billing One-Time Purchase) — 📋 Blocked (T259–T270, requires Play Console access)
+  - Phase 17 (Play Billing One-Time Purchase) — 📋 Ready (T259–T270, Play Console access granted)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
