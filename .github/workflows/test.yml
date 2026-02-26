@@ -76,7 +76,7 @@ jobs:
           cache-dependency-path: 'package-lock.json'
 
       - name: Install monorepo dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run shared package tests
         run: npm test --workspace=packages/shared
