@@ -798,7 +798,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderDefault,
   },
 
-
   // Primary CTA
   ctaSection: { marginBottom: 8 },
   ctaWrapper: { borderRadius: 14, overflow: 'hidden', marginBottom: 4 },

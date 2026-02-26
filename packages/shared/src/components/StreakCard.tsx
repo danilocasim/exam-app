@@ -115,8 +115,6 @@ export const StreakCard: React.FC<StreakCardProps> = ({
             </View>
           )}
         </View>
-
-
       </LinearGradient>
     </View>
   );
@@ -237,8 +235,6 @@ const st = StyleSheet.create({
     fontWeight: '600',
     color: colors.success,
   },
-
-
 });
 
 export default StreakCard;
