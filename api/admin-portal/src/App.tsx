@@ -6,6 +6,7 @@ import { QuestionListPage } from './pages/QuestionListPage';
 import { QuestionDetailPage } from './pages/QuestionDetailPage';
 import { ExamTypeListPage } from './pages/ExamTypeListPage';
 import { ExamTypeFormPage } from './pages/ExamTypeFormPage';
+import { BulkImportPage } from './pages/BulkImportPage';
 import { Layout } from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,10 @@ export function App() {
                     element={<ExamTypeFormPage />}
                   />
                   <Route path="/questions" element={<QuestionListPage />} />
+                  <Route
+                    path="/questions/bulk-import"
+                    element={<BulkImportPage />}
+                  />
                   <Route
                     path="/questions/new"
                     element={<QuestionDetailPage />}

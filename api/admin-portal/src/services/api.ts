@@ -133,6 +133,57 @@ export interface ExamType {
   isActive: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Bulk Import types
+// ---------------------------------------------------------------------------
+
+export interface BulkImportQuestionItem {
+  text: string;
+  type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE';
+  domain: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  options: QuestionOption[];
+  correctAnswers: string[];
+  explanation: string;
+  explanationBlocks?: ExplanationBlock[] | null;
+}
+
+export interface BulkImportPayload {
+  examTypeId: string;
+  questions: BulkImportQuestionItem[];
+}
+
+export interface ImportValidationError {
+  questionIndex: number;
+  field: string;
+  message: string;
+}
+
+export interface ImportDuplicateInfo {
+  questionIndex: number;
+  reason: 'DUPLICATE_IN_FILE' | 'DUPLICATE_IN_DB';
+  text: string;
+  conflictsWithIndex?: number;
+}
+
+export interface BulkImportValidationResult {
+  valid: boolean;
+  summary: {
+    total: number;
+    errors: number;
+    duplicatesInFile: number;
+    duplicatesInDb: number;
+  };
+  errors: ImportValidationError[];
+  duplicates: ImportDuplicateInfo[];
+}
+
+export interface BulkImportResult {
+  imported: number;
+  examTypeId: string;
+  questionIds: string[];
+}
+
 export interface AdminStats {
   totalQuestions: number;
   byStatus: {
@@ -266,6 +317,40 @@ export const api = {
     return request<AdminQuestion>(`/admin/questions/${id}/restore`, {
       method: 'POST',
     });
+  },
+
+  // -------------------------------------------------------------------------
+  // Bulk Import
+  // -------------------------------------------------------------------------
+
+  /**
+   * Validate a parsed JSON import payload without persisting anything.
+   * Returns a detailed validation result including errors and duplicates.
+   */
+  validateBulkImport(payload: BulkImportPayload) {
+    return request<BulkImportValidationResult>('/admin/questions/bulk-import/validate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Import questions atomically. Fails with 422 if validation fails.
+   */
+  bulkImport(payload: BulkImportPayload) {
+    return request<BulkImportResult>('/admin/questions/bulk-import', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Download the annotated JSON template for a given exam type.
+   * Returns the raw JSON string (already formatted with documentation).
+   */
+  getBulkImportTemplateUrl(examTypeId?: string): string {
+    const base = `${API_BASE_URL}/admin/questions/bulk-import/template`;
+    return examTypeId ? `${base}?examTypeId=${encodeURIComponent(examTypeId)}` : base;
   },
 
   /**

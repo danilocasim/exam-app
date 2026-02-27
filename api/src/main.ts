@@ -12,7 +12,8 @@ import multipart from '@fastify/multipart';
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    // Increase bodyLimit to 5 MB to accommodate bulk question imports (up to 500 questions)
+    new FastifyAdapter({ bodyLimit: 5 * 1024 * 1024 }),
   );
 
   const configService = app.get(ConfigService);

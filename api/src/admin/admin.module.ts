@@ -6,6 +6,7 @@ import { PrismaModule } from '../prisma';
 import { AdminAuthService } from './auth';
 import { JwtStrategy, JwtAuthGuard } from './guards';
 import { QuestionsService, AdminExamTypesService, S3Service } from './services';
+import { BulkImportService } from './services/bulk-import.service';
 import {
   AdminAuthController,
   AdminQuestionsController,
@@ -50,12 +51,14 @@ import { UploadsController } from './controllers/uploads.controller';
     QuestionsService,
     AdminExamTypesService,
     S3Service,
+    BulkImportService,
   ],
   exports: [
     AdminAuthService,
     QuestionsService,
     AdminExamTypesService,
     S3Service,
+    BulkImportService,
   ],
 })
 export class AdminModule {}

@@ -157,10 +157,18 @@ export function Layout({ children }: { children: ReactNode }) {
             </SideLink>
             <SideLink
               to="/questions"
-              active={isActive('/questions')}
+              active={isActive('/questions') && !location.pathname.includes('bulk-import')}
               onClick={() => setMenuOpen(false)}
             >
               Questions
+            </SideLink>
+            <SideLink
+              to="/questions/bulk-import"
+              active={location.pathname.includes('bulk-import')}
+              onClick={() => setMenuOpen(false)}
+              indent
+            >
+              Bulk Import
             </SideLink>
           </nav>
 
@@ -231,6 +239,7 @@ export function Layout({ children }: { children: ReactNode }) {
               </div>
             </div>
             <button
+              type="button"
               onClick={logout}
               title="Sign out"
               style={{
@@ -268,11 +277,13 @@ function SideLink({
   active,
   children,
   onClick,
+  indent,
 }: {
   to: string;
   active: boolean;
   children: ReactNode;
   onClick?: () => void;
+  indent?: boolean;
 }) {
   return (
     <Link
@@ -283,11 +294,12 @@ function SideLink({
         alignItems: 'center',
         gap: 8,
         padding: '10px 14px',
+        paddingLeft: indent ? 28 : 14,
         borderRadius: radius.sm,
         color: active ? colors.primary : colors.muted,
         background: active ? colors.primaryMuted : 'transparent',
         textDecoration: 'none',
-        fontSize: 14,
+        fontSize: indent ? 13 : 14,
         fontWeight: active ? 600 : 500,
       }}
     >
