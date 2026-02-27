@@ -1,22 +1,37 @@
 {
   "cli": {
     "version": ">= 14.0.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
-    },
-    "production": {
+      },
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://exam-app-production-9181.up.railway.app",
+        "EXPO_PUBLIC_EXAM_TYPE_ID": "CLF-C02",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "75406198346-3q6mqj2g3c2i7g1cvi8kopg7kqgd3np4.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "75406198346-72hv73jt4uif3hvp824ml5h9v2mv83s3.apps.googleusercontent.com"
       }
     },
-    "development": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://exam-app-production-9181.up.railway.app",
+        "EXPO_PUBLIC_EXAM_TYPE_ID": "CLF-C02",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "75406198346-3q6mqj2g3c2i7g1cvi8kopg7kqgd3np4.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "75406198346-72hv73jt4uif3hvp824ml5h9v2mv83s3.apps.googleusercontent.com"
+      }
+    }
   },
   "submit": {
     "production": {

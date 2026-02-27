@@ -650,7 +650,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Regression Testing Tasks
 
-- [ ] T239 **CRITICAL**: Run ALL existing tests in monorepo structure:
+- [X] T239 **CRITICAL**: Run ALL existing tests in monorepo structure:
   1. `cd packages/shared && npm test` — all shared code tests pass
   2. `cd apps/aws-clp && npm test` — all app-specific tests pass
   3. `cd api && npm test` — all backend tests pass (should have zero changes needed)
@@ -660,7 +660,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### New Test Tasks
 
-- [ ] T240 Create api/test/admin-exam-types.e2e-spec.ts with Supertest E2E tests:
+- [X] T240 Create api/test/admin-exam-types.e2e-spec.ts with Supertest E2E tests:
   - POST /admin/exam-types: create new exam type → 201 with correct response body
   - POST /admin/exam-types: duplicate ID → 409 Conflict
   - POST /admin/exam-types: invalid domain weights (sum != 100) → 400
@@ -670,14 +670,14 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - PATCH /admin/exam-types/:id: toggle active → 200, isActive flipped
   - All endpoints require auth: no token → 401
 
-- [ ] T241 [P] Create admin portal component tests (Jest + React Testing Library):
+- [X] T241 [P] Create admin portal component tests (Vitest + React Testing Library):
   - DomainEditor: renders domains, add domain, remove domain, weight validation display
   - ExamTypeFormPage: renders form fields, submit triggers API call, validation errors shown
   - ExamTypeListPage: renders table rows, deactivate toggle calls API
 
 ### EAS Build Configuration Tasks
 
-- [ ] T242 Configure EAS Build in apps/aws-clp/eas.json:
+- [X] T242 Configure EAS Build in apps/aws-clp/eas.json:
   - Copy existing eas.json from mobile/ if not already moved in T215
   - Verify projectId matches existing EAS project
   - Configure build profiles: development, preview, production

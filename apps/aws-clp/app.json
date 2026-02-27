@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Dojo Exam CLFC02",
-    "slug": "dojo-exam-clfc02",
+    "slug": "aws-ccp-exam",
     "version": "1.2.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +29,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-sqlite"],
+    "plugins": [
+      "expo-sqlite"
+    ],
     "scheme": "cloudprep",
     "extra": {
       "googleWebClientId": "75406198346-3q6mqj2g3c2i7g1cvi8kopg7kqgd3np4.apps.googleusercontent.com",
@@ -37,6 +39,7 @@
       "eas": {
         "projectId": "25f5a1dd-c4eb-4791-b89c-0f6eada11bcc"
       }
-    }
+    },
+    "owner": "danilocasim"
   }
 }
