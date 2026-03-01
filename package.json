@@ -10,7 +10,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "format": "npm run format --workspaces --if-present",
     "format:check": "npm run format:check --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "build:all": "./scripts/build-all.sh"
   },
   "overrides": {
     "react": "19.1.0",

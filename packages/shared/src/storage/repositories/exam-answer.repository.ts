@@ -277,6 +277,54 @@ export const deleteAnswersByExamAttemptId = async (examAttemptId: string): Promi
 };
 
 /**
+ * Insert a batch of already-answered rows restored from the server.
+ * Only inserts answers whose questionId exists in Question (FK constraint).
+ * Skips answers for questions not yet in the local bank (e.g. before question sync).
+ */
+export const insertRestoredAnswersBatch = async (
+  examAttemptId: string,
+  answers: Array<{
+    questionId: string;
+    selectedAnswers: string[];
+    isCorrect: boolean;
+    orderIndex: number;
+  }>,
+): Promise<void> => {
+  if (answers.length === 0) return;
+  const db = await getDatabase();
+
+  const questionIds = [...new Set(answers.map((a) => a.questionId))];
+  const placeholders = questionIds.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{ id: string }>(
+    `SELECT id FROM Question WHERE id IN (${placeholders})`,
+    questionIds,
+  );
+  const existingIds = new Set(rows.map((r) => r.id));
+  const toInsert = answers.filter((a) => existingIds.has(a.questionId));
+  if (toInsert.length === 0) return;
+
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    for (const a of toInsert) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO ExamAnswer
+          (id, examAttemptId, questionId, selectedAnswers, isCorrect, isFlagged, orderIndex, answeredAt)
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+        [
+          Crypto.randomUUID(),
+          examAttemptId,
+          a.questionId,
+          JSON.stringify(a.selectedAnswers),
+          a.isCorrect ? 1 : 0,
+          a.orderIndex,
+          now,
+        ],
+      );
+    }
+  });
+};
+
+/**
  * Get answer by order index for an exam attempt
  */
 export const getAnswerByOrderIndex = async (

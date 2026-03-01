@@ -3,6 +3,12 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../database';
 
+export interface DomainScore {
+  domainId: string;
+  correct: number;
+  total: number;
+}
+
 export interface ExamSubmission {
   id: string;
   userId?: string;
@@ -17,6 +23,8 @@ export interface ExamSubmission {
   syncedAt?: Date;
   /** Client-generated UUID sent to the server for idempotent re-submission */
   localId?: string;
+  /** Per-domain breakdown — populated at sync time and cached here */
+  domainScores?: DomainScore[];
 }
 
 interface ExamSubmissionRow {
@@ -32,6 +40,7 @@ interface ExamSubmissionRow {
   syncRetries: number;
   syncedAt: string | null;
   localId: string | null;
+  domainScores: string | null; // JSON-serialised DomainScore[]
 }
 
 /**
@@ -50,6 +59,7 @@ const rowToExamSubmission = (row: ExamSubmissionRow): ExamSubmission => ({
   syncRetries: row.syncRetries,
   syncedAt: row.syncedAt ? new Date(row.syncedAt) : undefined,
   localId: row.localId || undefined,
+  domainScores: row.domainScores ? (JSON.parse(row.domainScores) as DomainScore[]) : undefined,
 });
 
 /**
@@ -68,6 +78,7 @@ const examsSubmissionToRow = (submission: ExamSubmission): ExamSubmissionRow => 
   syncRetries: submission.syncRetries,
   syncedAt: submission.syncedAt?.toISOString() || null,
   localId: submission.localId || null,
+  domainScores: submission.domainScores ? JSON.stringify(submission.domainScores) : null,
 });
 
 /**
@@ -141,10 +152,10 @@ export const saveExamSubmission = async (submission: ExamSubmission): Promise<Ex
   const row = examsSubmissionToRow(submission);
 
   await db.runAsync(
-    `INSERT INTO ExamSubmission (
+    `INSERT OR IGNORE INTO ExamSubmission (
       id, userId, examTypeId, score, passed, duration,
-      submittedAt, createdAt, syncStatus, syncRetries, syncedAt, localId
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      submittedAt, createdAt, syncStatus, syncRetries, syncedAt, localId, domainScores
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       row.id,
       row.userId,
@@ -158,6 +169,7 @@ export const saveExamSubmission = async (submission: ExamSubmission): Promise<Ex
       row.syncRetries,
       row.syncedAt,
       row.localId,
+      row.domainScores,
     ],
   );
 
@@ -175,7 +187,7 @@ export const updateExamSubmission = async (submission: ExamSubmission): Promise<
     `UPDATE ExamSubmission SET
       userId = ?, examTypeId = ?, score = ?, passed = ?,
       duration = ?, submittedAt = ?, createdAt = ?,
-      syncStatus = ?, syncRetries = ?, syncedAt = ?, localId = ?
+      syncStatus = ?, syncRetries = ?, syncedAt = ?, localId = ?, domainScores = ?
     WHERE id = ?`,
     [
       row.userId,
@@ -189,6 +201,7 @@ export const updateExamSubmission = async (submission: ExamSubmission): Promise<
       row.syncRetries,
       row.syncedAt,
       row.localId,
+      row.domainScores,
       row.id,
     ],
   );

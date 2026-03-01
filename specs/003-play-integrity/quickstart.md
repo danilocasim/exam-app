@@ -49,6 +49,64 @@ npx expo start
 - ✅ No Play Store install required
 - ✅ Full app access granted
 
+---
+
+## Phase 4: Monorepo Development Setup
+
+This repo now uses npm workspaces with shared mobile code in `packages/shared/`.
+
+### Install dependencies (root)
+
+```bash
+cd /Users/danilo/repos/exam-app
+npm install
+```
+
+### Run a specific app
+
+```bash
+cd apps/aws-clp
+npx expo start
+```
+
+### Create a new app (scaffold)
+
+```bash
+./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03
+```
+
+### Run tests
+
+```bash
+# All workspaces
+npm test
+
+# Shared package only
+cd packages/shared && npm test
+```
+
+### Build
+
+```bash
+# Build one app workspace
+npm run build --workspace=apps/aws-clp
+
+# Build all apps with EAS
+npm run build:all
+```
+
+### Add an exam type in the admin portal
+
+1. Start the backend: `cd api && npm run start:dev`
+2. Start the admin portal: `cd api/admin-portal && npm run dev`
+3. Create a new ExamType in the UI (id must match the app's EXAM_TYPE_ID)
+
+### Troubleshooting
+
+- Metro module resolution: restart Expo with cache clear: `npx expo start -c`
+- Workspace installs: always run `npm install` from the repo root
+- If `@exam-app/shared` fails to resolve, verify `apps/*/metro.config.js` watchFolders and nodeModulesPaths
+
 ### 3. Backend Setup
 
 #### Start Backend API

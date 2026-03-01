@@ -11,6 +11,7 @@ export { PracticeSummaryScreen } from './PracticeSummaryScreen';
 // Review screens (T061, T062)
 export { ExamHistoryScreen } from './ExamHistoryScreen';
 export { ReviewScreen } from './ReviewScreen';
+export { ExamSummaryScreen } from './ExamSummaryScreen';
 
 // Analytics screen (T069)
 export { AnalyticsScreen } from './AnalyticsScreen';

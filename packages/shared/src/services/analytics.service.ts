@@ -1,12 +1,12 @@
 // T067: AnalyticsService - Aggregates analytics data for the dashboard
 import { getUserStats } from '../storage/repositories/user-stats.repository';
-import { getRecentExamAttempts } from '../storage/repositories/exam-attempt.repository';
 import {
   getOverallStats,
   calculateAggregatedDomainPerformance,
   formatTimeSpent,
   OverallStats,
 } from './scoring.service';
+import { getExamHistory } from './review.service';
 import { DomainScore, UserStats } from '../storage/schema';
 
 /**
@@ -56,7 +56,9 @@ export interface AnalyticsData {
 const WEAK_DOMAIN_THRESHOLD = 70;
 
 /**
- * Get complete analytics data for the dashboard
+ * Get complete analytics data for the dashboard.
+ * All data is read from the local SQLite DB (UserStats, ExamAttempt, ExamSubmission, ExamAnswer).
+ * Ensure pullAndMergeAllStats runs on login/app focus so the DB is synced with the server.
  */
 export const getAnalyticsData = async (): Promise<AnalyticsData> => {
   const [overallStats, studyStats, scoreHistory, domainPerformance] = await Promise.all([
@@ -94,19 +96,23 @@ export const getStudyStats = async (): Promise<StudyStats> => {
 };
 
 /**
- * Get score history from completed exam attempts for chart
+ * Get score history from completed exams for the trend chart.
+ * Uses getExamHistory() as the single source of truth — it already
+ * deduplicates ExamAttempt + ExamSubmission rows via SQL + JS-level dedup.
  */
 export const getScoreHistory = async (limit: number = 10): Promise<ScoreHistoryEntry[]> => {
-  const attempts = await getRecentExamAttempts(limit);
+  const history = await getExamHistory();
 
-  return attempts
-    .filter((a) => a.score !== null)
-    .map((attempt) => ({
-      date: attempt.completedAt ?? attempt.startedAt,
-      score: attempt.score ?? 0,
-      passed: attempt.passed === true,
-    }))
-    .reverse(); // Chronological order (oldest first) for chart
+  // Sort chronologically (oldest first), take most recent `limit`
+  return history
+    .filter((e) => e.score != null)
+    .sort((a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime())
+    .slice(-limit)
+    .map((e) => ({
+      date: e.submittedAt,
+      score: e.score,
+      passed: e.passed,
+    }));
 };
 
 /**

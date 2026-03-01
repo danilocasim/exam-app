@@ -194,9 +194,12 @@ export const useExamStore = create<ExamStore>((set, get) => ({
    * T140: Also queues result for cloud sync if user is signed in
    */
   submitExam: async () => {
-    const { session } = get();
+    const { session, isSubmitting } = get();
     if (!session) {
       throw new Error('No exam in progress');
+    }
+    if (isSubmitting) {
+      throw new Error('Submission already in progress');
     }
 
     set({ isSubmitting: true, error: null });
@@ -207,6 +210,7 @@ export const useExamStore = create<ExamStore>((set, get) => ({
       try {
         const authState = useAuthStore.getState();
         await useExamAttemptStore.getState().submitExam({
+          id: session.attempt.id,
           examTypeId: EXAM_TYPE_ID,
           score: result.score,
           passed: result.passed,

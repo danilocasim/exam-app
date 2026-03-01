@@ -178,6 +178,7 @@ export const ExamScreen: React.FC = () => {
 
   // Handle submit exam
   const handleSubmitExam = async () => {
+    if (isSubmitting) return;
     try {
       const result = await submitExam();
       navigation.replace('ExamResults', { attemptId: result.examAttemptId });

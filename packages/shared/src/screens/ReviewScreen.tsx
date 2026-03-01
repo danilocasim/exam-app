@@ -9,9 +9,10 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, ChevronRight, X, BarChart2, AlertCircle, Grid3x3 } from 'lucide-react-native';
 import { useShallow } from 'zustand/react/shallow';
@@ -60,6 +61,7 @@ export const ReviewScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ReviewRouteProp>();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const { attemptId } = route.params;
 
   // Store state (primitive selectors - stable)
@@ -109,6 +111,14 @@ export const ReviewScreen: React.FC = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
+
+  // Refetch from DB every time the user accesses the review section so stats and
+  // individual question data are always current (e.g. after backfill or sync).
+  useFocusEffect(
+    React.useCallback(() => {
+      if (attemptId) loadReview(attemptId);
+    }, [attemptId, loadReview]),
+  );
 
   const getDomainBarColor = (percentage: number) => {
     if (percentage >= 70) return colors.success;
@@ -256,8 +266,20 @@ export const ReviewScreen: React.FC = () => {
         transparent
         onRequestClose={() => setShowDomains(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowDomains(false)}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+        <View style={styles.modalOverlay}>
+          {/* Backdrop — absolute fill, dismisses modal on tap */}
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowDomains(false)} />
+
+          {/* Sheet — plain View rendered on top of backdrop, no gesture conflict */}
+          <View
+            style={[
+              styles.modalContent,
+              {
+                height: screenHeight * 0.75,
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
+            ]}
+          >
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Domain Performance</Text>
@@ -294,8 +316,13 @@ export const ReviewScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Domain bars */}
-            <ScrollView style={styles.domainList} showsVerticalScrollIndicator={false}>
+            {/* Domain bars + weak areas — fully scrollable */}
+            <ScrollView
+              style={styles.domainList}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.domainListContent}
+              bounces={false}
+            >
               {reviewData.domainBreakdown.map((domain: DomainScore, index: number) => (
                 <View key={domain.domainId} style={index > 0 ? styles.domainItemSpaced : undefined}>
                   <View style={styles.domainHeader}>
@@ -334,13 +361,10 @@ export const ReviewScreen: React.FC = () => {
                   <View style={styles.weakAreasAccent} />
                   <View style={styles.weakAreasContent}>
                     <View style={styles.weakAreasHeader}>
-                      <AlertCircle
-                        size={16}
-                        color={colors.primaryOrange}
-                        strokeWidth={2}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text style={styles.weakAreasTitle}>Areas to Improve</Text>
+                      <AlertCircle size={14} color={colors.primaryOrange} strokeWidth={2.5} />
+                      <Text style={[styles.weakAreasTitle, { marginLeft: 7 }]}>
+                        Areas to Improve
+                      </Text>
                     </View>
                     {reviewData.domainBreakdown
                       .filter((d) => d.percentage < 70)
@@ -348,7 +372,9 @@ export const ReviewScreen: React.FC = () => {
                       .map((domain) => (
                         <View key={domain.domainId} style={styles.weakAreaItem}>
                           <View style={styles.weakAreaDot} />
-                          <Text style={styles.weakAreaName}>{domain.domainName}</Text>
+                          <Text style={styles.weakAreaName} numberOfLines={1}>
+                            {domain.domainName}
+                          </Text>
                           <Text style={styles.weakAreaPercent}>{domain.percentage}%</Text>
                         </View>
                       ))}
@@ -356,8 +382,8 @@ export const ReviewScreen: React.FC = () => {
                 </View>
               )}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Question Grid Modal */}
@@ -589,8 +615,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '75%',
-    paddingBottom: 32,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -645,8 +669,12 @@ const styles = StyleSheet.create({
 
   // Domain breakdown
   domainList: {
+    flex: 1,
     paddingHorizontal: 20,
     marginTop: 16,
+  },
+  domainListContent: {
+    paddingBottom: 28,
   },
   domainItemSpaced: {
     marginTop: 16,
@@ -685,12 +713,11 @@ const styles = StyleSheet.create({
   weakAreasCard: {
     flexDirection: 'row',
     marginTop: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.orangeDark,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderDefault,
+    borderColor: 'rgba(255, 153, 0, 0.25)',
     overflow: 'hidden',
-    marginBottom: 16,
   },
   weakAreasAccent: {
     width: 4,
@@ -698,39 +725,44 @@ const styles = StyleSheet.create({
   },
   weakAreasContent: {
     flex: 1,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
   weakAreasHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   weakAreasTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textHeading,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.orangeLight,
+    letterSpacing: 0.2,
   },
   weakAreaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    paddingVertical: 5,
   },
   weakAreaDot: {
-    width: 6,
-    height: 6,
+    width: 5,
+    height: 5,
     borderRadius: 3,
     backgroundColor: colors.primaryOrange,
-    marginRight: 12,
+    marginRight: 10,
+    flexShrink: 0,
   },
   weakAreaName: {
     color: colors.textBody,
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
   },
   weakAreaPercent: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
+    color: colors.primaryOrange,
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 8,
   },
 
   // Grid modal

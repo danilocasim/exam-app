@@ -157,6 +157,14 @@ for file in "$TEMPLATE_DIR"/*.template; do
   fi
 done
 
+# Copy dotfile templates (glob above doesn't match dotfiles)
+if [[ -f "$TEMPLATE_DIR/.env.example.template" ]]; then
+  cp "$TEMPLATE_DIR/.env.example.template" "$TARGET_DIR/.env.example"
+fi
+if [[ -f "$TEMPLATE_DIR/.gitignore.template" ]]; then
+  cp "$TEMPLATE_DIR/.gitignore.template" "$TARGET_DIR/.gitignore"
+fi
+
 # Copy src directory
 mkdir -p "$TARGET_DIR/src/config"
 cp "$TEMPLATE_DIR/src/config/app.config.ts.template" "$TARGET_DIR/src/config/app.config.ts"

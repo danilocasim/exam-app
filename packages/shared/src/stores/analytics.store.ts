@@ -54,7 +54,8 @@ export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
   ...initialState,
 
   /**
-   * Load full analytics data
+   * Load full analytics data from the database (stats, score trend, domain performance).
+   * Called on Analytics screen focus so the review/stats section always shows current data.
    */
   loadAnalytics: async () => {
     set({ isLoading: true, error: null });
@@ -68,7 +69,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
   },
 
   /**
-   * Refresh analytics data (same as load but preserves existing data during load)
+   * Refresh analytics data from the database (pull-to-refresh).
    */
   refresh: async () => {
     set({ isLoading: true, error: null });
@@ -113,5 +114,11 @@ export const selectWeakDomains = (state: AnalyticsStore): WeakDomain[] => {
 };
 
 export const selectHasData = (state: AnalyticsStore): boolean => {
-  return state.analyticsData !== null && state.analyticsData.overallStats.totalExams > 0;
+  if (!state.analyticsData) return false;
+  // overallStats.totalExams counts local ExamAttempt rows; studyStats.totalExams
+  // comes from the UserStats table which is synced from the server — use either.
+  return (
+    state.analyticsData.overallStats.totalExams > 0 ||
+    state.analyticsData.studyStats.totalExams > 0
+  );
 };

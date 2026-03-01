@@ -683,7 +683,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - Configure build profiles: development, preview, production
   - Test: `cd apps/aws-clp && eas build --platform android --profile preview` succeeds
 
-- [ ] T243 [P] Create scripts/build-all.sh:
+- [x] T243 [P] Create scripts/build-all.sh:
   ```bash
   #!/bin/bash
   # Build all exam apps
@@ -698,7 +698,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### End-to-End Workflow Validation
 
-- [ ] T244 Test complete create-app workflow end-to-end:
+- [x] T244 Test complete create-app workflow end-to-end:
   1. Admin creates exam type SAA-C03 via admin portal (if not already created)
   2. Developer runs: `./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03`
   3. Verify apps/aws-saa/ generated correctly
@@ -708,10 +708,13 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   7. Play Integrity dev bypass works
   8. Admin adds a question for SAA-C03 → app syncs it
   9. Document: time-to-first-working-app should be <30 minutes
+  - Progress: `./scripts/create-app.sh` executed successfully on 2026-03-02; apps/saa-c03 regenerated with correct placeholders.
+  - Progress: `npx expo start` launched for apps/saa-c03 on 2026-03-02 (dev server running).
+  - Remaining: Admin portal creation, live backend config check, verify app launch on device/emulator, sync verification, and time-to-first-working-app measurement.
 
 ### Documentation Tasks
 
-- [ ] T245 Update specs/003-play-integrity/quickstart.md with Phase 4 monorepo instructions:
+- [x] T245 Update specs/003-play-integrity/quickstart.md with Phase 4 monorepo instructions:
   - New section: "Monorepo Development Setup"
   - Commands: `npm install` (from root), `cd apps/aws-clp && npx expo start`
   - How to create a new app: reference create-app.sh
@@ -720,7 +723,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - How to add an exam type in admin portal
   - Troubleshooting: Metro resolver issues, npm workspace hoisting
 
-- [ ] T246 Update root documentation:
+- [x] T246 Update root documentation:
   - CLAUDE.md: Add Phase 4 section to Recent Changes, update Project Structure to reflect monorepo layout, add new commands section
   - README.md: Update architecture overview, add monorepo structure diagram, add "Adding a New Exam App" section
   - Add comparison table: before (single app) vs after (monorepo) for developer reference

@@ -39,6 +39,7 @@ export type RootStackParamList = {
   // Review flow screens
   ExamHistory: undefined;
   ReviewScreen: { attemptId: string };
+  ExamSummary: { submissionId: string };
 
   // Analytics
   Analytics: undefined;
@@ -109,6 +110,7 @@ const styles = StyleSheet.create({
 // Review screens imported from ../screens (T061, T062)
 import { ExamHistoryScreen } from '../screens/ExamHistoryScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
+import { ExamSummaryScreen } from '../screens/ExamSummaryScreen';
 
 // Settings screen (T107)
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -200,6 +202,11 @@ export const RootNavigator: React.FC = () => {
         <Stack.Screen
           name="ReviewScreen"
           component={ReviewScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ExamSummary"
+          component={ExamSummaryScreen}
           options={{ headerShown: false }}
         />
 

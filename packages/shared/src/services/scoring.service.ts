@@ -2,10 +2,6 @@
 import {
   getExamAttemptById,
   getCompletedExamAttempts,
-  getAverageScore,
-  getBestScore,
-  getPassedExamAttemptCount,
-  getCompletedExamAttemptCount,
 } from '../storage/repositories/exam-attempt.repository';
 import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
 import { getQuestionsByIds } from '../storage/repositories/question.repository';
@@ -159,18 +155,24 @@ export const getExamResult = async (examAttemptId: string): Promise<ExamResult> 
 };
 
 /**
- * Get overall statistics across all completed exams
+ * Get overall statistics across all completed exams.
+ * Uses getExamHistory() as the single source of truth — it already
+ * deduplicates ExamAttempt + ExamSubmission rows via SQL + JS-level dedup.
  */
 export const getOverallStats = async (): Promise<OverallStats> => {
   const config = await getCachedExamTypeConfig();
   const passingThreshold = config?.passingScore ?? 70;
 
-  const totalExams = await getCompletedExamAttemptCount();
-  const passedExams = await getPassedExamAttemptCount();
-  const averageScore = await getAverageScore();
-  const bestScore = await getBestScore();
+  const { getExamHistory } = await import('./review.service');
+  const history = await getExamHistory();
 
+  const scores = history.filter((e) => e.score != null).map((e) => e.score);
+  const totalExams = history.length;
+  const passedExams = history.filter((e) => e.passed).length;
   const passRate = totalExams > 0 ? Math.round((passedExams / totalExams) * 100) : 0;
+
+  const averageScore = scores.length > 0 ? scores.reduce((s, v) => s + v, 0) / scores.length : null;
+  const bestScore = scores.length > 0 ? Math.max(...scores) : null;
 
   // Calculate domain performance across all exams
   const domainPerformance = await calculateAggregatedDomainPerformance();
@@ -204,10 +206,8 @@ export const calculateAggregatedDomainPerformance = async (): Promise<DomainScor
     return [];
   }
 
-  const completedExams = await getCompletedExamAttempts();
-  if (completedExams.length === 0) {
-    return [];
-  }
+  const { getExamHistory } = await import('./review.service');
+  const history = await getExamHistory();
 
   // Aggregate stats across all exams
   const domainTotals: Record<string, { correct: number; total: number; name: string }> = {};
@@ -221,23 +221,36 @@ export const calculateAggregatedDomainPerformance = async (): Promise<DomainScor
     };
   }
 
-  // Process each exam
-  for (const exam of completedExams) {
-    const answers = await getAnswersByExamAttemptId(exam.id);
-    const questionIds = answers.map((a) => a.questionId);
-    const questions = await getQuestionsByIds(questionIds);
-    const questionsById = new Map(questions.map((q) => [q.id, q]));
+  // Process each exam — use local ExamAnswer rows when available (canReview),
+  // fall back to cached domainScores from ExamSubmission otherwise.
+  for (const entry of history) {
+    if (entry.canReview) {
+      // Full-fidelity: compute from individual answers
+      const answers = await getAnswersByExamAttemptId(entry.attempt.id);
+      const questionIds = answers.map((a) => a.questionId);
+      const questions = await getQuestionsByIds(questionIds);
+      const questionsById = new Map(questions.map((q) => [q.id, q]));
 
-    for (const answer of answers) {
-      const question = questionsById.get(answer.questionId);
-      if (!question) continue;
+      for (const answer of answers) {
+        const question = questionsById.get(answer.questionId);
+        if (!question) continue;
 
-      const domain = question.domain;
-      if (domainTotals[domain]) {
-        domainTotals[domain].total++;
-        if (answer.isCorrect === true) {
-          domainTotals[domain].correct++;
+        const domain = question.domain;
+        if (domainTotals[domain]) {
+          domainTotals[domain].total++;
+          if (answer.isCorrect === true) {
+            domainTotals[domain].correct++;
+          }
         }
+      }
+    } else if (entry.domainScores && entry.domainScores.length > 0) {
+      // No local answers — use pre-computed domain scores from the submission
+      for (const ds of entry.domainScores) {
+        if (!domainTotals[ds.domainId]) {
+          domainTotals[ds.domainId] = { correct: 0, total: 0, name: ds.domainId };
+        }
+        domainTotals[ds.domainId].correct += ds.correct;
+        domainTotals[ds.domainId].total += ds.total;
       }
     }
   }

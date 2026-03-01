@@ -6,6 +6,7 @@ import { RootNavigator } from './navigation/RootNavigator';
 import { initializeDatabase, switchUserDatabase } from './storage/database';
 import { performFullSync } from './services/sync.service';
 import { initPersistence, stopPersistence } from './services/persistence.service';
+import { pullAndMergeAllStats } from './services/stats-sync.service';
 import { getTotalQuestionCount } from './storage/repositories/question.repository';
 import { initializeGoogleSignIn } from './services/auth-service';
 import { TokenRefreshService } from './services/token-refresh-service';
@@ -96,6 +97,12 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
         if (authState.isSignedIn && authState.user?.email) {
           console.warn(`[App] Restoring user database for ${authState.user.email}`);
           await switchUserDatabase(authState.user.email);
+          if (authState.accessToken) {
+            setSyncStatus('Syncing your history...');
+            await pullAndMergeAllStats(authState.accessToken).catch((err) =>
+              console.warn('[App] Stats pull on resume failed (non-fatal):', err),
+            );
+          }
         }
 
         // Check if we already have cached questions
