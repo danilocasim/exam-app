@@ -44,11 +44,17 @@ packages/
     └── __tests__/            # Unit and integration tests
 
 apps/
-└── aws-clp/                  # Thin app wrapper for AWS Cloud Practitioner (CLF-C02)
-    ├── App.tsx               # Imports AppRoot from @exam-app/shared
-    ├── src/config/           # app.config.ts: EXAM_TYPE_ID = 'CLF-C02'
-    ├── app.json              # Expo config (unique bundle ID, EAS project ID)
-    └── assets/               # App-specific icons and splash screen
+├── aws-clp/                  # Thin app wrapper for AWS Cloud Practitioner (CLF-C02)
+│   ├── App.tsx               # Imports AppRoot from @exam-app/shared
+│   ├── src/config/           # app.config.ts: EXAM_TYPE_ID = 'CLF-C02'
+│   ├── app.json              # Expo config (unique bundle ID, EAS project ID)
+│   └── assets/               # App-specific icons and splash screen
+├── saa-c03/                  # Thin app wrapper for AWS SAA (SAA-C03)
+│   ├── App.tsx               # Imports AppRoot from @exam-app/shared
+│   ├── src/config/           # app.config.ts: EXAM_TYPE_ID = 'SAA-C03'
+│   ├── app.json              # Expo config (unique bundle ID, EAS project ID)
+│   └── assets/               # App-specific icons and splash screen
+└── template/                 # App template used by scripts/create-app.sh
 
 specs/                        # Feature documentation per phase
 ├── 002-cloudprep-mobile/     # Phase 1+2: Core app + Google OAuth + Cloud Sync (complete)
@@ -62,6 +68,10 @@ specs/                        # Feature documentation per phase
 npm test                                       # Run all workspace tests
 npm run lint                                   # Lint all workspaces
 npm run build                                  # Build all workspaces
+npm run build:all                               # EAS build all apps (apps/* with eas.json)
+
+# App scaffolding
+./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03
 
 # Mobile (monorepo)
 cd apps/aws-clp && npx expo start      # Start dev server for AWS CLP app
@@ -101,6 +111,7 @@ Copy `.env.example` to `.env` in `api/` and each app under `apps/` before runnin
 - `EXPO_PUBLIC_API_URL` — Backend URL
 - `EXPO_PUBLIC_EXAM_TYPE_ID` — e.g. `CLF-C02`
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
+**Other apps**: each app under `apps/` has its own `.env` with the same `EXPO_PUBLIC_*` keys.
 
 ## Code Style
 
@@ -160,10 +171,10 @@ DELETE /admin/uploads/explanation-image/:filename  # Delete image from S3
 - **Phase 4** (`specs/003-play-integrity/`): Multi-App Monorepo Architecture — 🔄 In progress
   - Phase 10 (Shared Package Extraction) — ✅ Complete (T207–T216)
   - Phase 11 (App Wrapper Migration) — ✅ Complete (T217–T220)
-  - Phase 12 (Admin ExamType CRUD Backend) — 📋 Not started (T221–T228)
-  - Phase 13 (Admin ExamType CRUD Frontend) — 📋 Not started (T229–T236)
-  - Phase 14 (Template & Scaffold Script) — 📋 Not started (T237–T240)
-  - Phase 15 (Final Validation) — 📋 Not started (T241–T246)
+  - Phase 12 (Admin ExamType CRUD Backend) — ✅ Complete (T221–T228)
+  - Phase 13 (Admin ExamType CRUD Frontend) — ✅ Complete (T229–T236)
+  - Phase 14 (Template & Scaffold Script) — ✅ Complete (T237–T240)
+  - Phase 15 (Final Validation) — 🔄 In progress (T241–T246)
 - **Phase 5** (`specs/003-play-integrity/`): Monetization — Login-Gated Free Tier + One-Time Purchase — 📋 Planned
   - Phase 16 (Login-Gated Free Tier, 15 questions) — 📋 Not started (T247–T258)
   - Phase 17 (Play Billing One-Time Purchase) — 📋 Ready (T259–T270, Play Console access granted)

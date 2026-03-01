@@ -24,6 +24,7 @@
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Running the Apps](#running-the-apps)
+- [Adding a New Exam App](#adding-a-new-exam-app)
 - [Development](#development)
   - [Database Migrations](#database-migrations)
   - [Authentication Setup](#authentication-setup)
@@ -97,6 +98,9 @@
 │                    PostgreSQL Database                           │
 │         (Users, ExamAttempts, Questions, ExamTypes)              │
 └─────────────────────────────────────────────────────────────────┘
+
+All mobile apps are thin wrappers in `apps/*` that import shared logic from
+`packages/shared/` (screens, services, stores, and SQLite repositories).
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -227,7 +231,7 @@ sequenceDiagram
 
 ### Mobile App
 
-- **Framework**: React Native 0.73 + Expo SDK 50+
+- **Framework**: React Native 0.81 + Expo SDK 54
 - **Language**: TypeScript 5.x
 - **Navigation**: React Navigation 6.x
 - **State Management**: Zustand
@@ -239,7 +243,7 @@ sequenceDiagram
 
 ### Backend API
 
-- **Framework**: NestJS 10.x + Fastify
+- **Framework**: NestJS 11.x + Fastify
 - **Language**: TypeScript 5.x
 - **Database**: PostgreSQL 15+ with Prisma ORM
 - **Authentication**: @nestjs/jwt + passport-jwt (JWT strategy)
@@ -290,41 +294,38 @@ exam-app/
 │       │   └── services/         # API client services
 │       └── index.html
 │
-├── mobile/                       # React Native Expo Mobile App
-│   ├── src/
-│   │   ├── screens/              # App screens (Home, Exam, Results, Analytics, Profile)
-│   │   ├── components/           # Reusable components (QuestionCard, Timer, etc.)
-│   │   ├── services/             # Business logic (ExamAttemptService, AuthService)
-│   │   ├── storage/              # SQLite database layer
-│   │   │   ├── db.ts             # Database initialization
-│   │   │   ├── models/           # TypeScript models (ExamSubmission, User)
-│   │   │   └── repositories/     # Data access layer (CRUD operations)
-│   │   ├── stores/               # Zustand stores (auth, exam state)
-│   │   ├── config/               # App configuration (EXAM_TYPE_ID, API_URL)
-│   │   └── navigation/           # React Navigation (stack, tab navigators)
-│   ├── __tests__/                # Integration and E2E tests
-│   │   ├── offline-queue.integration.test.ts
-│   │   ├── sync-processor.test.ts
-│   │   ├── performance.bench.ts
-│   │   └── services/             # Unit tests for services
-│   ├── assets/
-│   │   └── questions/            # Local question cache (JSON)
-│   └── app.json                  # Expo configuration
+├── packages/
+│   └── shared/                   # @exam-app/shared (screens, services, stores, storage)
+│       ├── src/
+│       │   ├── screens/          # App screens (Home, Exam, Results, Analytics, Profile)
+│       │   ├── components/       # Reusable components (QuestionCard, Timer, etc.)
+│       │   ├── services/         # Business logic (ExamAttemptService, AuthService)
+│       │   ├── storage/          # SQLite database layer + repositories
+│       │   ├── stores/           # Zustand stores (auth, exam state)
+│       │   └── navigation/       # React Navigation (stack, tab navigators)
+│       └── __tests__/            # Shared unit/integration tests
+│
+├── apps/                         # Per-exam thin wrappers
+│   ├── aws-clp/                  # AWS Cloud Practitioner app (CLF-C02)
+│   ├── saa-c03/                  # AWS SAA app (SAA-C03)
+│   └── template/                 # App template used by scripts/create-app.sh
 │
 ├── specs/                        # Feature specifications
-│   └── 002-cloudprep-mobile/
-│       ├── spec.md               # Feature specification (user stories, requirements)
-│       ├── plan.md               # Implementation plan (architecture, tech stack)
-│       ├── tasks.md              # Task breakdown (T112-T150)
-│       ├── data-model.md         # Database schema documentation
-│       ├── research.md           # Technical decisions and constraints
-│       ├── quickstart.md         # Setup guide for developers
-│       ├── phase2-testing-guide.md   # Manual testing scenarios (Phase 2)
-│       ├── checklists/           # Quality checklists (requirements, full-review)
-│       └── contracts/            # API contracts (OpenAPI, Postman collections)
+│   ├── 002-cloudprep-mobile/
+│   └── 003-play-integrity/
 │
 └── README.md                     # This file
 ```
+
+### Monorepo Migration (Before vs After)
+
+| Area | Before (Single App) | After (Monorepo) |
+|------|----------------------|-----------------|
+| Mobile code | `mobile/` | `packages/shared/` + `apps/*/` wrappers |
+| App-specific config | `mobile/src/config` | `apps/*/src/config/app.config.ts` |
+| Expo entry point | `mobile/App.tsx` | `apps/*/App.tsx` (thin wrapper) |
+| Build commands | `cd mobile && npx expo start` | `cd apps/aws-clp && npx expo start` |
+| New app creation | Manual copy | `./scripts/create-app.sh` |
 
 ---
 
@@ -372,13 +373,12 @@ npx prisma db seed
 #### 3. Setup Mobile App
 
 ```bash
-cd ../mobile
+cd ..
 npm install
 
-# Configure API URL
-# Edit src/config/index.ts and set:
-#   API_URL: 'http://YOUR_MACHINE_IP:3000' (for emulator/device)
-#   EXAM_TYPE_ID: 'aws-ccp' (or your target exam type)
+# Configure app environment variables
+cp apps/aws-clp/.env.example apps/aws-clp/.env
+# Edit apps/aws-clp/.env and set EXPO_PUBLIC_API_URL + Google OAuth client IDs
 ```
 
 ### Running the Apps
@@ -395,7 +395,7 @@ npm run start:dev
 #### Mobile App
 
 ```bash
-cd mobile
+cd apps/aws-clp
 npx expo start
 # Choose platform:
 #   - Press 'a' for Android emulator
@@ -409,6 +409,31 @@ npx expo start
 cd api
 npx prisma studio
 # Opens at http://localhost:5555
+```
+
+---
+
+## ➕ Adding a New Exam App
+
+1. Create the exam type in the admin portal (ID must match your app examTypeId).
+2. Scaffold the app:
+
+```bash
+./scripts/create-app.sh --exam-type SAA-C03 --name "Dojo Exam SAA" --package com.danilocasim.dojoexam.saac03
+```
+
+3. Configure app environment variables:
+
+```bash
+cp apps/saa-c03/.env.example apps/saa-c03/.env
+# Edit EXPO_PUBLIC_API_URL + Google OAuth IDs
+```
+
+4. Run the app:
+
+```bash
+cd apps/saa-c03
+npx expo start
 ```
 
 ---
@@ -484,7 +509,7 @@ npm run test:cov
 #### Mobile Tests
 
 ```bash
-cd mobile
+cd packages/shared
 
 # Unit tests
 npm test
@@ -575,7 +600,7 @@ npx prisma migrate resolve --rolled-back 20260214184614_add_sync_status_enum_and
 
 # Mobile: Checkout Phase 1 branch
 git checkout phase-1-local-only
-cd mobile
+cd apps/aws-clp
 npm install
 npx expo start
 ```
