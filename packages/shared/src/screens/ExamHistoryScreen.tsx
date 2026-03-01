@@ -97,8 +97,12 @@ export const ExamHistoryScreen: React.FC = () => {
   };
 
   const handleReviewExam = (item: ExamHistoryEntry) => {
-    if (!item.canReview) return;
-    navigation.navigate('ReviewScreen', { attemptId: item.attempt.id });
+    if (item.canReview) {
+      navigation.navigate('ReviewScreen', { attemptId: item.attempt.id });
+    } else {
+      // Server-synced exam: show domain summary without per-question data
+      navigation.navigate('ExamSummary', { submissionId: item.attempt.id });
+    }
   };
 
   const formatDate = (dateStr: string): string => {
@@ -127,7 +131,7 @@ export const ExamHistoryScreen: React.FC = () => {
   const renderExamEntry = ({ item }: { item: ExamHistoryEntry }) => (
     <TouchableOpacity
       onPress={() => handleReviewExam(item)}
-      activeOpacity={item.canReview ? 0.7 : 1}
+      activeOpacity={0.7}
       style={styles.entryRow}
     >
       {/* Pass/Fail indicator */}
@@ -154,7 +158,7 @@ export const ExamHistoryScreen: React.FC = () => {
         </Text>
       </View>
 
-      {item.canReview && <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />}
+      <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
     </TouchableOpacity>
   );
 

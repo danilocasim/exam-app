@@ -35,8 +35,10 @@ export interface ExamHistoryEntry {
   correctCount: number;
   totalQuestions: number;
   timeSpent: string;
-  /** false for server-synced records that have no local answer data */
+  /** true when local ExamAnswer rows exist (full per-question review available) */
   canReview: boolean;
+  /** domain breakdown from ExamSubmission — available for server-synced entries */
+  domainScores?: Array<{ domainId: string; correct: number; total: number }>;
 }
 
 /**
@@ -116,6 +118,7 @@ export const getExamHistory = async (): Promise<ExamHistoryEntry[]> => {
         totalQuestions,
         timeSpent: formatTimeSpent(durationMs),
         canReview: false,
+        domainScores: s.domainScores,
       };
     });
 

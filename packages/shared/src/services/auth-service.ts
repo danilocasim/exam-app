@@ -274,11 +274,11 @@ export async function handleGoogleAuthSuccess(
       await TokenStorage.saveTokens(jwtAccessToken, jwtRefreshToken);
     }
 
-    // 6. Pull UserStats + StudyStreak from server and merge into local DB.
-    //    Runs after the database switch so the merged data lands in the correct
-    //    user-scoped SQLite file.  Non-blocking — any failures are logged.
+    // 6. Pull UserStats, StudyStreak, and exam history from server and merge
+    //    into local DB.  Awaited so the data is ready before the UI renders.
+    //    Failures are non-fatal — the app works offline without server data.
     if (jwtAccessToken) {
-      pullAndMergeAllStats(jwtAccessToken).catch((err) =>
+      await pullAndMergeAllStats(jwtAccessToken).catch((err) =>
         console.warn('[Auth] Stats pull failed (non-fatal):', err),
       );
     }

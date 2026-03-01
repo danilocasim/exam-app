@@ -98,7 +98,8 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
           console.warn(`[App] Restoring user database for ${authState.user.email}`);
           await switchUserDatabase(authState.user.email);
           if (authState.accessToken) {
-            pullAndMergeAllStats(authState.accessToken).catch((err) =>
+            setSyncStatus('Syncing your history...');
+            await pullAndMergeAllStats(authState.accessToken).catch((err) =>
               console.warn('[App] Stats pull on resume failed (non-fatal):', err),
             );
           }
