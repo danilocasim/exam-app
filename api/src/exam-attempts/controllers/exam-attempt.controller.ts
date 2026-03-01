@@ -12,13 +12,36 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsString, IsNumber, IsBoolean, IsOptional, IsISO8601, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsISO8601,
+  IsArray,
+  ValidateNested,
+  Min,
+  Max,
+} from 'class-validator';
 import { ExamAttemptService } from '../services/exam-attempt.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
 
 // === DTOs ===
+
+export class DomainScoreDto {
+  @IsString()
+  domainId: string;
+
+  @IsNumber()
+  @Min(0)
+  correct: number;
+
+  @IsNumber()
+  @Min(0)
+  total: number;
+}
 
 export class SubmitExamAttemptDto {
   @IsString()
@@ -45,6 +68,12 @@ export class SubmitExamAttemptDto {
   @IsOptional()
   @IsString()
   localId?: string; // Client-generated UUID for idempotent retries
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DomainScoreDto)
+  domainScores?: DomainScoreDto[]; // Per-domain breakdown [{domainId, correct, total}]
 }
 
 export class ExamAttemptResponse {
@@ -59,6 +88,7 @@ export class ExamAttemptResponse {
   syncStatus: string;
   syncedAt?: Date;
   syncRetries: number;
+  domainScores?: Array<{ domainId: string; correct: number; total: number }>;
 }
 
 export class ExamAttemptListResponse {
@@ -112,6 +142,7 @@ export class ExamAttemptController {
       passed: dto.passed,
       duration: dto.duration,
       submittedAt: dto.submittedAt ? new Date(dto.submittedAt) : undefined,
+      domainScores: dto.domainScores,
     });
 
     return this.mapToResponse(attempt);
@@ -148,6 +179,7 @@ export class ExamAttemptController {
       duration: dto.duration,
       submittedAt: dto.submittedAt ? new Date(dto.submittedAt) : undefined,
       localId: dto.localId,
+      domainScores: dto.domainScores,
     });
 
     return this.mapToResponse(attempt);
@@ -276,6 +308,7 @@ export class ExamAttemptController {
       syncStatus: attempt.syncStatus,
       syncedAt: attempt.syncedAt,
       syncRetries: attempt.syncRetries,
+      domainScores: (attempt.domainScores as Array<{ domainId: string; correct: number; total: number }> | null) ?? undefined,
     };
   }
 }

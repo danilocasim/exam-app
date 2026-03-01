@@ -1,6 +1,7 @@
 // T067: AnalyticsService - Aggregates analytics data for the dashboard
 import { getUserStats } from '../storage/repositories/user-stats.repository';
 import { getRecentExamAttempts } from '../storage/repositories/exam-attempt.repository';
+import { getDatabase } from '../storage/database';
 import {
   getOverallStats,
   calculateAggregatedDomainPerformance,
@@ -94,19 +95,52 @@ export const getStudyStats = async (): Promise<StudyStats> => {
 };
 
 /**
- * Get score history from completed exam attempts for chart
+ * Get score history from completed exam attempts for chart.
+ * Merges local ExamAttempt rows with server-pulled ExamSubmission rows,
+ * deduplicating by localId so the same exam doesn't appear twice.
  */
 export const getScoreHistory = async (limit: number = 10): Promise<ScoreHistoryEntry[]> => {
+  // Local attempts (taken on this device)
   const attempts = await getRecentExamAttempts(limit);
-
-  return attempts
+  const localEntries = attempts
     .filter((a) => a.score !== null)
-    .map((attempt) => ({
-      date: attempt.completedAt ?? attempt.startedAt,
-      score: attempt.score ?? 0,
-      passed: attempt.passed === true,
-    }))
-    .reverse(); // Chronological order (oldest first) for chart
+    .map((a) => ({
+      date: a.completedAt ?? a.startedAt,
+      score: a.score ?? 0,
+      passed: a.passed === true,
+      key: a.id, // ExamAttempt.id === ExamSubmission.localId for locally-created submissions
+    }));
+
+  // Server-pulled submissions (ExamSubmission table)
+  const db = await getDatabase();
+  const submissionRows = await db.getAllAsync<{
+    id: string;
+    localId: string | null;
+    score: number;
+    passed: number;
+    submittedAt: string;
+  }>('SELECT id, localId, score, passed, submittedAt FROM ExamSubmission ORDER BY submittedAt DESC LIMIT ?', [limit]);
+
+  // Dedup: skip submissions whose localId already appears in local attempts
+  const seenKeys = new Set(localEntries.map((e) => e.key));
+  const submissionEntries = submissionRows
+    .filter((row) => {
+      const key = row.localId ?? row.id;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    })
+    .map((row) => ({
+      date: row.submittedAt,
+      score: row.score,
+      passed: row.passed === 1,
+    }));
+
+  // Merge, sort chronologically (oldest first), take most recent `limit`
+  return [...localEntries, ...submissionEntries]
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-limit)
+    .map(({ date, score, passed }) => ({ date, score, passed }));
 };
 
 /**

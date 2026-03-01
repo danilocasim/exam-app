@@ -206,18 +206,22 @@ export const AnalyticsScreen: React.FC = () => {
             {/* 4 ── Score Trend Chart */}
             <ScoreChart scoreHistory={analyticsData.scoreHistory} />
 
-            {/* 5 ── Domain / Subject Analysis */}
-            <SectionTitle label="Subject Analysis" />
-            <DomainCards domains={analyticsData.domainPerformance} />
+            {/* 5 ── Domain / Subject Analysis (only when local answer data exists) */}
+            {analyticsData.domainPerformance.length > 0 && (
+              <>
+                <SectionTitle label="Subject Analysis" />
+                <DomainCards domains={analyticsData.domainPerformance} />
 
-            {/* 6 ── Weak Domains */}
-            {analyticsData.weakDomains.length > 0 &&
-              analyticsData.domainPerformance.some((d) => d.percentage >= 70) && (
-                <WeakDomainsSection
-                  weakDomains={analyticsData.weakDomains}
-                  onPractice={() => navigation.navigate('MainTabs', { screen: 'PracticeTab' })}
-                />
-              )}
+                {/* 6 ── Weak Domains */}
+                {analyticsData.weakDomains.length > 0 &&
+                  analyticsData.domainPerformance.some((d) => d.percentage >= 70) && (
+                    <WeakDomainsSection
+                      weakDomains={analyticsData.weakDomains}
+                      onPractice={() => navigation.navigate('MainTabs', { screen: 'PracticeTab' })}
+                    />
+                  )}
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -429,19 +433,15 @@ const ScoreChart: React.FC<{ scoreHistory: ScoreHistoryEntry[]; passingScore?: n
     );
   }
 
-  if (scoreHistory.length <= 2) {
-    const latestScore = scoreHistory[scoreHistory.length - 1]?.score ?? 0;
+  if (scoreHistory.length === 1) {
+    const latestScore = scoreHistory[0].score;
     return (
       <View style={st.chartCard}>
         <Text style={st.sectionLabel}>Score Trend</Text>
         <View style={st.chartEarly}>
           <Text style={st.chartEarlyScore}>{latestScore}%</Text>
-          <Text style={st.chartEarlyLabel}>
-            {scoreHistory.length === 1 ? 'First exam' : '2 exams completed'}
-          </Text>
-          <Text style={st.chartEarlyHint}>
-            Complete {scoreHistory.length === 1 ? '2 more exams' : '1 more exam'} to see your trend
-          </Text>
+          <Text style={st.chartEarlyLabel}>First exam</Text>
+          <Text style={st.chartEarlyHint}>Complete 1 more exam to see your trend</Text>
         </View>
       </View>
     );

@@ -207,6 +207,7 @@ export const useExamStore = create<ExamStore>((set, get) => ({
       try {
         const authState = useAuthStore.getState();
         await useExamAttemptStore.getState().submitExam({
+          id: session.attempt.id,
           examTypeId: EXAM_TYPE_ID,
           score: result.score,
           passed: result.passed,

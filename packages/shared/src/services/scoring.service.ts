@@ -2,13 +2,10 @@
 import {
   getExamAttemptById,
   getCompletedExamAttempts,
-  getAverageScore,
-  getBestScore,
-  getPassedExamAttemptCount,
-  getCompletedExamAttemptCount,
 } from '../storage/repositories/exam-attempt.repository';
 import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
 import { getQuestionsByIds } from '../storage/repositories/question.repository';
+import { getAllExamSubmissions } from '../storage/repositories/exam-submission.repository';
 import { ExamAnswer, Question, ExamResult, DomainScore, ExamTypeConfig } from '../storage/schema';
 import { getCachedExamTypeConfig } from './sync.service';
 
@@ -159,18 +156,38 @@ export const getExamResult = async (examAttemptId: string): Promise<ExamResult> 
 };
 
 /**
- * Get overall statistics across all completed exams
+ * Get overall statistics across all completed exams.
+ * Merges local ExamAttempt rows with server-synced ExamSubmission rows so that
+ * stats (average score, pass rate, etc.) reflect the full history even after the
+ * user clears local data and re-signs in.
  */
 export const getOverallStats = async (): Promise<OverallStats> => {
   const config = await getCachedExamTypeConfig();
   const passingThreshold = config?.passingScore ?? 70;
 
-  const totalExams = await getCompletedExamAttemptCount();
-  const passedExams = await getPassedExamAttemptCount();
-  const averageScore = await getAverageScore();
-  const bestScore = await getBestScore();
+  // ── Local ExamAttempt stats ──────────────────────────────────────────────
+  const completedExams = await getCompletedExamAttempts();
+  const localAttemptIds = new Set(completedExams.map((e) => e.id));
+  const localScores = completedExams.filter((e) => e.score !== null).map((e) => e.score!);
+  const localTotalExams = completedExams.length;
+  const localPassedExams = completedExams.filter((e) => e.passed === true).length;
 
+  // ── Server-only ExamSubmission stats (no matching local ExamAttempt) ────
+  const submissions = await getAllExamSubmissions();
+  const serverOnly = submissions.filter((s) => !localAttemptIds.has(s.localId ?? s.id));
+  const serverOnlyScores = serverOnly.map((s) => s.score);
+  const serverOnlyTotal = serverOnly.length;
+  const serverOnlyPassed = serverOnly.filter((s) => s.passed).length;
+
+  // ── Merge ────────────────────────────────────────────────────────────────
+  const totalExams = localTotalExams + serverOnlyTotal;
+  const passedExams = localPassedExams + serverOnlyPassed;
   const passRate = totalExams > 0 ? Math.round((passedExams / totalExams) * 100) : 0;
+
+  const allScores = [...localScores, ...serverOnlyScores];
+  const averageScore =
+    allScores.length > 0 ? allScores.reduce((s, v) => s + v, 0) / allScores.length : null;
+  const bestScore = allScores.length > 0 ? Math.max(...allScores) : null;
 
   // Calculate domain performance across all exams
   const domainPerformance = await calculateAggregatedDomainPerformance();
@@ -205,9 +222,6 @@ export const calculateAggregatedDomainPerformance = async (): Promise<DomainScor
   }
 
   const completedExams = await getCompletedExamAttempts();
-  if (completedExams.length === 0) {
-    return [];
-  }
 
   // Aggregate stats across all exams
   const domainTotals: Record<string, { correct: number; total: number; name: string }> = {};
@@ -221,7 +235,8 @@ export const calculateAggregatedDomainPerformance = async (): Promise<DomainScor
     };
   }
 
-  // Process each exam
+  // Process each local exam (has ExamAnswer rows — full fidelity)
+  const localAttemptIds = new Set(completedExams.map((e) => e.id));
   for (const exam of completedExams) {
     const answers = await getAnswersByExamAttemptId(exam.id);
     const questionIds = answers.map((a) => a.questionId);
@@ -239,6 +254,25 @@ export const calculateAggregatedDomainPerformance = async (): Promise<DomainScor
           domainTotals[domain].correct++;
         }
       }
+    }
+  }
+
+  // Also aggregate domainScores stored on ExamSubmission rows that have no
+  // corresponding local ExamAttempt (e.g. exams taken on another device).
+  const submissions = await getAllExamSubmissions();
+  for (const sub of submissions) {
+    if (!sub.domainScores || sub.domainScores.length === 0) continue;
+    // Skip if this submission was already counted above via its local ExamAttempt
+    const matchId = sub.localId ?? sub.id;
+    if (localAttemptIds.has(matchId)) continue;
+
+    for (const ds of sub.domainScores) {
+      if (!domainTotals[ds.domainId]) {
+        // Unknown domain — still track it under its raw id
+        domainTotals[ds.domainId] = { correct: 0, total: 0, name: ds.domainId };
+      }
+      domainTotals[ds.domainId].correct += ds.correct;
+      domainTotals[ds.domainId].total += ds.total;
     }
   }
 

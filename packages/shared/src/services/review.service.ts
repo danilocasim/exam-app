@@ -5,9 +5,11 @@ import {
 } from '../storage/repositories/exam-attempt.repository';
 import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
 import { getQuestionsByIds } from '../storage/repositories/question.repository';
+import { getAllExamSubmissions } from '../storage/repositories/exam-submission.repository';
 import { ExamAttempt, ExamAnswer, Question, DomainScore } from '../storage/schema';
 import { getCachedExamTypeConfig } from './sync.service';
 import { calculateDomainBreakdown, formatTimeSpent } from './scoring.service';
+import { EXAM_CONFIG } from '../config';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,8 @@ export interface ExamHistoryEntry {
   correctCount: number;
   totalQuestions: number;
   timeSpent: string;
+  /** false for server-synced records that have no local answer data */
+  canReview: boolean;
 }
 
 /**
@@ -51,30 +55,76 @@ export interface ReviewData {
 // ─── Service Functions ───────────────────────────────────────────────────────
 
 /**
- * Get list of completed exams for history screen
+ * Get list of completed exams for history screen.
+ * Merges local ExamAttempt rows with server-pulled ExamSubmission rows so
+ * history is visible even on a fresh install after a cloud pull.
  */
 export const getExamHistory = async (): Promise<ExamHistoryEntry[]> => {
   const attempts = await getCompletedExamAttempts();
 
-  return attempts.map((attempt) => {
+  // Track which attempt ids are already covered by local ExamAttempt rows
+  const localIds = new Set(attempts.map((a) => a.id));
+
+  const localEntries: ExamHistoryEntry[] = attempts.map((attempt) => {
     const score = attempt.score ?? 0;
     const passed = attempt.passed ?? false;
     const totalQuestions = attempt.totalQuestions;
-
-    // Calculate time spent
     const startedAt = new Date(attempt.startedAt).getTime();
     const completedAt = attempt.completedAt ? new Date(attempt.completedAt).getTime() : startedAt;
-    const timeSpentMs = completedAt - startedAt;
-
     return {
       attempt,
       score,
       passed,
       correctCount: Math.round((score / 100) * totalQuestions),
       totalQuestions,
-      timeSpent: formatTimeSpent(timeSpentMs),
+      timeSpent: formatTimeSpent(completedAt - startedAt),
+      canReview: true,
     };
   });
+
+  // Add server-pulled submissions that have no corresponding local attempt
+  const submissions = await getAllExamSubmissions();
+  const defaultQuestions = EXAM_CONFIG.QUESTIONS_PER_EXAM;
+
+  const submissionEntries: ExamHistoryEntry[] = submissions
+    .filter((s) => {
+      const key = s.localId ?? s.id;
+      return !localIds.has(key);
+    })
+    .map((s) => {
+      const score = s.score;
+      const passed = s.passed;
+      const totalQuestions = defaultQuestions;
+      const durationMs = s.duration * 1000;
+      // Build a synthetic ExamAttempt so the history list can render uniformly
+      const syntheticAttempt: ExamAttempt = {
+        id: s.localId ?? s.id,
+        startedAt: s.submittedAt.toISOString(),
+        completedAt: s.submittedAt.toISOString(),
+        status: 'completed',
+        score,
+        passed,
+        totalQuestions,
+        remainingTimeMs: null,
+        expiresAt: null,
+      };
+      return {
+        attempt: syntheticAttempt,
+        score,
+        passed,
+        correctCount: Math.round((score / 100) * totalQuestions),
+        totalQuestions,
+        timeSpent: formatTimeSpent(durationMs),
+        canReview: false,
+      };
+    });
+
+  // Merge and sort by date descending (most recent first)
+  return [...localEntries, ...submissionEntries].sort(
+    (a, b) =>
+      new Date(b.attempt.completedAt ?? b.attempt.startedAt).getTime() -
+      new Date(a.attempt.completedAt ?? a.attempt.startedAt).getTime(),
+  );
 };
 
 /**

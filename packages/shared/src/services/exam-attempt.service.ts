@@ -1,6 +1,10 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const getAxios = () => require('axios').default ?? require('axios');
 import * as ExamSubmissionRepo from '../storage/repositories/exam-submission.repository';
+import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
+import { getQuestionsByIds } from '../storage/repositories/question.repository';
+import { calculateDomainBreakdown } from './scoring.service';
+import { getCachedExamTypeConfig } from './sync.service';
 import { getAPIURL } from '../config';
 
 export interface ExamAttempt {
@@ -43,6 +47,25 @@ export class ExamAttemptService {
     // server can deduplicate retried HTTP requests.
     const id = attempt.id || `local-${Date.now()}-${Math.random()}`;
 
+    // Compute per-domain breakdown from ExamAnswer rows (same id as the ExamAttempt).
+    let domainScores: ExamSubmissionRepo.DomainScore[] | undefined;
+    try {
+      const config = await getCachedExamTypeConfig();
+      if (config) {
+        const answers = await getAnswersByExamAttemptId(id);
+        if (answers.length > 0) {
+          const questionIds = answers.map((a) => a.questionId);
+          const questions = await getQuestionsByIds(questionIds);
+          const questionsById = new Map(questions.map((q) => [q.id, q]));
+          domainScores = calculateDomainBreakdown(answers, questionsById, config).map(
+            ({ domainId, correct, total }) => ({ domainId, correct, total }),
+          );
+        }
+      }
+    } catch {
+      // Non-fatal — submission still goes through without domain scores
+    }
+
     const storedAttempt: ExamSubmissionRepo.ExamSubmission = {
       id,
       userId: attempt.userId,
@@ -55,6 +78,7 @@ export class ExamAttemptService {
       syncStatus: 'PENDING',
       syncRetries: 0,
       localId: id, // Reused as idempotency key for the server
+      domainScores,
     };
 
     // Store in local database
@@ -121,6 +145,7 @@ export class ExamAttemptService {
     for (const attempt of pending) {
       try {
         // Send to cloud API — include localId for server-side idempotency
+        const sub = attempt as ExamSubmissionRepo.ExamSubmission;
         await axios.post(
           `${this.apiUrl}/exam-attempts/submit-authenticated`,
           {
@@ -129,7 +154,8 @@ export class ExamAttemptService {
             passed: attempt.passed,
             duration: attempt.duration,
             submittedAt: attempt.submittedAt,
-            localId: (attempt as ExamSubmissionRepo.ExamSubmission).localId,
+            localId: sub.localId,
+            domainScores: sub.domainScores,
           },
           {
             headers: {
@@ -201,6 +227,7 @@ export class ExamAttemptService {
         await this.sleep(delayMs);
 
         // Retry sync — include localId so server won't create a duplicate
+        const sub = attempt as ExamSubmissionRepo.ExamSubmission;
         await axios.post(
           `${this.apiUrl}/exam-attempts/submit-authenticated`,
           {
@@ -209,7 +236,8 @@ export class ExamAttemptService {
             passed: attempt.passed,
             duration: attempt.duration,
             submittedAt: attempt.submittedAt,
-            localId: (attempt as ExamSubmissionRepo.ExamSubmission).localId,
+            localId: sub.localId,
+            domainScores: sub.domainScores,
           },
           {
             headers: {

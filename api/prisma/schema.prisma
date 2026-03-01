@@ -87,21 +87,22 @@ model User {
 }
 
 model ExamAttempt {
-  id          String     @id @default(uuid())
-  userId      String?
-  examTypeId  String
-  score       Int
-  passed      Boolean
-  duration    Int
-  submittedAt DateTime   @default(now())
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  syncedAt    DateTime?
-  syncRetries Int        @default(0)
-  syncStatus  SyncStatus @default(PENDING)
-  localId     String?
-  examType    ExamType   @relation(fields: [examTypeId], references: [id])
-  user        User?      @relation(fields: [userId], references: [id])
+  id           String     @id @default(uuid())
+  userId       String?
+  examTypeId   String
+  score        Int
+  passed       Boolean
+  duration     Int
+  submittedAt  DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  syncedAt     DateTime?
+  syncRetries  Int        @default(0)
+  syncStatus   SyncStatus @default(PENDING)
+  localId      String?
+  domainScores Json?      // [{domainId, correct, total}] — per-domain breakdown
+  examType     ExamType   @relation(fields: [examTypeId], references: [id])
+  user         User?      @relation(fields: [userId], references: [id])
 
   @@unique([userId, localId], where: raw("((\"userId\" IS NOT NULL) AND (\"localId\" IS NOT NULL))"))
   @@index([userId])

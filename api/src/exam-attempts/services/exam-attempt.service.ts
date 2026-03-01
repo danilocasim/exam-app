@@ -10,6 +10,7 @@ export interface CreateExamAttemptDto {
   duration: number;
   submittedAt?: Date;
   localId?: string; // Client-generated UUID for idempotent re-submission
+  domainScores?: Array<{ domainId: string; correct: number; total: number }>;
 }
 
 export interface ExamAttemptFilter {
@@ -37,14 +38,27 @@ export class ExamAttemptService {
    * timeout where the server had already persisted the first request.
    */
   async create(data: CreateExamAttemptDto): Promise<ExamAttempt> {
-    // If we have a localId and userId, perform an atomic upsert on the
-    // (userId, localId) composite key. This guarantees idempotency even under
-    // concurrent retries from the same user/device.
+    // If we have a localId and userId, deduplicate manually — Prisma's upsert
+    // generates ON CONFLICT without the WHERE predicate required by the partial
+    // unique index, causing a PostgreSQL constraint-matching error.
     if (data.localId && data.userId) {
-      return this.prisma.examAttempt.upsert({
-        where: { userId_localId: { userId: data.userId, localId: data.localId } },
-        update: {},
-        create: {
+      const existing = await this.prisma.examAttempt.findFirst({
+        where: { userId: data.userId, localId: data.localId },
+      });
+
+      if (existing) {
+        // Backfill domainScores if the client is supplying them for the first time.
+        if (data.domainScores && !existing.domainScores) {
+          return this.prisma.examAttempt.update({
+            where: { id: existing.id },
+            data: { domainScores: data.domainScores },
+          });
+        }
+        return existing;
+      }
+
+      return this.prisma.examAttempt.create({
+        data: {
           userId: data.userId,
           examTypeId: data.examTypeId,
           score: data.score,
@@ -53,6 +67,7 @@ export class ExamAttemptService {
           submittedAt: data.submittedAt || new Date(),
           syncStatus: SyncStatus.PENDING,
           localId: data.localId,
+          domainScores: data.domainScores ?? undefined,
         },
       });
     }
@@ -69,6 +84,7 @@ export class ExamAttemptService {
         submittedAt: data.submittedAt || new Date(),
         syncStatus: data.userId ? SyncStatus.PENDING : SyncStatus.SYNCED,
         localId: data.localId || undefined,
+        domainScores: data.domainScores ?? undefined,
       },
     });
   }

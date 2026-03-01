@@ -113,5 +113,11 @@ export const selectWeakDomains = (state: AnalyticsStore): WeakDomain[] => {
 };
 
 export const selectHasData = (state: AnalyticsStore): boolean => {
-  return state.analyticsData !== null && state.analyticsData.overallStats.totalExams > 0;
+  if (!state.analyticsData) return false;
+  // overallStats.totalExams counts local ExamAttempt rows; studyStats.totalExams
+  // comes from the UserStats table which is synced from the server — use either.
+  return (
+    state.analyticsData.overallStats.totalExams > 0 ||
+    state.analyticsData.studyStats.totalExams > 0
+  );
 };

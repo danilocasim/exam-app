@@ -24,6 +24,11 @@ import {
   getStudyStreak,
   updateStreakOnCompletion,
 } from '../storage/repositories/streak.repository';
+import { getAllExamSubmissions } from '../storage/repositories/exam-submission.repository';
+import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
+import { getQuestionsByIds } from '../storage/repositories/question.repository';
+import { calculateDomainBreakdown } from './scoring.service';
+import { getCachedExamTypeConfig } from './sync.service';
 import { getDatabase } from '../storage/database';
 import { getAPIURL, EXAM_TYPE_ID } from '../config';
 
@@ -279,6 +284,7 @@ interface RemoteExamAttempt {
   submittedAt: string;
   createdAt: string;
   localId?: string;
+  domainScores?: Array<{ domainId: string; correct: number; total: number }>;
 }
 
 /**
@@ -324,8 +330,8 @@ export const pullAndMergeExamHistory = async (accessToken: string): Promise<void
           await db.runAsync(
             `INSERT INTO ExamSubmission
               (id, examTypeId, score, passed, duration, submittedAt, createdAt,
-               syncStatus, syncRetries, syncedAt, localId)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'SYNCED', 0, ?, ?)`,
+               syncStatus, syncRetries, syncedAt, localId, domainScores)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'SYNCED', 0, ?, ?, ?)`,
             [
               matchKey,
               remote.examTypeId,
@@ -336,9 +342,16 @@ export const pullAndMergeExamHistory = async (accessToken: string): Promise<void
               remote.createdAt,
               new Date().toISOString(),
               remote.localId ?? null,
+              remote.domainScores ? JSON.stringify(remote.domainScores) : null,
             ],
           );
           inserted++;
+        } else if (remote.domainScores) {
+          // Backfill domainScores into an existing local record that lacks them
+          await db.runAsync(
+            `UPDATE ExamSubmission SET domainScores = ? WHERE (id = ? OR localId = ?) AND domainScores IS NULL`,
+            [JSON.stringify(remote.domainScores), matchKey, matchKey],
+          );
         }
       }
 
@@ -360,6 +373,75 @@ export const pullAndMergeExamHistory = async (accessToken: string): Promise<void
   }
 };
 
+// ─── Domain score backfill ────────────────────────────────────────────────────
+
+/**
+ * For ExamSubmission rows that are already SYNCED but have no domainScores yet,
+ * compute them from local ExamAnswer data and push to the server.
+ *
+ * The server upsert will fill in the missing field without creating a duplicate
+ * because the same localId is used. Scores are then stored locally too.
+ *
+ * @param accessToken  JWT access token
+ */
+export const backfillDomainScores = async (accessToken: string): Promise<void> => {
+  try {
+    const config = await getCachedExamTypeConfig();
+    if (!config) return;
+
+    const submissions = await getAllExamSubmissions();
+    const toBackfill = submissions.filter((s) => s.syncStatus === 'SYNCED' && !s.domainScores);
+    if (toBackfill.length === 0) return;
+
+    const axios = getAxios();
+    const db = await getDatabase();
+
+    for (const sub of toBackfill) {
+      // ExamAttempt.id === ExamSubmission.localId — ExamAnswer rows are keyed by that id
+      const attemptId = sub.localId ?? sub.id;
+      try {
+        const answers = await getAnswersByExamAttemptId(attemptId);
+        if (answers.length === 0) continue; // No local answers — can't backfill
+
+        const questionIds = answers.map((a) => a.questionId);
+        const questions = await getQuestionsByIds(questionIds);
+        const questionsById = new Map(questions.map((q) => [q.id, q]));
+        const domainScores = calculateDomainBreakdown(answers, questionsById, config).map(
+          ({ domainId, correct, total }) => ({ domainId, correct, total }),
+        );
+        if (domainScores.length === 0) continue;
+
+        // Re-POST to server — idempotent thanks to localId; server updates domainScores
+        await axios.post(
+          `${getAPIURL()}/exam-attempts/submit-authenticated`,
+          {
+            examTypeId: sub.examTypeId,
+            score: sub.score,
+            passed: sub.passed,
+            duration: sub.duration,
+            submittedAt: sub.submittedAt,
+            localId: sub.localId,
+            domainScores,
+          },
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        );
+
+        // Persist locally so we don't re-attempt on the next sync
+        await db.runAsync(
+          `UPDATE ExamSubmission SET domainScores = ? WHERE id = ?`,
+          [JSON.stringify(domainScores), sub.id],
+        );
+      } catch {
+        // Non-fatal — will retry on next sync
+      }
+    }
+
+    console.log(`[StatsSync] Domain score backfill complete (${toBackfill.length} candidates checked)`);
+  } catch (err) {
+    console.warn('[StatsSync] Domain score backfill failed:', err);
+  }
+};
+
 /**
  * Pull both UserStats and Streak from the server and merge locally.
  * Call this on login / app resume to reconcile cross-device data.
@@ -370,4 +452,6 @@ export const pullAndMergeAllStats = async (accessToken: string): Promise<void> =
     pullAndMergeStreak(accessToken),
     pullAndMergeExamHistory(accessToken),
   ]);
+  // Backfill runs after history pull so newly inserted records are also candidates
+  await backfillDomainScores(accessToken);
 };

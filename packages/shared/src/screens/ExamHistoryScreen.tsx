@@ -96,8 +96,9 @@ export const ExamHistoryScreen: React.FC = () => {
     }
   };
 
-  const handleReviewExam = (attemptId: string) => {
-    navigation.navigate('ReviewScreen', { attemptId });
+  const handleReviewExam = (item: ExamHistoryEntry) => {
+    if (!item.canReview) return;
+    navigation.navigate('ReviewScreen', { attemptId: item.attempt.id });
   };
 
   const formatDate = (dateStr: string): string => {
@@ -125,8 +126,8 @@ export const ExamHistoryScreen: React.FC = () => {
 
   const renderExamEntry = ({ item }: { item: ExamHistoryEntry }) => (
     <TouchableOpacity
-      onPress={() => handleReviewExam(item.attempt.id)}
-      activeOpacity={0.7}
+      onPress={() => handleReviewExam(item)}
+      activeOpacity={item.canReview ? 0.7 : 1}
       style={styles.entryRow}
     >
       {/* Pass/Fail indicator */}
@@ -153,7 +154,7 @@ export const ExamHistoryScreen: React.FC = () => {
         </Text>
       </View>
 
-      <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
+      {item.canReview && <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />}
     </TouchableOpacity>
   );
 
