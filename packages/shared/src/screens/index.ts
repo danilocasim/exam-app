@@ -27,3 +27,6 @@ export { CloudAnalyticsScreen } from './CloudAnalyticsScreen';
 
 // Upgrade screen
 export { UpgradeScreen } from './UpgradeScreen';
+
+// Custom Exam Setup screen
+export { CustomExamSetupScreen } from './CustomExamSetupScreen';

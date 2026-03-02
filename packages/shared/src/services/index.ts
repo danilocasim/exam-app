@@ -26,12 +26,20 @@ export {
 export type { QuestionBundle } from './bundle.service';
 
 // Exam generator service exports (T037)
-export { generateExam, canGenerateExam, getQuestionDistribution } from './exam-generator.service';
+export {
+  generateExam,
+  canGenerateExam,
+  getQuestionDistribution,
+  generateExamFromMissed,
+  generateCustomExam,
+} from './exam-generator.service';
 export type { GeneratedExam } from './exam-generator.service';
 
 // Exam session service exports (T038)
 export {
   startExam,
+  startMissedExam,
+  startCustomExam,
   resumeExam,
   hasInProgressExam,
   getRemainingTime,
@@ -126,3 +134,11 @@ export {
   pushAllStats,
   pullAndMergeAllStats,
 } from './stats-sync.service';
+
+// Notification service — local push notifications for cooldown expiry
+export {
+  configureNotifications,
+  scheduleCooldownNotification,
+  cancelCooldownNotification,
+  cancelAllCooldownNotifications,
+} from './notification.service';

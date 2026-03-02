@@ -28,9 +28,18 @@ import {
   ExamTypeConfig,
   ExamResult,
   DomainScore,
+  ExamMode,
+  CustomExamOptions,
 } from '../storage/schema';
-import { generateExam, GeneratedExam } from './exam-generator.service';
+import {
+  generateExam,
+  generateExamForTier,
+  GeneratedExam,
+  generateExamFromMissed,
+  generateCustomExam,
+} from './exam-generator.service';
 import { getCachedExamTypeConfig } from './sync.service';
+import { TierLevel } from '../config/tiers';
 
 /**
  * Exam session state containing all current exam info
@@ -63,10 +72,15 @@ export interface NavigationResult {
  * 2. Create exam attempt record
  * 3. Create answer placeholders for all questions
  * 4. Return initial session state
+ *
+ * mode determines the exam slot: 'daily' and 'mock' are independent.
  */
-export const startExam = async (): Promise<ExamSession> => {
-  // Clean up any existing in-progress exam
-  const existing = await getInProgressExamAttempt();
+export const startExam = async (
+  tier: TierLevel = 'PREMIUM',
+  mode: ExamMode = 'mock',
+): Promise<ExamSession> => {
+  // Check for an existing in-progress exam of the SAME mode only
+  const existing = await getInProgressExamAttempt(mode);
   if (existing) {
     // Auto-abandon expired exams
     const expiresAt = new Date(existing.expiresAt).getTime();
@@ -81,8 +95,8 @@ export const startExam = async (): Promise<ExamSession> => {
   // Also handle any other expired exams
   await handleExpiredExams();
 
-  // Generate exam with weighted questions
-  const generated: GeneratedExam = await generateExam();
+  // Generate exam with weighted questions (tier-aware)
+  const generated: GeneratedExam = await generateExamForTier(tier);
   const { questions, config } = generated;
 
   if (questions.length === 0) {
@@ -92,8 +106,8 @@ export const startExam = async (): Promise<ExamSession> => {
   // Calculate time limit in milliseconds
   const timeLimitMs = config.timeLimit * 60 * 1000;
 
-  // Create exam attempt
-  const attempt = await createExamAttempt(questions.length, timeLimitMs);
+  // Create exam attempt (mode-aware)
+  const attempt = await createExamAttempt(questions.length, timeLimitMs, mode);
 
   // Create answer placeholders for all questions
   const questionIds = questions.map((q) => q.id);
@@ -109,11 +123,109 @@ export const startExam = async (): Promise<ExamSession> => {
 };
 
 /**
+ * Start a Missed Questions Quiz.
+ *
+ * Uses the same exam flow but sources questions from the missed-questions
+ * repository instead of the weighted generator.
+ *
+ * @param count - Number of missed questions to include in the quiz
+ */
+export const startMissedExam = async (count: number): Promise<ExamSession> => {
+  const mode: ExamMode = 'missed';
+
+  // Check for an existing in-progress missed exam
+  const existing = await getInProgressExamAttempt(mode);
+  if (existing) {
+    const expiresAt = new Date(existing.expiresAt).getTime();
+    if (Date.now() > expiresAt) {
+      await abandonExamAttempt(existing.id);
+    } else {
+      throw new Error(
+        'A missed questions quiz is already in progress. Please complete or abandon it first.',
+      );
+    }
+  }
+
+  await handleExpiredExams();
+
+  // Generate exam from missed questions
+  const generated: GeneratedExam = await generateExamFromMissed(count);
+  const { questions, config } = generated;
+
+  if (questions.length === 0) {
+    throw new Error('No missed questions found.');
+  }
+
+  const timeLimitMs = config.timeLimit * 60 * 1000;
+  const attempt = await createExamAttempt(questions.length, timeLimitMs, mode);
+  const questionIds = questions.map((q) => q.id);
+  const answers = await createExamAnswersBatch(attempt.id, questionIds);
+
+  return {
+    attempt,
+    answers,
+    questions,
+    currentIndex: 0,
+    config,
+  };
+};
+
+/**
+ * Start a Custom Exam with user-selected options (domains, count, timed/untimed).
+ *
+ * Uses the same exam lifecycle but sources questions via generateCustomExam.
+ *
+ * @param options - CustomExamOptions (questionCount, selectedDomains, isTimed)
+ * @param tier    - The user's current tier level
+ */
+export const startCustomExam = async (
+  options: CustomExamOptions,
+  tier: TierLevel,
+): Promise<ExamSession> => {
+  const mode: ExamMode = 'custom';
+
+  // Check for an existing in-progress custom exam
+  const existing = await getInProgressExamAttempt(mode);
+  if (existing) {
+    const expiresAt = new Date(existing.expiresAt).getTime();
+    if (Date.now() > expiresAt) {
+      await abandonExamAttempt(existing.id);
+    } else {
+      throw new Error('A custom exam is already in progress. Please complete or abandon it first.');
+    }
+  }
+
+  await handleExpiredExams();
+
+  // Generate custom exam
+  const generated: GeneratedExam = await generateCustomExam(options, tier);
+  const { questions, config } = generated;
+
+  if (questions.length === 0) {
+    throw new Error('No questions available for the selected configuration.');
+  }
+
+  const timeLimitMs = config.timeLimit * 60 * 1000;
+  const attempt = await createExamAttempt(questions.length, timeLimitMs, mode);
+  const questionIds = questions.map((q) => q.id);
+  const answers = await createExamAnswersBatch(attempt.id, questionIds);
+
+  return {
+    attempt,
+    answers,
+    questions,
+    currentIndex: 0,
+    config,
+  };
+};
+
+/**
  * Resume an existing in-progress exam
  * Returns null if no exam in progress or if expired
+ * When mode is specified, only resumes an exam of that mode.
  */
-export const resumeExam = async (): Promise<ExamSession | null> => {
-  const attempt = await getInProgressExamAttempt();
+export const resumeExam = async (mode?: ExamMode): Promise<ExamSession | null> => {
+  const attempt = await getInProgressExamAttempt(mode);
   if (!attempt) {
     return null;
   }
@@ -174,9 +286,10 @@ export const resumeExam = async (): Promise<ExamSession | null> => {
 
 /**
  * Check if there's an exam in progress
+ * When mode is specified, only checks that mode's slot.
  */
-export const hasInProgressExam = async (): Promise<boolean> => {
-  const attempt = await getInProgressExamAttempt();
+export const hasInProgressExam = async (mode?: ExamMode): Promise<boolean> => {
+  const attempt = await getInProgressExamAttempt(mode);
   if (!attempt) return false;
 
   // Also check if not expired
@@ -451,19 +564,22 @@ export const abandonCurrentExam = async (examAttemptId: string): Promise<void> =
 
 /**
  * Check and handle expired exams
- * Called on app launch to clean up any expired in-progress exams
+ * Called on app launch to clean up any expired in-progress exams.
+ * Checks both daily, mock, and missed slots independently.
  */
 export const handleExpiredExams = async (): Promise<number> => {
-  const attempt = await getInProgressExamAttempt();
-  if (!attempt) return 0;
-
-  const expiresAt = new Date(attempt.expiresAt).getTime();
-  if (Date.now() > expiresAt) {
-    await abandonExamAttempt(attempt.id);
-    return 1;
+  let abandoned = 0;
+  for (const mode of ['daily', 'mock', 'missed', 'custom'] as ExamMode[]) {
+    const attempt = await getInProgressExamAttempt(mode);
+    if (attempt) {
+      const expiresAt = new Date(attempt.expiresAt).getTime();
+      if (Date.now() > expiresAt) {
+        await abandonExamAttempt(attempt.id);
+        abandoned++;
+      }
+    }
   }
-
-  return 0;
+  return abandoned;
 };
 
 /**

@@ -1,9 +1,11 @@
 // T040: Exam Store - Zustand state management for exam mode
 // T140: Extended with sync state for cloud persistence
 import { create } from 'zustand';
-import { ExamAnswer, Question, ExamResult } from '../storage/schema';
+import { ExamAnswer, Question, ExamResult, ExamMode, CustomExamOptions } from '../storage/schema';
 import {
   startExam as startExamService,
+  startMissedExam as startMissedExamService,
+  startCustomExam as startCustomExamService,
   resumeExam as resumeExamService,
   hasInProgressExam,
   saveAnswer as saveAnswerService,
@@ -15,11 +17,18 @@ import {
   ExamSession,
 } from '../services';
 import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
+import {
+  setDailyExamLastAttempt,
+  setMissedExamLastAttempt,
+} from '../storage/repositories/daily-mode.repository';
 import { useExamAttemptStore } from './exam-attempt.store';
 import { useStreakStore } from './streak.store';
 import { useAuthStore } from './auth-store';
 import { EXAM_TYPE_ID } from '../config';
+import { TierLevel } from '../config/tiers';
 import { pushAllStats } from '../services/stats-sync.service';
+import { usePurchaseStore } from './purchase.store';
+import { scheduleCooldownNotification } from '../services/notification.service';
 
 /**
  * Exam store state
@@ -29,6 +38,12 @@ export interface ExamState {
   session: ExamSession | null;
   currentIndex: number;
   remainingTimeMs: number;
+
+  // Current exam mode (daily vs mock vs custom etc.)
+  examMode: ExamMode | null;
+
+  // Whether the current exam has a countdown timer (false for untimed custom exams)
+  isTimed: boolean;
 
   // Status flags
   isLoading: boolean;
@@ -56,8 +71,10 @@ export interface ExamState {
  */
 export interface ExamActions {
   // Session lifecycle
-  startExam: () => Promise<void>;
-  resumeExam: () => Promise<boolean>;
+  startExam: (tierOverride?: TierLevel, mode?: ExamMode) => Promise<void>;
+  startMissedExam: (count: number) => Promise<void>;
+  startCustomExam: (options: CustomExamOptions) => Promise<void>;
+  resumeExam: (mode?: ExamMode) => Promise<boolean>;
   abandonExam: () => Promise<void>;
   submitExam: () => Promise<ExamResult>;
   resetExamState: () => void;
@@ -93,6 +110,8 @@ const initialState: ExamState = {
   session: null,
   currentIndex: 0,
   remainingTimeMs: 0,
+  examMode: null,
+  isTimed: true,
   isLoading: false,
   isSubmitting: false,
   error: null,
@@ -116,14 +135,18 @@ export const useExamStore = create<ExamStore>((set, get) => ({
   /**
    * Start a new exam
    */
-  startExam: async () => {
-    console.warn('[ExamStore] startExam called');
+  startExam: async (tierOverride?: TierLevel, mode: ExamMode = 'mock') => {
+    console.warn(`[ExamStore] startExam called (mode=${mode})`);
     set({ isLoading: true, error: null, result: null });
     try {
-      const session = await startExamService();
-      console.warn(`[ExamStore] Exam started with ${session.questions.length} questions`);
+      const tier = tierOverride ?? usePurchaseStore.getState().tierLevel;
+      const session = await startExamService(tier, mode);
+      console.warn(
+        `[ExamStore] Exam started with ${session.questions.length} questions (mode=${mode})`,
+      );
       set({
         session,
+        examMode: mode,
         currentIndex: 0,
         remainingTimeMs: session.attempt.remainingTimeMs,
         answeredCount: 0,
@@ -139,13 +162,67 @@ export const useExamStore = create<ExamStore>((set, get) => ({
   },
 
   /**
+   * Start a Missed Questions Quiz
+   */
+  startMissedExam: async (count: number) => {
+    console.warn(`[ExamStore] startMissedExam called (count=${count})`);
+    set({ isLoading: true, error: null, result: null });
+    try {
+      const session = await startMissedExamService(count);
+      console.warn(`[ExamStore] Missed exam started with ${session.questions.length} questions`);
+      set({
+        session,
+        examMode: 'missed',
+        currentIndex: 0,
+        remainingTimeMs: session.attempt.remainingTimeMs,
+        answeredCount: 0,
+        flaggedCount: 0,
+        isLoading: false,
+      });
+    } catch (err) {
+      console.error('[ExamStore] startMissedExam failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to start missed questions quiz';
+      set({ error: message, isLoading: false });
+      throw err;
+    }
+  },
+
+  /**
+   * Start a Custom Exam with user-selected options
+   */
+  startCustomExam: async (options: CustomExamOptions) => {
+    console.warn(`[ExamStore] startCustomExam called`, options);
+    set({ isLoading: true, error: null, result: null });
+    try {
+      const tier = usePurchaseStore.getState().tierLevel;
+      const session = await startCustomExamService(options, tier);
+      console.warn(`[ExamStore] Custom exam started with ${session.questions.length} questions`);
+      set({
+        session,
+        examMode: 'custom',
+        isTimed: options.isTimed,
+        currentIndex: 0,
+        remainingTimeMs: session.attempt.remainingTimeMs,
+        answeredCount: 0,
+        flaggedCount: 0,
+        isLoading: false,
+      });
+    } catch (err) {
+      console.error('[ExamStore] startCustomExam failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to start custom exam';
+      set({ error: message, isLoading: false });
+      throw err;
+    }
+  },
+
+  /**
    * Resume an existing in-progress exam
    * Returns true if exam was resumed, false if no exam to resume
    */
-  resumeExam: async () => {
+  resumeExam: async (mode?: ExamMode) => {
     set({ isLoading: true, error: null });
     try {
-      const session = await resumeExamService();
+      const session = await resumeExamService(mode);
       if (!session) {
         set({ isLoading: false });
         return false;
@@ -157,6 +234,11 @@ export const useExamStore = create<ExamStore>((set, get) => ({
 
       set({
         session,
+        examMode: session.attempt.mode,
+        // For resumed custom exams: untimed exams have timeLimit=1440 (24h),
+        // so remainingTimeMs will be very large. Heuristic: >=23h is untimed.
+        isTimed:
+          session.attempt.mode === 'custom' ? session.attempt.remainingTimeMs < 82_800_000 : true,
         currentIndex: session.currentIndex,
         remainingTimeMs: session.attempt.remainingTimeMs,
         answeredCount,
@@ -258,6 +340,28 @@ export const useExamStore = create<ExamStore>((set, get) => ({
           pushAllStats(accessToken).catch((err) =>
             console.warn('[ExamStore] Immediate stats push failed (non-fatal):', err),
           );
+        }
+      } catch {
+        // Non-blocking — local data is always safe
+      }
+
+      // Record daily quiz completion for FREE tier cooldown.
+      // Must happen on successful SUBMISSION (not on start) so that abandoning
+      // the exam does not consume the user's daily attempt.
+      // Only record for daily mode, not mock exams.
+      try {
+        const currentMode = get().examMode;
+        const tier = usePurchaseStore.getState().tier;
+        if (currentMode === 'daily') {
+          setDailyExamLastAttempt().catch(() => {});
+          if (tier === 'FREE') {
+            scheduleCooldownNotification('daily').catch(() => {});
+          }
+        } else if (currentMode === 'missed') {
+          setMissedExamLastAttempt().catch(() => {});
+          if (tier === 'FREE') {
+            scheduleCooldownNotification('missed').catch(() => {});
+          }
         }
       } catch {
         // Non-blocking — local data is always safe
