@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { X } from 'lucide-react-native';
+import { X, Clock } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import {
   useExamStore,
@@ -40,6 +40,7 @@ export const ExamScreen: React.FC = () => {
   const session = useExamStore((state) => state.session);
   const currentIndex = useExamStore((state) => state.currentIndex);
   const remainingTimeMs = useExamStore((state) => state.remainingTimeMs);
+  const isTimed = useExamStore((state) => state.isTimed);
   const isSubmitting = useExamStore((state) => state.isSubmitting);
   const error = useExamStore((state) => state.error);
 
@@ -234,13 +235,20 @@ export const ExamScreen: React.FC = () => {
           </TouchableOpacity>
 
           {/* Timer */}
-          <Timer
-            remainingTimeMs={remainingTimeMs}
-            onTick={handleTimerTick}
-            onTimeUp={handleTimeUp}
-            onPersist={handlePersistTimer}
-            persistInterval={30000}
-          />
+          {isTimed ? (
+            <Timer
+              remainingTimeMs={remainingTimeMs}
+              onTick={handleTimerTick}
+              onTimeUp={handleTimeUp}
+              onPersist={handlePersistTimer}
+              persistInterval={30000}
+            />
+          ) : (
+            <View style={styles.untimedBadge}>
+              <Clock size={14} color="#9CA3AF" strokeWidth={2} />
+              <Text style={styles.untimedText}>Untimed</Text>
+            </View>
+          )}
 
           {/* Font size control */}
           <FontSizeControl level={fontSizeLevel} onChangeLevel={setFontSizeLevel} />
@@ -348,6 +356,21 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FCA5A5',
     fontSize: 14,
+  },
+  untimedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  untimedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9CA3AF',
   },
 });
 

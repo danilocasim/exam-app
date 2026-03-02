@@ -3,9 +3,18 @@ import {
   getRandomQuestionsByDomain,
   getQuestionCountByDomain,
   getTotalQuestionCount,
+  getQuestionsForTier,
 } from '../storage/repositories';
-import { Question, ExamTypeConfig, ExamDomain, DomainId } from '../storage/schema';
+import { getMissedQuestions } from '../storage/repositories/missed-questions.repository';
+import {
+  Question,
+  ExamTypeConfig,
+  ExamDomain,
+  DomainId,
+  CustomExamOptions,
+} from '../storage/schema';
 import { getCachedExamTypeConfig } from './sync.service';
+import { TierLevel, FREE_QUESTION_LIMIT } from '../config/tiers';
 
 /**
  * Result of exam generation
@@ -163,6 +172,194 @@ export const generateExam = async (): Promise<GeneratedExam> => {
     questions: shuffledQuestions,
     totalQuestions: shuffledQuestions.length,
     config,
+    domainDistribution,
+  };
+};
+
+/**
+ * T253: Generate an exam respecting the user's tier.
+ *
+ * PREMIUM: delegates to the full weighted generateExam() — all questions, full timer.
+ * FREE: generates a mini-exam from the consistent 15 free questions with a
+ *       proportionally scaled time limit. Passing score percentage stays the same.
+ *
+ * @param tier - The user's current tier level
+ * @param examTypeConfig - Optional config override (fetched from cache if omitted)
+ */
+export const generateExamForTier = async (
+  tier: TierLevel,
+  examTypeConfig?: ExamTypeConfig,
+): Promise<GeneratedExam> => {
+  if (tier === 'PREMIUM') {
+    return generateExam();
+  }
+
+  // FREE tier — mini-exam from the consistent free question pool
+  const config = examTypeConfig ?? (await getCachedExamTypeConfig());
+  if (!config) {
+    throw new Error('Exam configuration not found. Please sync before starting an exam.');
+  }
+
+  const freeQuestions = await getQuestionsForTier('FREE');
+  if (freeQuestions.length === 0) {
+    throw new Error('No questions available. Please sync or load bundled questions.');
+  }
+
+  // Shuffle for variety across exam attempts
+  const shuffled = shuffleArray(freeQuestions);
+
+  // Build domain distribution from the actual free question set
+  const domainDistribution: Record<DomainId, number> = {};
+  for (const q of shuffled) {
+    domainDistribution[q.domain] = (domainDistribution[q.domain] ?? 0) + 1;
+  }
+
+  // Proportionally scale the time limit (minimum 5 minutes)
+  const timeFraction = shuffled.length / config.questionCount;
+  const miniConfig: ExamTypeConfig = {
+    ...config,
+    questionCount: shuffled.length,
+    timeLimit: Math.max(5, Math.round(config.timeLimit * timeFraction)),
+    // passingScore stays the same percentage
+  };
+
+  console.log(
+    `[ExamGenerator] FREE mini-exam: ${shuffled.length} questions, ${miniConfig.timeLimit} min`,
+  );
+
+  return {
+    questions: shuffled,
+    totalQuestions: shuffled.length,
+    config: miniConfig,
+    domainDistribution,
+  };
+};
+
+/**
+ * Generate an exam from previously missed (incorrect) questions.
+ *
+ * Queries distinct question IDs where the user's most recent answer was wrong,
+ * selects `count` of them at random, and builds a proportionally-timed config.
+ *
+ * @param count - Number of missed questions to include
+ */
+export const generateExamFromMissed = async (count: number): Promise<GeneratedExam> => {
+  const config = await getCachedExamTypeConfig();
+  if (!config) {
+    throw new Error('Exam configuration not found. Please sync before starting an exam.');
+  }
+
+  const questions = await getMissedQuestions(count);
+  if (questions.length === 0) {
+    throw new Error('No missed questions found.');
+  }
+
+  // Build domain distribution
+  const domainDistribution: Record<DomainId, number> = {};
+  for (const q of questions) {
+    domainDistribution[q.domain] = (domainDistribution[q.domain] ?? 0) + 1;
+  }
+
+  // Proportionally scale the time limit (minimum 5 minutes)
+  const timeFraction = questions.length / config.questionCount;
+  const missedConfig: ExamTypeConfig = {
+    ...config,
+    questionCount: questions.length,
+    timeLimit: Math.max(5, Math.round(config.timeLimit * timeFraction)),
+  };
+
+  console.log(
+    `[ExamGenerator] Missed quiz: ${questions.length} questions, ${missedConfig.timeLimit} min`,
+  );
+
+  return {
+    questions,
+    totalQuestions: questions.length,
+    config: missedConfig,
+    domainDistribution,
+  };
+};
+
+/**
+ * Generate a custom exam with user-selected domains, question count, and timed/untimed mode.
+ *
+ * PREMIUM: selects from the full question pool filtered by selected domains.
+ * FREE: selects from the consistent free question pool filtered by selected domains,
+ *       clamped to FREE_QUESTION_LIMIT.
+ *
+ * @param options - Custom exam configuration (questionCount, selectedDomains, isTimed)
+ * @param tier    - The user's current tier level
+ */
+export const generateCustomExam = async (
+  options: CustomExamOptions,
+  tier: TierLevel,
+): Promise<GeneratedExam> => {
+  const config = await getCachedExamTypeConfig();
+  if (!config) {
+    throw new Error('Exam configuration not found. Please sync before starting an exam.');
+  }
+
+  const { selectedDomains, isTimed } = options;
+  let requestedCount = options.questionCount;
+
+  let allQuestions: Question[];
+
+  if (tier === 'FREE') {
+    // FREE tier: draw from the consistent free question set filtered by domains
+    const freeQuestions = await getQuestionsForTier('FREE');
+    allQuestions = freeQuestions.filter((q) => selectedDomains.includes(q.domain));
+    requestedCount = Math.min(requestedCount, FREE_QUESTION_LIMIT, allQuestions.length);
+  } else {
+    // PREMIUM tier: draw from the full pool, filtered by selected domains
+    const domainQuestions: Question[] = [];
+    for (const domainId of selectedDomains) {
+      // Fetch more than needed, shuffle will randomize later
+      const dq = await getRandomQuestionsByDomain(domainId, requestedCount);
+      domainQuestions.push(...dq);
+    }
+    allQuestions = domainQuestions;
+    requestedCount = Math.min(requestedCount, allQuestions.length);
+  }
+
+  if (allQuestions.length === 0) {
+    throw new Error('No questions available for the selected domains.');
+  }
+
+  // Shuffle and take the requested count
+  const shuffled = shuffleArray(allQuestions);
+  // Deduplicate in case of overlapping domain fetches
+  const seen = new Set<string>();
+  const unique: Question[] = [];
+  for (const q of shuffled) {
+    if (!seen.has(q.id)) {
+      seen.add(q.id);
+      unique.push(q);
+    }
+  }
+  const selected = unique.slice(0, requestedCount);
+
+  // Build domain distribution from selected questions
+  const domainDistribution: Record<DomainId, number> = {};
+  for (const q of selected) {
+    domainDistribution[q.domain] = (domainDistribution[q.domain] ?? 0) + 1;
+  }
+
+  // Build config: timed uses proportional scaling, untimed uses 24h (matches exam expiry)
+  const timeFraction = selected.length / config.questionCount;
+  const customConfig: ExamTypeConfig = {
+    ...config,
+    questionCount: selected.length,
+    timeLimit: isTimed ? Math.max(5, Math.round(config.timeLimit * timeFraction)) : 1440,
+  };
+
+  console.log(
+    `[ExamGenerator] Custom exam: ${selected.length} questions, ${customConfig.timeLimit} min, timed=${isTimed}`,
+  );
+
+  return {
+    questions: selected,
+    totalQuestions: selected.length,
+    config: customConfig,
     domainDistribution,
   };
 };

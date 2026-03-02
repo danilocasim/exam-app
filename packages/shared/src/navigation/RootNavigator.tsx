@@ -32,6 +32,9 @@ export type RootStackParamList = {
   ExamScreen: { resumeAttemptId?: string };
   ExamResults: { attemptId: string };
 
+  // Custom Exam flow
+  CustomExamSetup: undefined;
+
   // Practice flow screens (PracticeSetup is a tab in MainTabs as 'PracticeTab')
   PracticeScreen: { sessionId: string };
   PracticeSummary: { sessionId: string };
@@ -121,6 +124,9 @@ import { AuthScreen } from '../screens/AuthScreen';
 // Upgrade screen
 import { UpgradeScreen } from '../screens/UpgradeScreen';
 
+// Custom Exam Setup screen
+import { CustomExamSetupScreen } from '../screens/CustomExamSetupScreen';
+
 // Re-export MainTabParamList for type usage
 export type { MainTabParamList } from './MainTabNavigator';
 
@@ -172,6 +178,13 @@ export const RootNavigator: React.FC = () => {
             headerShown: false,
             gestureEnabled: false,
           }}
+        />
+
+        {/* Custom Exam Setup */}
+        <Stack.Screen
+          name="CustomExamSetup"
+          component={CustomExamSetupScreen}
+          options={{ headerShown: false }}
         />
 
         {/* Practice Flow */}

@@ -12,6 +12,7 @@ import {
   PracticeSummary,
 } from '../services/practice.service';
 import { useAuthStore } from './auth-store';
+import { usePurchaseStore } from './purchase.store';
 import { pushAllStats } from '../services/stats-sync.service';
 
 /**
@@ -115,8 +116,9 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
    */
   refreshAvailableCount: async () => {
     const { selectedDomain, selectedDifficulty } = get();
+    const tier = usePurchaseStore.getState().tierLevel;
     try {
-      const count = await getAvailableQuestionCount(selectedDomain, selectedDifficulty);
+      const count = await getAvailableQuestionCount(selectedDomain, selectedDifficulty, tier);
       set({ availableQuestionCount: count });
     } catch (err) {
       console.warn('Failed to refresh question count:', err);
@@ -128,11 +130,13 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
    */
   startSession: async () => {
     const { selectedDomain, selectedDifficulty } = get();
+    const tier = usePurchaseStore.getState().tierLevel;
     set({ isLoading: true, error: null, summary: null });
     try {
       const sessionState: PracticeSessionState = await startPracticeSession(
         selectedDomain,
         selectedDifficulty,
+        tier,
       );
       set({
         session: sessionState.session,

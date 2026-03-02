@@ -1,6 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, Alert, AppState, AppStateStatus } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  Alert,
+  AppState,
+  AppStateStatus,
+  TouchableOpacity,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './navigation/RootNavigator';
 import { initializeDatabase, switchUserDatabase } from './storage/database';
@@ -8,12 +16,18 @@ import { performFullSync } from './services/sync.service';
 import { initPersistence, stopPersistence } from './services/persistence.service';
 import { pullAndMergeAllStats } from './services/stats-sync.service';
 import { getTotalQuestionCount } from './storage/repositories/question.repository';
-import { initializeGoogleSignIn } from './services/auth-service';
+import {
+  initializeGoogleSignIn,
+  useGoogleAuthRequest,
+  handleGoogleAuthSuccess,
+} from './services/auth-service';
 import { TokenRefreshService } from './services/token-refresh-service';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { IntegrityBlockedScreen } from './components/IntegrityBlockedScreen';
 import { useAuthStore } from './stores/auth-store';
+import { usePurchaseStore } from './stores/purchase.store'; // ← add this line
 import { checkIntegrity } from './services/play-integrity.service';
+import { configureNotifications } from './services/notification.service';
 
 export interface AppRootProps {
   examTypeId: string;
@@ -31,23 +45,36 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
   const [integrityShowRetry, setIntegrityShowRetry] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
+  // T251: Phase tracking for two-phase init (integrity → auth gate → sync)
+  const [integrityPassed, setIntegrityPassed] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const phase2Started = useRef(false);
+
+  // T251: Subscribe to auth state for phase 2 trigger
+  const isSignedIn = useAuthStore((state) => state.isSignedIn);
+
+  // T251: Google auth hook (must be at top level — no nav context required)
+  const { promptAsync: promptGoogleAuth, response: googleAuthResponse } = useGoogleAuthRequest();
+
+  const primaryColor = branding?.primaryColor ?? '#f59e0b';
+
   const handleAppStateChange = (state: AppStateStatus) => {
     if (state === 'active') {
-      // App came to foreground - trigger sync and token refresh
-      console.log('[App] App came to foreground, triggering sync and token refresh');
+      console.log('[App] App came to foreground, triggering token refresh');
       TokenRefreshService.refreshIfNeeded().catch((err) => {
         console.error('[App] Token refresh failed:', err);
       });
     } else if (state === 'background') {
-      // App went to background
       console.log('[App] App went to background');
     }
   };
 
+  // ─── Phase 1: DB init + integrity check ──────────────────────────────────
+
   useEffect(() => {
-    const initialize = async () => {
+    const phase1 = async () => {
       try {
-        // Initialize Google Sign-In
         setSyncStatus('Initializing authentication...');
         try {
           await initializeGoogleSignIn();
@@ -57,20 +84,21 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
         }
 
         // Setup periodic token refresh (every minute)
-        const stopTokenRefresh = TokenRefreshService.setupPeriodicRefresh(60000);
+        TokenRefreshService.setupPeriodicRefresh(60000);
         console.log('[App] Token refresh service started');
+
+        // Configure local notification handler for cooldown alerts
+        configureNotifications();
 
         // Initialize SQLite database FIRST (integrity check needs IntegrityStatus table)
         setSyncStatus('Setting up database...');
         await initializeDatabase();
         console.log('[App] Database initialized');
 
-        // Then run integrity check (needs database to be ready)
+        // Run Play Integrity check (needs database ready)
         setSyncStatus('Verifying integrity...');
         const integrityResult = await checkIntegrity();
 
-        // T177: Dev bypass or cache hit should not block initialization
-        // Only block DEFINITIVE failures (sideloaded APKs), not TRANSIENT errors
         if (!integrityResult.verified && integrityResult.error?.type === 'DEFINITIVE') {
           // Permanent block — sideloaded/re-signed APK detected
           console.error('[App] DEFINITIVE integrity failure - blocking app');
@@ -79,24 +107,88 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
               'For security reasons, this app must be downloaded from Google Play.',
           );
           setIntegrityShowRetry(false);
-          setIsReady(true);
-          return;
+          return; // Don't set integrityPassed — blocked screen shows via render check
         }
 
-        // TRANSIENT/NETWORK errors: log warning but allow app to proceed
         if (!integrityResult.verified && !integrityResult.cachedResult) {
           console.warn(
-            '[App] Integrity check failed (TRANSIENT/NETWORK), but allowing app to proceed:',
+            '[App] Integrity check failed (TRANSIENT/NETWORK), allowing proceed:',
             integrityResult.error?.message,
           );
         }
-        console.warn('[App] Integrity verified or dev bypass, proceeding with app initialization');
+        console.log('[App] Integrity verified or dev bypass');
 
-        // If user was signed in (persisted in AsyncStorage), switch to their database
+        // T251: Signal that phase 2 can start once the user is authenticated
+        // TEMP TEST: force FREE tier — remove after testing
+        // usePurchaseStore.getState().reset();
+
+        // T251: Signal that phase 2 can start once the user is authenticated
+        setIntegrityPassed(true);
+      } catch (e) {
+        console.error('[App] Phase 1 initialization failed:', e);
+        setError(e instanceof Error ? e.message : 'Unknown error');
+      }
+    };
+
+    phase1();
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+      stopPersistence();
+    };
+  }, [retryCount]);
+
+  // ─── T251: Handle Google auth response ───────────────────────────────────
+
+  useEffect(() => {
+    if (!googleAuthResponse) return;
+
+    if (googleAuthResponse.type === 'success' && googleAuthResponse.authentication) {
+      setIsAuthLoading(true);
+      setAuthError(null);
+      handleGoogleAuthSuccess(
+        googleAuthResponse.authentication.accessToken,
+        googleAuthResponse.authentication.idToken ?? '',
+      )
+        .then(() => console.log('[App] Google auth success, phase 2 will start'))
+        .catch((err) => {
+          console.error('[App] Google auth failed:', err);
+          setAuthError('Sign in failed. Please try again.');
+        })
+        .finally(() => setIsAuthLoading(false));
+    } else if (googleAuthResponse.type === 'error') {
+      setAuthError('Sign in failed. Please try again.');
+    }
+  }, [googleAuthResponse]);
+
+  // ─── Reset phase 2 state when user logs out ──────────────────────────────
+
+  useEffect(() => {
+    if (!isSignedIn && isReady) {
+      // User logged out — reset state for next login
+      console.log('[App] User logged out, resetting phase 2 state');
+      phase2Started.current = false;
+      setIsReady(false);
+    }
+  }, [isSignedIn, isReady]);
+
+  // ─── Phase 2: DB switch + sync (runs once when integrity passed + signed in) ─
+
+  useEffect(() => {
+    if (!integrityPassed || !isSignedIn || phase2Started.current) return;
+    phase2Started.current = true;
+
+    const phase2 = async () => {
+      try {
         const authState = useAuthStore.getState();
-        if (authState.isSignedIn && authState.user?.email) {
-          console.warn(`[App] Restoring user database for ${authState.user.email}`);
+
+        // Switch to user-specific database
+        if (authState.user?.email) {
+          console.log(`[App] Switching to user database for ${authState.user.email}`);
+          setSyncStatus('Setting up your account...');
           await switchUserDatabase(authState.user.email);
+
           if (authState.accessToken) {
             setSyncStatus('Syncing your history...');
             await pullAndMergeAllStats(authState.accessToken).catch((err) =>
@@ -105,9 +197,9 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
           }
         }
 
-        // Check if we already have cached questions
+        // Check existing cached questions
         const existingCount = await getTotalQuestionCount();
-        console.warn(`[App] Existing questions in DB: ${existingCount}`);
+        console.log(`[App] Existing questions in DB: ${existingCount}`);
 
         // Sync questions from API
         setSyncStatus('Syncing questions from server...');
@@ -116,7 +208,6 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
         if (!result.success) {
           console.warn('[App] Sync failed:', result.error);
           if (existingCount === 0) {
-            // No cached questions and sync failed - show warning
             Alert.alert(
               'Sync Failed',
               `Could not download questions: ${result.error}\n\nMake sure the API server is running and accessible.`,
@@ -124,41 +215,30 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
             );
           }
         } else {
-          console.warn(
+          console.log(
             `[App] Sync complete: ${result.questionsAdded} added, ${result.questionsUpdated} updated`,
           );
         }
 
-        // Get final question count
-        const finalCount = await getTotalQuestionCount();
-        console.warn(`[App] Total questions after sync: ${finalCount}`);
-
-        // Initialize persistence service for exam attempt sync + stats push
+        // Initialize persistence service (exam attempt sync + stats push)
         setSyncStatus('Setting up sync service...');
         await initPersistence(
           { autoSyncEnabled: true, autoSyncInterval: 300000 },
-          authState.isSignedIn ? authState.user?.id : undefined,
-          // Token getter: always reads the freshest token from the auth store
+          authState.user?.id,
           () => useAuthStore.getState().accessToken,
         );
 
         setIsReady(true);
       } catch (e) {
-        console.error('[App] Initialization failed:', e);
+        console.error('[App] Phase 2 initialization failed:', e);
         setError(e instanceof Error ? e.message : 'Unknown error');
       }
     };
 
-    initialize();
+    phase2();
+  }, [integrityPassed, isSignedIn]);
 
-    // Handle app state changes
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-      stopPersistence();
-    };
-  }, [retryCount]);
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   if (integrityBlockedMessage) {
     return (
@@ -168,7 +248,7 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
         onRetry={() => {
           setIntegrityBlockedMessage(null);
           setIntegrityShowRetry(false);
-          setIsReady(false);
+          setIntegrityPassed(false);
           setSyncStatus('Retrying verification...');
           setRetryCount((c) => c + 1);
         }}
@@ -207,6 +287,96 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
     );
   }
 
+  // T251: Auth gate — shown when integrity passed but user is not signed in
+  // This gate is shown both before initial login AND after logout
+  if (integrityPassed && !isSignedIn) {
+    return (
+      <SafeAreaProvider>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#0f172a',
+            padding: 32,
+          }}
+        >
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 24,
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24,
+            }}
+          >
+            <Text style={{ fontSize: 40 }}>☁️</Text>
+          </View>
+
+          <Text
+            style={{
+              fontSize: 26,
+              fontWeight: 'bold',
+              color: '#fff',
+              marginBottom: 8,
+              textAlign: 'center',
+            }}
+          >
+            {appName}
+          </Text>
+          <Text style={{ color: '#94a3b8', fontSize: 15, marginBottom: 48, textAlign: 'center' }}>
+            Sign in to access your exam prep
+          </Text>
+
+          {authError ? (
+            <Text
+              style={{
+                color: '#f87171',
+                fontSize: 14,
+                textAlign: 'center',
+                marginBottom: 16,
+              }}
+            >
+              {authError}
+            </Text>
+          ) : null}
+
+          <TouchableOpacity
+            onPress={() => {
+              setAuthError(null);
+              promptGoogleAuth();
+            }}
+            disabled={isAuthLoading}
+            style={{
+              backgroundColor: primaryColor,
+              paddingHorizontal: 36,
+              paddingVertical: 16,
+              borderRadius: 12,
+              alignItems: 'center',
+              minWidth: 220,
+              opacity: isAuthLoading ? 0.7 : 1,
+            }}
+          >
+            {isAuthLoading ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={{ color: '#000', fontWeight: '700', fontSize: 16 }}>
+                Sign in with Google
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <Text style={{ color: '#475569', fontSize: 12, marginTop: 32, textAlign: 'center' }}>
+            Your progress syncs securely to the cloud
+          </Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
+  // Phase 1 running or phase 2 syncing
   if (!isReady) {
     return (
       <View
@@ -233,11 +403,7 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
         <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 8 }}>
           {appName}
         </Text>
-        <ActivityIndicator
-          size="large"
-          color={branding?.primaryColor ?? '#f59e0b'}
-          style={{ marginTop: 16 }}
-        />
+        <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: 16 }} />
         <Text style={{ marginTop: 16, color: '#94a3b8', fontWeight: '500' }}>{syncStatus}</Text>
       </View>
     );

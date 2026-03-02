@@ -37,12 +37,15 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Lock,
+  Crown,
 } from 'lucide-react-native';
 import { useShallow } from 'zustand/react/shallow';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAnalyticsStore, selectHasData } from '../stores/analytics.store';
 import { useStreakStore } from '../stores/streak.store';
 import { useExamStore } from '../stores';
+import { useIsPremium } from '../stores/purchase.store';
 import { abandonCurrentExam } from '../services';
 import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 import { ScoreHistoryEntry, StudyStats, WeakDomain } from '../services/analytics.service';
@@ -82,6 +85,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Analytics'>
 export const AnalyticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const isPremium = useIsPremium();
   const { startExam } = useExamStore();
   const { streak, completedToday, loadStreak } = useStreakStore();
 
@@ -128,6 +132,32 @@ export const AnalyticsScreen: React.FC = () => {
       loadStreak();
     }, [loadAnalytics, loadStreak]),
   );
+
+  /* ── FREE tier gate ── */
+  if (!isPremium) {
+    return (
+      <SafeAreaView style={st.safeArea} edges={['top']}>
+        <Header onBack={() => (navigation as any).navigate('HomeTab')} />
+        <View style={st.centeredContainer}>
+          <View style={st.lockIconCircle}>
+            <Lock size={32} color="#F59E0B" strokeWidth={2} />
+          </View>
+          <Text style={st.lockTitle}>Analytics is a Premium Feature</Text>
+          <Text style={st.lockSubtitle}>
+            Upgrade to track your performance, score trends, and domain weak spots.
+          </Text>
+          <TouchableOpacity
+            style={st.upgradeButton}
+            onPress={() => (navigation as any).navigate('Upgrade')}
+            activeOpacity={0.85}
+          >
+            <Crown size={14} color="#000" strokeWidth={2} />
+            <Text style={st.upgradeButtonText}>Unlock Analytics</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   /* ── Loading ── */
   if (isLoading && !analyticsData) {
@@ -839,6 +869,48 @@ const st = StyleSheet.create({
     marginTop: 4,
   },
   retryText: { color: colors.textHeading, fontWeight: 'bold', fontSize: 14 },
+
+  /* ── FREE tier lock gate ── */
+  lockIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  lockTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textHeading,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  lockSubtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 28,
+    paddingHorizontal: 20,
+    lineHeight: 22,
+  },
+  upgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  upgradeButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#000',
+  },
 
   /* ── Header ── */
   header: {

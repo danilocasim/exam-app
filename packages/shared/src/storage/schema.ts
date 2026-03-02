@@ -21,6 +21,20 @@ export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 export type ExamStatus = 'in-progress' | 'completed' | 'abandoned';
 
 /**
+ * Exam mode — distinguishes Daily Quiz, Mock Exam, Missed Questions Quiz, and Custom Exam
+ */
+export type ExamMode = 'daily' | 'mock' | 'missed' | 'custom';
+
+/**
+ * Configuration for a Custom Exam (selected before starting)
+ */
+export interface CustomExamOptions {
+  questionCount: number;
+  selectedDomains: string[];
+  isTimed: boolean;
+}
+
+/**
  * Domain ID - string identifier for exam domains
  * Common AWS CCP domains: 'cloud-concepts', 'security', 'technology', 'billing'
  */
@@ -112,6 +126,8 @@ export interface QuestionRow {
 export interface ExamAttempt {
   /** UUID generated locally */
   id: string;
+  /** Exam mode: daily quiz or mock exam */
+  mode: ExamMode;
   /** ISO timestamp when exam started */
   startedAt: string;
   /** ISO timestamp when exam ended (null if in-progress) */
@@ -135,6 +151,7 @@ export interface ExamAttempt {
  */
 export interface ExamAttemptRow {
   id: string;
+  mode: string;
   startedAt: string;
   completedAt: string | null;
   status: ExamStatus;

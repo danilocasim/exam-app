@@ -1,13 +1,14 @@
 // T035: ExamAttemptRepository for SQLite CRUD operations
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../database';
-import { ExamAttempt, ExamAttemptRow, ExamStatus } from '../schema';
+import { ExamAttempt, ExamAttemptRow, ExamStatus, ExamMode } from '../schema';
 
 /**
  * Convert a SQLite row to an ExamAttempt entity
  */
 const rowToExamAttempt = (row: ExamAttemptRow): ExamAttempt => ({
   id: row.id,
+  mode: (row.mode as ExamMode) ?? 'mock',
   startedAt: row.startedAt,
   completedAt: row.completedAt,
   status: row.status,
@@ -23,6 +24,7 @@ const rowToExamAttempt = (row: ExamAttemptRow): ExamAttempt => ({
  */
 const examAttemptToRow = (attempt: ExamAttempt): ExamAttemptRow => ({
   id: attempt.id,
+  mode: attempt.mode,
   startedAt: attempt.startedAt,
   completedAt: attempt.completedAt,
   status: attempt.status,
@@ -68,14 +70,19 @@ export const getExamAttemptsByStatus = async (status: ExamStatus): Promise<ExamA
 };
 
 /**
- * Get the in-progress exam attempt (if any)
- * There should only be one at a time
+ * Get the in-progress exam attempt for a specific mode (if any)
+ * When mode is omitted, returns any in-progress attempt (legacy behaviour).
  */
-export const getInProgressExamAttempt = async (): Promise<ExamAttempt | null> => {
+export const getInProgressExamAttempt = async (mode?: ExamMode): Promise<ExamAttempt | null> => {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<ExamAttemptRow>(
-    "SELECT * FROM ExamAttempt WHERE status = 'in-progress' ORDER BY startedAt DESC LIMIT 1",
-  );
+  const row = mode
+    ? await db.getFirstAsync<ExamAttemptRow>(
+        "SELECT * FROM ExamAttempt WHERE status = 'in-progress' AND mode = ? ORDER BY startedAt DESC LIMIT 1",
+        [mode],
+      )
+    : await db.getFirstAsync<ExamAttemptRow>(
+        "SELECT * FROM ExamAttempt WHERE status = 'in-progress' ORDER BY startedAt DESC LIMIT 1",
+      );
   return row ? rowToExamAttempt(row) : null;
 };
 
@@ -129,6 +136,7 @@ export const getPassedExamAttemptCount = async (): Promise<number> => {
 export const createExamAttempt = async (
   totalQuestions: number,
   durationMs: number,
+  mode: ExamMode = 'mock',
 ): Promise<ExamAttempt> => {
   const db = await getDatabase();
   const now = new Date().toISOString();
@@ -136,6 +144,7 @@ export const createExamAttempt = async (
 
   const attempt: ExamAttempt = {
     id: Crypto.randomUUID(),
+    mode,
     startedAt: now,
     completedAt: null,
     status: 'in-progress',
@@ -149,10 +158,11 @@ export const createExamAttempt = async (
   const row = examAttemptToRow(attempt);
   await db.runAsync(
     `INSERT INTO ExamAttempt 
-      (id, startedAt, completedAt, status, score, passed, totalQuestions, remainingTimeMs, expiresAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, mode, startedAt, completedAt, status, score, passed, totalQuestions, remainingTimeMs, expiresAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       row.id,
+      row.mode,
       row.startedAt,
       row.completedAt,
       row.status,
@@ -175,10 +185,11 @@ export const updateExamAttempt = async (attempt: ExamAttempt): Promise<void> => 
   const row = examAttemptToRow(attempt);
   await db.runAsync(
     `UPDATE ExamAttempt SET 
-      startedAt = ?, completedAt = ?, status = ?, score = ?,
+      mode = ?, startedAt = ?, completedAt = ?, status = ?, score = ?,
       passed = ?, totalQuestions = ?, remainingTimeMs = ?, expiresAt = ?
     WHERE id = ?`,
     [
+      row.mode,
       row.startedAt,
       row.completedAt,
       row.status,

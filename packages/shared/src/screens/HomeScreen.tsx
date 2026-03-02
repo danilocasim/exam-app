@@ -41,6 +41,15 @@ import {
   Clock,
   Calendar,
   Flame,
+  Crown,
+  CheckCircle2,
+  Lock,
+  Sun,
+  Pencil,
+  CircleX,
+  Minus,
+  Plus,
+  SlidersHorizontal,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
@@ -53,7 +62,13 @@ import { getTotalQuestionCount } from '../storage/repositories/question.reposito
 import { canGenerateExam } from '../services/exam-generator.service';
 import { getUserStats } from '../storage/repositories/user-stats.repository';
 import { getOverallStats, calculateAggregatedDomainPerformance } from '../services/scoring.service';
-import { EXAM_CONFIG } from '../config';
+import { EXAM_CONFIG, FREE_QUESTION_LIMIT, DAILY_QUESTION_LIMIT } from '../config';
+import { useIsPremium } from '../stores/purchase.store';
+import {
+  getDailyExamLastAttempt,
+  getMissedExamLastAttempt,
+} from '../storage/repositories/daily-mode.repository';
+import { getMissedQuestionCount } from '../storage/repositories/missed-questions.repository';
 import { CalendarStrip } from '../components/CalendarStrip';
 import { DatePickerModal } from '../components/DatePickerModal';
 
@@ -81,6 +96,25 @@ const colors = {
 };
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+
+// ── Cooldown helpers (module-level) ──
+const remainingMs = (lastAttemptAt: string | null): number => {
+  if (!lastAttemptAt) return 0;
+  const ms = 24 * 60 * 60 * 1000 - (Date.now() - new Date(lastAttemptAt).getTime());
+  return ms > 0 ? ms : 0;
+};
+
+const formatCooldown = (lastAttemptAt: string | null): string => {
+  const ms = remainingMs(lastAttemptAt);
+  if (ms <= 0) return '';
+  const totalMinutes = Math.floor(ms / 60_000);
+  if (totalMinutes <= 0) return 'Available in <1m';
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `Available in ${m}m`;
+  if (m === 0) return `Available in ${h}h`;
+  return `Available in ${h}h ${m}m`;
+};
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -117,16 +151,109 @@ const WebViewProgressBar: React.FC = () => {
   );
 };
 
+// ── TierCard ──
+// Unified card for FREE and PREMIUM states — same structure, animated internals.
+// Uses opacity-gated CTA (not conditional) so card height never shifts.
+const TierCard: React.FC<{
+  isPremium: boolean;
+  questionCount: number;
+  onUpgrade: () => void;
+}> = ({ isPremium, questionCount, onUpgrade }) => {
+  const isPremiumRef = useRef(isPremium);
+
+  // Compute initial progress ratio for FREE state
+  const freeRatio = questionCount > 0 ? FREE_QUESTION_LIMIT / questionCount : 0;
+  const progressAnim = useRef(new Animated.Value(isPremium ? 1 : freeRatio)).current;
+  const ctaOpacity = useRef(new Animated.Value(isPremium ? 0 : 1)).current;
+
+  // Sync progress when questionCount loads async (FREE only, instant — not an upgrade)
+  useEffect(() => {
+    if (!isPremiumRef.current && questionCount > 0) {
+      progressAnim.setValue(FREE_QUESTION_LIMIT / questionCount);
+    }
+  }, [questionCount]);
+
+  // Animate only on the FREE → PREMIUM transition
+  useEffect(() => {
+    if (isPremium && !isPremiumRef.current) {
+      Animated.parallel([
+        Animated.timing(progressAnim, { toValue: 1, duration: 700, useNativeDriver: false }),
+        Animated.timing(ctaOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }
+    isPremiumRef.current = isPremium;
+  }, [isPremium]);
+
+  const lockedCount = Math.max(0, questionCount - FREE_QUESTION_LIMIT);
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <View style={styles.tierCard}>
+      {/* Plan label row */}
+      <View style={styles.tierCardHeader}>
+        <View style={styles.tierCardLeft}>
+          <Crown size={14} color="#F59E0B" strokeWidth={2} />
+          <Text style={styles.tierPlanLabel}>{isPremium ? 'Premium Plan' : 'Free Plan'}</Text>
+        </View>
+        {isPremium && (
+          <View style={styles.tierActivePill}>
+            <CheckCircle2 size={12} color={colors.success} strokeWidth={2.5} />
+            <Text style={styles.tierActivePillText}>All Unlocked</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Count description */}
+      <Text style={styles.tierCountText}>
+        {isPremium
+          ? `All ${questionCount} questions unlocked`
+          : `${FREE_QUESTION_LIMIT} of ${questionCount} questions available`}
+      </Text>
+
+      {/* Progress bar — always rendered, animates to full on upgrade */}
+      <View style={styles.tierProgressTrack}>
+        <Animated.View
+          style={[
+            styles.tierProgressFill,
+            isPremium && styles.tierProgressFillSuccess,
+            { width: progressWidth },
+          ]}
+        />
+      </View>
+
+      {/* Upgrade CTA — always in layout (prevents height shift), fades on upgrade */}
+      <Animated.View style={[styles.tierCtaRow, { opacity: ctaOpacity }]}>
+        <TouchableOpacity
+          onPress={onUpgrade}
+          style={styles.tierUpgradeLink}
+          activeOpacity={0.7}
+          disabled={isPremium}
+        >
+          <Text style={styles.tierUpgradeLinkText}>Unlock {lockedCount} more questions</Text>
+          <ChevronRight size={13} color={colors.primaryOrange} strokeWidth={2.5} />
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+};
+
 // ── HomeScreen ──
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { startExam, resumeExam, isLoading, error, setError } = useExamStore();
   const { isSignedIn, user } = useAuthStore();
+  const isPremium = useIsPremium();
   const { streak, motivation, completedToday, daysUntilExam, loadStreak, saveExamDate } =
     useStreakStore();
 
-  const [hasInProgress, setHasInProgress] = useState(false);
+  const [hasInProgressDaily, setHasInProgressDaily] = useState(false);
+  const [hasInProgressMock, setHasInProgressMock] = useState(false);
+  const [hasInProgressMissed, setHasInProgressMissed] = useState(false);
+  const [hasInProgressCustom, setHasInProgressCustom] = useState(false);
   const [questionCount, setQuestionCount] = useState(0);
   const [canStart, setCanStart] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
@@ -140,6 +267,14 @@ export const HomeScreen: React.FC = () => {
   const [webViewUrl, setWebViewUrl] = useState<string | null>(null);
   const [webViewLoading, setWebViewLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dailyLastAttempt, setDailyLastAttempt] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+
+  // Missed Questions Quiz state
+  const [missedCount, setMissedCount] = useState(0);
+  const [missedLastAttempt, setMissedLastAttempt] = useState<string | null>(null);
+  const [showMissedPicker, setShowMissedPicker] = useState(false);
+  const [selectedMissedCount, setSelectedMissedCount] = useState(10);
 
   useFocusEffect(
     useCallback(() => {
@@ -148,17 +283,47 @@ export const HomeScreen: React.FC = () => {
     }, []),
   );
 
+  // Real-time cooldown: tick every 60s to recompute remaining time
+  useEffect(() => {
+    if (isPremium) return;
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [isPremium]);
+
   const checkExamStatus = async () => {
     setCheckingStatus(true);
     try {
-      const [inProgress, count, canGen] = await Promise.all([
-        hasInProgressExam(),
+      const [
+        inProgressDaily,
+        inProgressMock,
+        inProgressMissed,
+        inProgressCustom,
+        count,
+        canGen,
+        examLast,
+        missedLast,
+        missedQCount,
+      ] = await Promise.all([
+        hasInProgressExam('daily'),
+        hasInProgressExam('mock'),
+        hasInProgressExam('missed'),
+        hasInProgressExam('custom'),
         getTotalQuestionCount(),
         canGenerateExam(),
+        getDailyExamLastAttempt(),
+        getMissedExamLastAttempt(),
+        getMissedQuestionCount(),
       ]);
-      setHasInProgress(inProgress);
+      setHasInProgressDaily(inProgressDaily);
+      setHasInProgressMock(inProgressMock);
+      setHasInProgressMissed(inProgressMissed);
+      setHasInProgressCustom(inProgressCustom);
       setQuestionCount(count);
       setCanStart(canGen.canGenerate);
+      setDailyLastAttempt(examLast);
+      setMissedLastAttempt(missedLast);
+      setMissedCount(missedQCount);
+      setSelectedMissedCount((prev) => Math.min(prev, missedQCount || 10));
 
       // Non-critical analytics data
       try {
@@ -186,18 +351,21 @@ export const HomeScreen: React.FC = () => {
   };
 
   // ── Handlers ──
-  const handleStartExam = async () => {
+  // mode: 'daily' (always FREE tier, 15 questions) or 'mock' (user's tier)
+  const handleStartExam = async (mode: 'daily' | 'mock' = 'mock') => {
     try {
       setError(null);
-      await startExam();
+      const tier = mode === 'daily' ? 'FREE' : undefined;
+      await startExam(tier, mode);
       navigation.navigate('ExamScreen', {});
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('already in progress')) {
         try {
-          const inProgress = await getInProgressExamAttempt();
+          const inProgress = await getInProgressExamAttempt(mode);
           if (inProgress) await abandonCurrentExam(inProgress.id);
-          await startExam();
+          const tier = mode === 'daily' ? 'FREE' : undefined;
+          await startExam(tier, mode);
           navigation.navigate('ExamScreen', {});
           return;
         } catch {
@@ -208,10 +376,10 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const handleResumeExam = async () => {
+  const handleResumeExam = async (mode: 'daily' | 'mock' | 'missed' | 'custom' = 'mock') => {
     try {
       setError(null);
-      const resumed = await resumeExam();
+      const resumed = await resumeExam(mode);
       if (resumed) {
         navigation.navigate('ExamScreen', {});
       } else {
@@ -223,7 +391,8 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const handleStartNewExam = () => {
+  // Accepts mode for starting a new exam (abandons existing of SAME mode only)
+  const handleStartNewExam = (mode: 'daily' | 'mock' | 'missed' | 'custom' = 'mock') => {
     Alert.alert(
       'Start New Exam',
       'You have an exam in progress. Do you want to abandon it and start a new one?',
@@ -236,20 +405,69 @@ export const HomeScreen: React.FC = () => {
             try {
               const { abandonExam } = useExamStore.getState();
               const session = useExamStore.getState().session;
-              if (session) {
+              if (session && session.attempt.mode === mode) {
                 await abandonExam();
               } else {
-                const ip = await getInProgressExamAttempt();
+                const ip = await getInProgressExamAttempt(mode);
                 if (ip) await abandonCurrentExam(ip.id);
               }
             } catch {
               // continue
             }
-            await handleStartExam();
+            if (mode === 'missed') {
+              await handleStartMissedExam(selectedMissedCount);
+            } else if (mode === 'custom') {
+              navigation.navigate('CustomExamSetup');
+            } else {
+              await handleStartExam(mode);
+            }
           },
         },
       ],
     );
+  };
+
+  // ── Missed Questions Quiz handlers ──
+  const handleStartMissedExam = async (count: number) => {
+    try {
+      setError(null);
+      const { startMissedExam } = useExamStore.getState();
+      await startMissedExam(count);
+      navigation.navigate('ExamScreen', {});
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('already in progress')) {
+        try {
+          const ip = await getInProgressExamAttempt('missed');
+          if (ip) await abandonCurrentExam(ip.id);
+          const { startMissedExam } = useExamStore.getState();
+          await startMissedExam(count);
+          navigation.navigate('ExamScreen', {});
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      Alert.alert('Error', message || 'Failed to start missed questions quiz');
+    }
+  };
+
+  const handleMissedCardPress = () => {
+    if (hasInProgressMissed) {
+      handleResumeExam('missed');
+    } else {
+      // Open picker to choose question count
+      setSelectedMissedCount(Math.min(10, missedCount));
+      setShowMissedPicker(true);
+    }
+  };
+
+  const handleCustomCardPress = () => {
+    if (hasInProgressCustom) {
+      handleResumeExam('custom');
+    } else {
+      navigation.navigate('CustomExamSetup');
+    }
   };
 
   // ── Loading splash ──
@@ -307,47 +525,96 @@ export const HomeScreen: React.FC = () => {
     setWebViewLoading(true);
   };
 
-  // ── Quick action definitions ──
-  const quickActions = [
-    {
-      key: 'mock',
-      label: 'Mock Exam',
-      sub: 'Simulate real exam',
-      icon: <Target size={22} color={colors.primaryOrange} strokeWidth={1.8} />,
-      iconBg: 'rgba(255, 153, 0, 0.15)',
-      onPress: () => {
-        if (hasInProgress) {
-          handleStartNewExam();
-        } else {
-          handleStartExam();
-        }
-      },
-    },
-    {
-      key: 'practice',
-      label: 'Practice Exam',
-      sub: 'Practice by domain',
-      icon: <ClipboardList size={22} color={colors.info} strokeWidth={1.8} />,
-      iconBg: 'rgba(59, 130, 246, 0.15)',
-      onPress: () => (navigation as any).navigate('PracticeTab'),
-    },
-    {
-      key: 'history',
-      label: 'History',
-      sub: 'Past attempts',
-      icon: <Clock size={22} color={colors.success} strokeWidth={1.8} />,
-      iconBg: 'rgba(16, 185, 129, 0.15)',
-      onPress: () => (navigation as any).navigate('HistoryTab'),
-    },
-    {
-      key: 'stats',
-      label: 'Stats',
-      sub: 'Performance insights',
-      icon: <BarChart2 size={22} color="#8B5CF6" strokeWidth={1.8} />,
-      iconBg: 'rgba(139, 92, 246, 0.15)',
-      onPress: () => (navigation as any).navigate('StatsTab'),
-    },
-  ];
+  // ── Tier-aware mode definitions ──
+  // Cards always visible for both tiers — only lock/cooldown state changes.
+  // Cooldown (FREE only): computed from SQLite via getDailyExamLastAttempt() / getMissedExamLastAttempt().
+  // Cooldown is recorded on exam SUBMISSION in exam.store.ts, not on start.
+  const dailyCooldownActive = !isPremium && remainingMs(dailyLastAttempt) > 0;
+  const missedCooldownActive = !isPremium && remainingMs(missedLastAttempt) > 0;
+  const missedEmpty = missedCount === 0;
+  const missedDisabled =
+    (missedCooldownActive && !hasInProgressMissed) || (missedEmpty && !hasInProgressMissed);
+
+  const dailyCard = {
+    key: 'daily',
+    label: 'Daily Quiz',
+    sub: hasInProgressDaily
+      ? 'In progress'
+      : dailyCooldownActive
+        ? formatCooldown(dailyLastAttempt)
+        : `${DAILY_QUESTION_LIMIT} questions · timed`,
+    icon: (
+      <Sun
+        size={22}
+        color={dailyCooldownActive && !hasInProgressDaily ? colors.textMuted : colors.success}
+        strokeWidth={1.8}
+      />
+    ),
+    iconBg:
+      dailyCooldownActive && !hasInProgressDaily ? colors.surfaceHover : 'rgba(16, 185, 129, 0.15)',
+    locked: false,
+    cooldown: dailyCooldownActive && !hasInProgressDaily,
+    onPress: hasInProgressDaily ? () => handleResumeExam('daily') : () => handleStartExam('daily'),
+  };
+
+  const missedCard = {
+    key: 'missed',
+    label: 'Missed Question',
+    sub: hasInProgressMissed
+      ? 'In progress'
+      : missedEmpty
+        ? 'No missed questions yet'
+        : missedCooldownActive
+          ? formatCooldown(missedLastAttempt)
+          : `${missedCount} available`,
+    icon: (
+      <CircleX size={22} color={missedDisabled ? colors.textMuted : '#EF4444'} strokeWidth={1.8} />
+    ),
+    iconBg: missedDisabled ? colors.surfaceHover : 'rgba(239, 68, 68, 0.12)',
+    locked: false,
+    cooldown: missedDisabled,
+    onPress: handleMissedCardPress,
+  };
+
+  const customCard = {
+    key: 'custom',
+    label: 'Custom Exam',
+    sub: hasInProgressCustom ? 'In progress' : isPremium ? 'Build your own' : '',
+    icon: isPremium ? (
+      <SlidersHorizontal size={22} color={colors.info} strokeWidth={1.8} />
+    ) : (
+      <Lock size={22} color={colors.textMuted} strokeWidth={1.8} />
+    ),
+    iconBg: isPremium ? 'rgba(59, 130, 246, 0.15)' : colors.surfaceHover,
+    locked: !isPremium,
+    cooldown: false,
+    onPress: !isPremium ? () => navigation.navigate('Upgrade') : handleCustomCardPress,
+  };
+
+  const mockCard = {
+    key: 'mock',
+    label: 'Mock Exam',
+    sub: hasInProgressMock
+      ? 'In progress'
+      : isPremium
+        ? `${EXAM_CONFIG.QUESTIONS_PER_EXAM} questions · timed`
+        : '',
+    icon: isPremium ? (
+      <Target size={22} color={colors.primaryOrange} strokeWidth={1.8} />
+    ) : (
+      <Lock size={22} color={colors.textMuted} strokeWidth={1.8} />
+    ),
+    iconBg: isPremium ? 'rgba(255, 153, 0, 0.15)' : colors.surfaceHover,
+    locked: !isPremium,
+    cooldown: false,
+    onPress: !isPremium
+      ? () => navigation.navigate('Upgrade')
+      : hasInProgressMock
+        ? () => handleResumeExam('mock')
+        : () => handleStartExam('mock'),
+  };
+
+  const gridModes = [dailyCard, missedCard, mockCard, customCard];
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -425,11 +692,15 @@ export const HomeScreen: React.FC = () => {
         <CalendarStrip examDate={streak?.examDate} />
 
         <View style={styles.content}>
-          {/* ── Primary CTA ── */}
-          {hasInProgress ? (
+          {/* ── Primary CTA ──
+               Shows the most relevant action: resume an in-progress exam, start a new one, or cooldown notice.
+               Daily Quiz and Mock Exam are independent — each mode card handles its own resume/start.
+               The primary CTA is for the "best next action" convenience button. */}
+          {hasInProgressDaily || hasInProgressMock ? (
+            /* ── Resume Exam (strongest CTA) ── */
             <View style={styles.ctaSection}>
               <TouchableOpacity
-                onPress={handleResumeExam}
+                onPress={() => handleResumeExam(hasInProgressDaily ? 'daily' : 'mock')}
                 disabled={isLoading}
                 activeOpacity={0.85}
                 style={styles.ctaWrapper}
@@ -454,7 +725,9 @@ export const HomeScreen: React.FC = () => {
                           />
                         </View>
                         <View>
-                          <Text style={styles.ctaTitle}>Resume Exam</Text>
+                          <Text style={styles.ctaTitle}>
+                            Resume {hasInProgressDaily ? 'Daily Quiz' : 'Mock Exam'}
+                          </Text>
                           <Text style={styles.ctaSub}>Continue where you left off</Text>
                         </View>
                       </View>
@@ -464,7 +737,7 @@ export const HomeScreen: React.FC = () => {
                 </LinearGradient>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={handleStartNewExam}
+                onPress={() => handleStartNewExam(hasInProgressDaily ? 'daily' : 'mock')}
                 disabled={isLoading}
                 activeOpacity={0.7}
                 style={styles.secondaryAction}
@@ -472,9 +745,34 @@ export const HomeScreen: React.FC = () => {
                 <Text style={styles.secondaryActionText}>or start a new exam</Text>
               </TouchableOpacity>
             </View>
+          ) : !isPremium && dailyCooldownActive ? (
+            /* ── FREE + Daily Quiz completed today ── */
+            <View style={[styles.ctaWrapper, styles.ctaDisabled]}>
+              <LinearGradient
+                colors={[colors.surfaceHover, colors.surface]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.ctaGradient}
+              >
+                <View style={styles.ctaContent}>
+                  <View style={styles.ctaLeft}>
+                    <View style={[styles.ctaIconCircle, { backgroundColor: colors.trackGray }]}>
+                      <CheckCircle2 size={18} color={colors.textMuted} strokeWidth={2.5} />
+                    </View>
+                    <View>
+                      <Text style={[styles.ctaTitle, { color: colors.textMuted }]}>
+                        Daily Quiz Completed
+                      </Text>
+                      <Text style={styles.ctaSub}>{formatCooldown(dailyLastAttempt)}</Text>
+                    </View>
+                  </View>
+                </View>
+              </LinearGradient>
+            </View>
           ) : (
+            /* ── Start CTA: "Start Daily Quiz" (FREE) or "Start Exam" (PREMIUM) ── */
             <TouchableOpacity
-              onPress={handleStartExam}
+              onPress={() => handleStartExam(isPremium ? 'mock' : 'daily')}
               disabled={isLoading || !canStart}
               activeOpacity={0.85}
               style={[styles.ctaWrapper, !canStart && styles.ctaDisabled]}
@@ -500,13 +798,20 @@ export const HomeScreen: React.FC = () => {
                           !canStart && { backgroundColor: colors.trackGray },
                         ]}
                       >
-                        <Zap size={18} color={colors.textHeading} strokeWidth={2.5} />
+                        {isPremium ? (
+                          <Zap size={18} color={colors.textHeading} strokeWidth={2.5} />
+                        ) : (
+                          <Sun size={18} color={colors.textHeading} strokeWidth={2.5} />
+                        )}
                       </View>
                       <View>
-                        <Text style={styles.ctaTitle}>Start Exam</Text>
+                        <Text style={styles.ctaTitle}>
+                          {isPremium ? 'Start Exam' : 'Start Daily Quiz'}
+                        </Text>
                         <Text style={styles.ctaSub}>
-                          {EXAM_CONFIG.QUESTIONS_PER_EXAM} questions ·{' '}
-                          {EXAM_CONFIG.TIME_LIMIT_MINUTES} min
+                          {isPremium
+                            ? `${EXAM_CONFIG.QUESTIONS_PER_EXAM} questions · ${EXAM_CONFIG.TIME_LIMIT_MINUTES} min`
+                            : `${DAILY_QUESTION_LIMIT} questions · timed`}
                         </Text>
                       </View>
                     </View>
@@ -522,7 +827,7 @@ export const HomeScreen: React.FC = () => {
           )}
 
           {/* Warning */}
-          {!canStart && !hasInProgress && (
+          {!canStart && !hasInProgressDaily && !hasInProgressMock && (
             <View style={styles.warningRow}>
               <AlertTriangle size={14} color={colors.errorLight} strokeWidth={2} />
               <Text style={styles.warningText}>
@@ -537,24 +842,53 @@ export const HomeScreen: React.FC = () => {
             </View>
           )}
 
-          {/* ── Quick Actions (2x2 grid) ── */}
-          <Text style={styles.sectionLabel}>Quick Actions</Text>
+          {/* ── Tier Card ── */}
+          <TierCard
+            isPremium={isPremium}
+            questionCount={questionCount}
+            onUpgrade={() => navigation.navigate('Upgrade')}
+          />
+
+          {/* ── Modes section label ── */}
+          <Text style={styles.sectionLabel}>Modes</Text>
         </View>
 
+        {/* ── Modes grid (Daily Quiz · Mock Exam · Missed Question) ── */}
         <View style={styles.actionsGrid}>
-          {quickActions.map((action) => (
+          {gridModes.map((mode) => (
             <TouchableOpacity
-              key={action.key}
-              onPress={action.onPress}
-              activeOpacity={0.7}
-              style={styles.actionCardGrid}
+              key={mode.key}
+              onPress={mode.cooldown ? undefined : mode.onPress}
+              disabled={mode.cooldown}
+              activeOpacity={mode.locked ? 0.8 : mode.cooldown ? 1 : 0.7}
+              style={[
+                styles.actionCardGrid,
+                mode.cooldown && styles.actionCardDisabled,
+                mode.locked && styles.actionCardLocked,
+              ]}
             >
-              <View style={styles.actionCardInner}>
-                <View style={[styles.actionIconWrap, { backgroundColor: action.iconBg }]}>
-                  {action.icon}
+              <View style={[styles.actionCardInner, mode.locked && styles.actionCardInnerLocked]}>
+                <View style={[styles.actionIconWrap, { backgroundColor: mode.iconBg }]}>
+                  {mode.icon}
                 </View>
-                <Text style={styles.actionTitle}>{action.label}</Text>
-                <Text style={styles.actionSub}>{action.sub}</Text>
+                <Text
+                  style={[
+                    styles.actionTitle,
+                    (mode.locked || mode.cooldown) && styles.actionTitleMuted,
+                  ]}
+                >
+                  {mode.label}
+                </Text>
+                {mode.locked ? (
+                  <View style={styles.premiumBadge}>
+                    <Crown size={12} color="#F59E0B" strokeWidth={2.2} />
+                    <Text style={styles.premiumBadgeText}>Premium</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.actionSub, mode.cooldown && styles.actionSubCooldown]}>
+                    {mode.sub}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           ))}
@@ -701,6 +1035,128 @@ export const HomeScreen: React.FC = () => {
         }}
         onClose={() => setShowDatePicker(false)}
       />
+
+      {/* ── Missed Questions Count Picker ── */}
+      <Modal
+        visible={showMissedPicker}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowMissedPicker(false)}
+      >
+        <Pressable style={styles.pickerOverlay} onPress={() => setShowMissedPicker(false)}>
+          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.pickerHeader}>
+              <CircleX size={20} color="#EF4444" strokeWidth={2} />
+              <Text style={styles.pickerTitle}>Missed Question</Text>
+            </View>
+            <Text style={styles.pickerDescription}>
+              Review questions you previously answered incorrectly. Choose how many to include.
+            </Text>
+
+            {/* Counter */}
+            <View style={styles.pickerCounter}>
+              <TouchableOpacity
+                onPress={() => setSelectedMissedCount((c) => Math.max(1, c - 1))}
+                disabled={selectedMissedCount <= 1}
+                activeOpacity={0.7}
+                style={[styles.pickerBtn, selectedMissedCount <= 1 && styles.pickerBtnDisabled]}
+              >
+                <Minus
+                  size={18}
+                  color={selectedMissedCount <= 1 ? colors.trackGray : colors.textHeading}
+                  strokeWidth={2.5}
+                />
+              </TouchableOpacity>
+
+              <View style={styles.pickerValueWrap}>
+                <Text style={styles.pickerValue}>{selectedMissedCount}</Text>
+                <Text style={styles.pickerValueLabel}>questions</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setSelectedMissedCount((c) => Math.min(missedCount, c + 1))}
+                disabled={selectedMissedCount >= missedCount}
+                activeOpacity={0.7}
+                style={[
+                  styles.pickerBtn,
+                  selectedMissedCount >= missedCount && styles.pickerBtnDisabled,
+                ]}
+              >
+                <Plus
+                  size={18}
+                  color={selectedMissedCount >= missedCount ? colors.trackGray : colors.textHeading}
+                  strokeWidth={2.5}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick select chips */}
+            <View style={styles.pickerChips}>
+              {[5, 10, 15, 20]
+                .filter((n) => n <= missedCount)
+                .map((n) => (
+                  <TouchableOpacity
+                    key={n}
+                    onPress={() => setSelectedMissedCount(n)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.pickerChip,
+                      selectedMissedCount === n && styles.pickerChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerChipText,
+                        selectedMissedCount === n && styles.pickerChipTextActive,
+                      ]}
+                    >
+                      {n}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              {/* "All" chip */}
+              <TouchableOpacity
+                onPress={() => setSelectedMissedCount(missedCount)}
+                activeOpacity={0.7}
+                style={[
+                  styles.pickerChip,
+                  selectedMissedCount === missedCount && styles.pickerChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.pickerChipText,
+                    selectedMissedCount === missedCount && styles.pickerChipTextActive,
+                  ]}
+                >
+                  All ({missedCount})
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.pickerActions}>
+              <TouchableOpacity
+                onPress={() => setShowMissedPicker(false)}
+                activeOpacity={0.7}
+                style={styles.pickerCancelBtn}
+              >
+                <Text style={styles.pickerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowMissedPicker(false);
+                  handleStartMissedExam(selectedMissedCount);
+                }}
+                activeOpacity={0.85}
+                style={styles.pickerStartBtn}
+              >
+                <Text style={styles.pickerStartText}>Start Quiz</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -858,6 +1314,7 @@ const styles = StyleSheet.create({
   actionCardGrid: {
     width: (SCREEN_WIDTH - 52) / 2,
     flexShrink: 0,
+    height: 140,
   },
   actionCardInner: {
     backgroundColor: colors.surface,
@@ -867,7 +1324,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.borderDefault,
-    minHeight: 120,
+    flex: 1,
     justifyContent: 'center',
   },
   actionIconWrap: {
@@ -880,6 +1337,228 @@ const styles = StyleSheet.create({
   },
   actionTitle: { fontSize: 14, fontWeight: '700', color: colors.textHeading },
   actionSub: { fontSize: 12, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
+  // Locked card (Premium gate) — disabled look with subtle amber border
+  actionCardLocked: { opacity: 0.55 },
+  actionCardInnerLocked: { borderColor: 'rgba(245, 158, 11, 0.18)' },
+  // Cooldown state (daily quiz already completed today — FREE only)
+  actionCardDisabled: { opacity: 0.58 },
+  actionTitleMuted: { color: colors.textMuted },
+  actionSubCooldown: { color: '#F59E0B' }, // cooldown countdown timer
+  // Premium badge — replaces sub text on locked cards
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  premiumBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F59E0B',
+    letterSpacing: 0.3,
+  },
+
+  // Missed Questions Count Picker Modal
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 24,
+    paddingBottom: 36,
+    paddingHorizontal: 24,
+  },
+  pickerHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textHeading,
+    marginBottom: 4,
+  },
+  pickerDescription: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  pickerCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 20,
+  },
+  pickerBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceHover,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerBtnDisabled: {
+    opacity: 0.35,
+  },
+  pickerValueWrap: {
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  pickerValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.textHeading,
+    lineHeight: 38,
+  },
+  pickerValueLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  pickerChips: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 24,
+  },
+  pickerChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceHover,
+  },
+  pickerChipActive: {
+    backgroundColor: colors.primaryOrange,
+  },
+  pickerChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  pickerChipTextActive: {
+    color: '#fff',
+  },
+  pickerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pickerCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceHover,
+    alignItems: 'center',
+  },
+  pickerCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textBody,
+  },
+  pickerStartBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primaryOrange,
+    alignItems: 'center',
+  },
+  pickerStartText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+
+  // Tier Card — unified FREE/PREMIUM surface, no gold border
+  tierCard: {
+    backgroundColor: '#273040',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 16,
+    // Elevation replaces the outlined border
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tierCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  tierCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  // Gold accent only on label — not the card border
+  tierPlanLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F59E0B',
+    letterSpacing: 0.2,
+  },
+  // PREMIUM active pill — uses success green, not gold
+  tierActivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  tierActivePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.successLight,
+  },
+  tierCountText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 12,
+  },
+  tierProgressTrack: {
+    height: 6,
+    backgroundColor: colors.trackGray,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  tierProgressFill: {
+    height: 6,
+    backgroundColor: '#F59E0B',
+    borderRadius: 4,
+  },
+  // PREMIUM: progress bar turns success green to signal complete
+  tierProgressFillSuccess: {
+    backgroundColor: colors.success,
+  },
+  // Always in layout — opacity 0 when premium to prevent height shift
+  tierCtaRow: {
+    flexDirection: 'row',
+  },
+  tierUpgradeLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  // Secondary-style CTA: text + chevron, orange — no solid button fill
+  tierUpgradeLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primaryOrange,
+  },
 
   // Resources Button
   resourcesBtn: {

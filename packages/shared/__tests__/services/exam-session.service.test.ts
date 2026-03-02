@@ -28,7 +28,7 @@ import {
   getQuestionById,
 } from '../../src/storage/repositories/question.repository';
 import { incrementExamCount } from '../../src/storage/repositories/user-stats.repository';
-import { generateExam, GeneratedExam } from '../../src/services/exam-generator.service';
+import { generateExam, generateExamForTier, GeneratedExam } from '../../src/services/exam-generator.service';
 import { getCachedExamTypeConfig } from '../../src/services/sync.service';
 import { ExamTypeConfig, Question, ExamAnswer } from '../../src/storage/schema';
 
@@ -116,6 +116,7 @@ describe('ExamSessionService', () => {
 
       (getInProgressExamAttempt as vi.Mock).mockResolvedValue(null);
       (generateExam as vi.Mock).mockResolvedValue(mockGenerated);
+      (generateExamForTier as vi.Mock).mockResolvedValue(mockGenerated);
       (createExamAttempt as vi.Mock).mockResolvedValue(mockExamAttempt);
       (createExamAnswersBatch as vi.Mock).mockResolvedValue(mockAnswers);
 
@@ -127,7 +128,7 @@ describe('ExamSessionService', () => {
       expect(result.currentIndex).toBe(0);
       expect(result.config).toEqual(mockExamTypeConfig);
       expect(createExamAttempt).toHaveBeenCalled();
-      expect(generateExam).toHaveBeenCalled();
+      expect(generateExamForTier).toHaveBeenCalled();
     });
 
     it('should not allow starting new exam while one is in progress', async () => {

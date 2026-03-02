@@ -53,6 +53,16 @@ vi.mock('expo-crypto', () => ({
   },
 }));
 
+// Mock expo-notifications
+vi.mock('expo-notifications', () => ({
+  setNotificationHandler: vi.fn(),
+  getPermissionsAsync: vi.fn(async () => ({ status: 'granted' })),
+  requestPermissionsAsync: vi.fn(async () => ({ status: 'granted' })),
+  scheduleNotificationAsync: vi.fn(async () => 'mock-notification-id'),
+  cancelScheduledNotificationAsync: vi.fn(async () => {}),
+  SchedulableTriggerInputTypes: { TIME_INTERVAL: 'timeInterval' },
+}));
+
 // Mock expo-sqlite
 vi.mock('expo-sqlite', () => ({
   openDatabase: vi.fn(() => ({

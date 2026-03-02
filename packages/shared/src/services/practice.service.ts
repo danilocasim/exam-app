@@ -17,9 +17,24 @@ import {
   getQuestionsByDomainAndDifficulty,
   getAllQuestions,
   getQuestionById,
+  getQuestionsForTier,
 } from '../storage/repositories/question.repository';
 import { PracticeSession, PracticeAnswer, Question, Difficulty, DomainId } from '../storage/schema';
 import { incrementPracticeCount } from '../storage/repositories/user-stats.repository';
+import { TierLevel } from '../config/tiers';
+
+// ─── Tier Error ───────────────────────────────────────────────────────────────
+
+/**
+ * T254: Thrown when the FREE tier has no questions matching the chosen filters.
+ * UI should catch this and navigate to UpgradeScreen.
+ */
+export class TierUpgradeRequiredError extends Error {
+  constructor(message = 'Upgrade to access more questions') {
+    super(message);
+    this.name = 'TierUpgradeRequiredError';
+  }
+}
 
 /**
  * Practice session state containing all current session info
@@ -60,22 +75,46 @@ export interface PracticeSummary {
 }
 
 /**
- * Fetch questions based on domain and difficulty filters, then shuffle
+ * Fetch questions based on domain and difficulty filters, then shuffle.
+ * T254: Respects tier — FREE tier is limited to the consistent free question pool.
  */
 const fetchFilteredQuestions = async (
   domain: DomainId | null,
   difficulty: Difficulty | null,
+  tier: TierLevel = 'PREMIUM',
 ): Promise<Question[]> => {
   let questions: Question[];
 
-  if (domain && difficulty) {
-    questions = await getQuestionsByDomainAndDifficulty(domain, difficulty);
-  } else if (domain) {
-    questions = await getQuestionsByDomain(domain);
-  } else if (difficulty) {
-    questions = await getQuestionsByDifficulty(difficulty);
+  if (tier === 'FREE') {
+    // Get the free question pool first, then apply domain/difficulty filters within it
+    const freePool = await getQuestionsForTier('FREE');
+
+    if (domain && difficulty) {
+      questions = freePool.filter((q) => q.domain === domain && q.difficulty === difficulty);
+    } else if (domain) {
+      questions = freePool.filter((q) => q.domain === domain);
+    } else if (difficulty) {
+      questions = freePool.filter((q) => q.difficulty === difficulty);
+    } else {
+      questions = freePool;
+    }
+
+    if (questions.length === 0) {
+      throw new TierUpgradeRequiredError(
+        'No questions match these filters in the free tier. Upgrade to access the full question bank.',
+      );
+    }
   } else {
-    questions = await getAllQuestions();
+    // PREMIUM: full question bank, existing behavior
+    if (domain && difficulty) {
+      questions = await getQuestionsByDomainAndDifficulty(domain, difficulty);
+    } else if (domain) {
+      questions = await getQuestionsByDomain(domain);
+    } else if (difficulty) {
+      questions = await getQuestionsByDifficulty(difficulty);
+    } else {
+      questions = await getAllQuestions();
+    }
   }
 
   // Shuffle questions using Fisher-Yates
@@ -93,9 +132,10 @@ const fetchFilteredQuestions = async (
 export const startPracticeSession = async (
   domain: DomainId | null,
   difficulty: Difficulty | null,
+  tier: TierLevel = 'PREMIUM',
 ): Promise<PracticeSessionState> => {
   // Fetch and shuffle questions matching the filters
-  const questions = await fetchFilteredQuestions(domain, difficulty);
+  const questions = await fetchFilteredQuestions(domain, difficulty, tier);
 
   if (questions.length === 0) {
     throw new Error('No questions available for the selected filters');
@@ -220,13 +260,20 @@ export const getPracticeSummary = async (sessionId: string): Promise<PracticeSum
 
 /**
  * Get available question count for given filters
+ * Returns 0 if the tier has no questions matching the filters (instead of throwing).
  */
 export const getAvailableQuestionCount = async (
   domain: DomainId | null,
   difficulty: Difficulty | null,
+  tier: TierLevel = 'PREMIUM',
 ): Promise<number> => {
-  const questions = await fetchFilteredQuestions(domain, difficulty);
-  return questions.length;
+  try {
+    const questions = await fetchFilteredQuestions(domain, difficulty, tier);
+    return questions.length;
+  } catch (e) {
+    if (e instanceof TierUpgradeRequiredError) return 0;
+    throw e;
+  }
 };
 
 /**
