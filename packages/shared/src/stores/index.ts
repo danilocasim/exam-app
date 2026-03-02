@@ -60,3 +60,11 @@ export {
   selectExamDate,
 } from './streak.store';
 export type { StreakState, StreakActions, StreakStore } from './streak.store';
+
+// Purchase store (T248: Phase 16 - Monetization)
+export {
+  usePurchaseStore,
+  useIsPremium,
+  useTierLevel,
+  useQuestionLimit,
+} from './purchase.store';

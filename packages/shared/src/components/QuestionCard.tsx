@@ -1,7 +1,7 @@
 // T043: QuestionCard component with option selection
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { Lightbulb, CheckCircle2, XCircle, Maximize2 } from 'lucide-react-native';
+import { Lightbulb, CheckCircle2, XCircle, Maximize2, Lock, Crown } from 'lucide-react-native';
 import { Question, QuestionOption, QuestionType } from '../storage/schema';
 import { RichExplanation, ExplanationBlock } from './RichExplanation';
 import { ExplanationModal } from './ExplanationModal';
@@ -20,6 +20,10 @@ export interface QuestionCardProps {
   showExplanation?: boolean;
   /** Font scale multiplier (default: 1.0). Use getFontScale() from FontSizeControl. */
   fontScale?: number;
+  /** When true, renders a premium lock overlay over the card */
+  isLocked?: boolean;
+  /** Called when the user taps the lock overlay (navigate to UpgradeScreen) */
+  onLockedPress?: () => void;
 }
 
 // AWS Modern Color Palette
@@ -63,6 +67,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   showResultBanner = true,
   showExplanation = true,
   fontScale = 1,
+  isLocked = false,
+  onLockedPress,
 }) => {
   const isMultipleChoice = question.type === 'MULTIPLE_CHOICE';
 
@@ -131,12 +137,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   };
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
-      style={styles.container}
+      style={[styles.container, isLocked && styles.lockedContainer]}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.scrollContent}
+      scrollEnabled={!isLocked}
     >
-      <View style={styles.content}>
+      <View style={[styles.content, isLocked && { opacity: 0.35 }]}>
         {/* Question type badge */}
         <View style={styles.badgeRow}>
           <View style={styles.badge}>
@@ -236,6 +244,30 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         )}
       </View>
     </ScrollView>
+
+    {/* Lock overlay — rendered over the dimmed card when isLocked=true */}
+    {isLocked && (
+      <TouchableOpacity
+        style={[StyleSheet.absoluteFillObject, styles.lockOverlay]}
+        onPress={onLockedPress}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel="Premium question — tap to upgrade"
+      >
+        <View style={styles.lockContent}>
+          <View style={styles.lockIconCircle}>
+            <Lock size={28} color="#F59E0B" strokeWidth={2} />
+          </View>
+          <Text style={styles.lockTitle}>Premium Question</Text>
+          <Text style={styles.lockSubtitle}>Upgrade to access this question</Text>
+          <View style={styles.lockCta}>
+            <Crown size={13} color="#000" strokeWidth={2} />
+            <Text style={styles.lockCtaText}>Unlock All Questions</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    )}
+    </View>
   );
 };
 
@@ -429,6 +461,57 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textBody,
     lineHeight: 24,
+  },
+
+  // Lock overlay
+  lockedContainer: {
+    pointerEvents: 'none',
+  },
+  lockOverlay: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockContent: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  lockIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  lockTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textHeading,
+    marginBottom: 6,
+  },
+  lockSubtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  lockCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  lockCtaText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000',
   },
 });
 

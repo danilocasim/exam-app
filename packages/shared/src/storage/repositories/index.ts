@@ -7,3 +7,6 @@ export * from './practice-session.repository';
 export * from './practice-answer.repository';
 export * from './user-stats.repository';
 export * from './streak.repository';
+export * from './purchase.repository';
+export * from './daily-mode.repository';
+export * from './missed-questions.repository';

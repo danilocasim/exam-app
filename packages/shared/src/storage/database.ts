@@ -88,6 +88,7 @@ export const initializeDatabase = async (): Promise<void> => {
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS ExamAttempt (
       id TEXT PRIMARY KEY,
+      mode TEXT NOT NULL DEFAULT 'mock',
       startedAt TEXT NOT NULL,
       completedAt TEXT,
       status TEXT NOT NULL CHECK (status IN ('in-progress', 'completed', 'abandoned')) DEFAULT 'in-progress',
@@ -100,6 +101,15 @@ export const initializeDatabase = async (): Promise<void> => {
     CREATE INDEX IF NOT EXISTS idx_exam_attempt_status ON ExamAttempt(status);
     CREATE INDEX IF NOT EXISTS idx_exam_attempt_started_at ON ExamAttempt(startedAt);
   `);
+
+  // Migration: add mode column for existing databases
+  try {
+    await database.execAsync(`
+      ALTER TABLE ExamAttempt ADD COLUMN mode TEXT NOT NULL DEFAULT 'mock';
+    `);
+  } catch {
+    // Column already exists — ignore
+  }
 
   // Create ExamSubmission table (for historical submissions with sync tracking)
   await database.execAsync(`
@@ -231,6 +241,20 @@ export const initializeDatabase = async (): Promise<void> => {
       examDate TEXT
     );
     INSERT OR IGNORE INTO StudyStreak (id) VALUES (1);
+  `);
+
+  // Create PurchaseStatus table (T250: Phase 16 - Monetization Free Tier)
+  // Stores local purchase/tier status with singleton pattern
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS PurchaseStatus (
+      id TEXT PRIMARY KEY DEFAULT 'singleton',
+      tier_level TEXT NOT NULL DEFAULT 'FREE',
+      product_id TEXT,
+      purchase_token TEXT,
+      purchased_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 };
 

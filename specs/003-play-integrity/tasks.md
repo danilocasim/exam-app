@@ -823,7 +823,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Tier System Tasks
 
-- [ ] T247 [P] Define tier constants in packages/shared/src/config/tiers.ts:
+- [x] T247 [P] Define tier constants in packages/shared/src/config/tiers.ts:
   ```ts
   export const FREE_QUESTION_LIMIT = 15;
   export type TierLevel = 'FREE' | 'PREMIUM';
@@ -840,18 +840,18 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   ```
   Export from packages/shared/src/index.ts.
 
-- [ ] T248 [P] Create packages/shared/src/stores/purchase.store.ts (Zustand):
+- [x] T248 [P] Create packages/shared/src/stores/purchase.store.ts (Zustand):
   - State: `tierLevel: TierLevel`, `isPremium: boolean`, `productId: string | null`, `purchasedAt: string | null`
   - Actions: `setPremium(productId, purchaseToken)`, `reset()`, `loadFromStorage()`
   - Selectors: `useIsPremium()`, `useTierLevel()`, `useQuestionLimit()`
   - Persist to SQLite via purchase repository (T249)
   - `__DEV__` mode: default to PREMIUM for development convenience
 
-- [ ] T249 [P] Create packages/shared/src/storage/repositories/purchase.repository.ts:
+- [x] T249 [P] Create packages/shared/src/storage/repositories/purchase.repository.ts:
   - Methods: `getPurchaseStatus(): Promise<PurchaseStatus | null>`, `savePurchaseStatus(status)`, `clearPurchaseStatus()`
   - SQLite table `PurchaseStatus` (created in T250)
 
-- [ ] T250 Update packages/shared/src/storage/database.ts: add PurchaseStatus table migration:
+- [x] T250 Update packages/shared/src/storage/database.ts: add PurchaseStatus table migration:
   ```sql
   CREATE TABLE IF NOT EXISTS PurchaseStatus (
     id TEXT PRIMARY KEY DEFAULT 'singleton',
@@ -866,35 +866,35 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Login & Gating Tasks
 
-- [ ] T251 Make login mandatory: update packages/shared/src/AppRoot.tsx to require Google authentication before granting any access. After Play Integrity check passes, check if user is authenticated. If not, show AuthScreen as gate. Only after successful login, proceed to question sync and RootNavigator. Preserve existing init sequence order.
+- [x] T251 Make login mandatory: update packages/shared/src/AppRoot.tsx to require Google authentication before granting any access. After Play Integrity check passes, check if user is authenticated. If not, show AuthScreen as gate. Only after successful login, proceed to question sync and RootNavigator. Preserve existing init sequence order.
 
-- [ ] T252 Implement question gating in packages/shared/src/storage/repositories/question.repository.ts: add `getQuestionsForTier(tier: TierLevel, limit?: number)` method. For FREE tier: return first N questions ordered by (domain ASC, id ASC) so free users always see a consistent set of 15 questions. For PREMIUM: return all questions. Update existing query methods to accept tier parameter.
+- [x] T252 Implement question gating in packages/shared/src/storage/repositories/question.repository.ts: add `getQuestionsForTier(tier: TierLevel, limit?: number)` method. For FREE tier: return first N questions ordered by (domain ASC, id ASC) so free users always see a consistent set of 15 questions. For PREMIUM: return all questions. Update existing query methods to accept tier parameter.
 
-- [ ] T253 Update packages/shared/src/services/exam-generator.service.ts: respect tier limits when generating exams. FREE tier generates mini-exams from the 15 available questions (shorter timer, proportional passing score). PREMIUM generates full exams with all questions. Add `generateExamForTier(tier: TierLevel, examTypeConfig)` method.
+- [x] T253 Update packages/shared/src/services/exam-generator.service.ts: respect tier limits when generating exams. FREE tier generates mini-exams from the 15 available questions (shorter timer, proportional passing score). PREMIUM generates full exams with all questions. Add `generateExamForTier(tier: TierLevel, examTypeConfig)` method.
 
-- [ ] T254 Update packages/shared/src/services/practice.service.ts: respect tier limits in practice mode. FREE tier limits practice to the 15 free questions only. Show "Upgrade to access more questions" when free pool is exhausted.
+- [x] T254 Update packages/shared/src/services/practice.service.ts: respect tier limits in practice mode. FREE tier limits practice to the 15 free questions only. Show "Upgrade to access more questions" when free pool is exhausted.
 
 ### UI Tasks
 
-- [ ] T255 Update packages/shared/src/screens/HomeScreen.tsx:
+- [x] T255 Update packages/shared/src/screens/HomeScreen.tsx:
   - Show free tier indicator (e.g., "15 / 200 questions available" with progress bar)
   - Add upgrade prompt card with Crown icon and "Unlock All Questions" CTA
   - Link to UpgradeScreen on tap
   - If PREMIUM: hide upgrade prompts, show full question count
 
-- [ ] T256 [P] Add locked question UI indicators in packages/shared/src/components/QuestionCard.tsx:
+- [x] T256 [P] Add locked question UI indicators in packages/shared/src/components/QuestionCard.tsx:
   - Show lock icon overlay for premium-only questions in listing/review views
   - "Upgrade to access" text on locked questions
   - Tapping locked question navigates to UpgradeScreen
 
-- [ ] T258 Update packages/shared/src/screens/UpgradeScreen.tsx:
+- [x] T258 Update packages/shared/src/screens/UpgradeScreen.tsx:
   - Add free vs premium comparison table (15 questions vs all, mini-exams vs full, etc.)
   - Update CTA button to prepare for billing integration (placeholder handler that shows "Coming soon" or navigates back)
   - Show current tier status at top ("You're on the Free plan")
 
 ### Testing
 
-- [ ] T257 Create packages/shared/__tests__/purchase-tier.test.ts:
+- [x] T257 Create packages/shared/__tests__/purchase-tier.test.ts:
   - Unit tests for tier gating logic (FREE returns 15 questions, PREMIUM returns all)
   - Question ordering consistency (same 15 questions every time for FREE)
   - Exam generation with tier limits (mini-exam vs full exam)

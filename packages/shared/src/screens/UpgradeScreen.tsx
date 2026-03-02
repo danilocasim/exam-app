@@ -1,6 +1,14 @@
 // UpgradeScreen — Forever Access upgrade information
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Dimensions,
+  Alert,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -16,8 +24,11 @@ import {
   ShieldOff,
   Sparkles,
   Check,
+  X,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { useTierLevel } from '../stores/purchase.store';
+import { FREE_QUESTION_LIMIT } from '../config';
 
 // AWS Modern Color Palette (shared across app)
 const colors = {
@@ -97,6 +108,16 @@ const benefits: BenefitItem[] = [
 export const UpgradeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const tierLevel = useTierLevel();
+  const isPremium = tierLevel === 'PREMIUM';
+
+  const handleUpgradePress = () => {
+    Alert.alert(
+      'Coming Soon',
+      'In-app purchase will be available in the next update. Stay tuned!',
+      [{ text: 'OK' }],
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -114,6 +135,18 @@ export const UpgradeScreen: React.FC = () => {
           >
             <ArrowLeft size={20} color={colors.textHeading} strokeWidth={2} />
           </TouchableOpacity>
+        </View>
+
+        {/* Current tier status banner */}
+        <View style={[styles.tierBanner, isPremium && styles.tierBannerPremium]}>
+          <Crown
+            size={14}
+            color={isPremium ? colors.primaryOrange : colors.textMuted}
+            strokeWidth={2}
+          />
+          <Text style={[styles.tierBannerText, isPremium && styles.tierBannerTextPremium]}>
+            {isPremium ? "You're on the Premium plan" : "You're on the Free plan"}
+          </Text>
         </View>
 
         {/* Hero Section */}
@@ -152,6 +185,62 @@ export const UpgradeScreen: React.FC = () => {
           </LinearGradient>
         </View>
 
+        {/* Free vs Premium comparison table */}
+        <View style={styles.comparisonSection}>
+          <Text style={styles.sectionTitle}>Free vs Premium</Text>
+          {/* Header row */}
+          <View style={styles.comparisonRow}>
+            <View style={styles.comparisonFeatureCol} />
+            <View style={styles.comparisonPlanCol}>
+              <Text style={styles.comparisonPlanLabel}>Free</Text>
+            </View>
+            <View style={[styles.comparisonPlanCol, styles.comparisonPremiumCol]}>
+              <Crown size={12} color={colors.primaryOrange} strokeWidth={2} />
+              <Text style={[styles.comparisonPlanLabel, styles.comparisonPremiumLabel]}>
+                Premium
+              </Text>
+            </View>
+          </View>
+          {/* Rows */}
+          {[
+            { feature: 'Questions', free: `${FREE_QUESTION_LIMIT}`, premium: 'All' },
+            { feature: 'Mock exams', free: `${FREE_QUESTION_LIMIT}-Q mini`, premium: 'Full exam' },
+            { feature: 'Analytics', free: false, premium: true },
+            { feature: 'All domains', free: false, premium: true },
+            { feature: 'Lifetime updates', free: false, premium: true },
+          ].map(({ feature, free, premium }) => (
+            <View key={feature} style={styles.comparisonDataRow}>
+              <View style={styles.comparisonFeatureCol}>
+                <Text style={styles.comparisonFeatureText}>{feature}</Text>
+              </View>
+              <View style={styles.comparisonPlanCol}>
+                {typeof free === 'boolean' ? (
+                  free ? (
+                    <Check size={15} color={colors.success} strokeWidth={3} />
+                  ) : (
+                    <X size={15} color={colors.textMuted} strokeWidth={2.5} />
+                  )
+                ) : (
+                  <Text style={styles.comparisonValueText}>{free}</Text>
+                )}
+              </View>
+              <View style={[styles.comparisonPlanCol, styles.comparisonPremiumCol]}>
+                {typeof premium === 'boolean' ? (
+                  premium ? (
+                    <Check size={15} color={colors.primaryOrange} strokeWidth={3} />
+                  ) : (
+                    <X size={15} color={colors.textMuted} strokeWidth={2.5} />
+                  )
+                ) : (
+                  <Text style={[styles.comparisonValueText, { color: colors.primaryOrange }]}>
+                    {premium}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+
         {/* Benefits List */}
         <View style={styles.benefitsSection}>
           <Text style={styles.sectionTitle}>What You Get</Text>
@@ -171,7 +260,11 @@ export const UpgradeScreen: React.FC = () => {
 
         {/* CTA Section */}
         <View style={styles.ctaSection}>
-          <TouchableOpacity activeOpacity={0.85} style={styles.ctaWrapper}>
+          <TouchableOpacity
+            activeOpacity={isPremium ? 1 : 0.85}
+            style={[styles.ctaWrapper, isPremium && styles.ctaWrapperDisabled]}
+            onPress={isPremium ? undefined : handleUpgradePress}
+          >
             <LinearGradient
               colors={[colors.primaryOrange, colors.secondaryOrange]}
               start={{ x: 0, y: 0 }}
@@ -179,7 +272,9 @@ export const UpgradeScreen: React.FC = () => {
               style={styles.ctaGradient}
             >
               <Crown size={20} color={colors.textHeading} strokeWidth={2.5} />
-              <Text style={styles.ctaText}>Upgrade Now</Text>
+              <Text style={styles.ctaText}>
+                {isPremium ? 'Already Unlocked' : 'Upgrade Now'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
           <Text style={styles.ctaFootnote}>
@@ -324,6 +419,87 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // Tier banner
+  tierBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+  },
+  tierBannerPremium: {
+    backgroundColor: 'rgba(255, 153, 0, 0.08)',
+    borderColor: 'rgba(255, 153, 0, 0.25)',
+  },
+  tierBannerText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textMuted,
+  },
+  tierBannerTextPremium: {
+    color: colors.primaryOrange,
+  },
+
+  // Comparison table
+  comparisonSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  comparisonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderDefault,
+  },
+  comparisonDataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(55, 65, 81, 0.5)',
+  },
+  comparisonFeatureCol: {
+    flex: 2,
+  },
+  comparisonPlanCol: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  comparisonPremiumCol: {
+    backgroundColor: 'rgba(255, 153, 0, 0.06)',
+    borderRadius: 6,
+    paddingVertical: 2,
+  },
+  comparisonPlanLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  comparisonPremiumLabel: {
+    color: colors.primaryOrange,
+  },
+  comparisonFeatureText: {
+    fontSize: 14,
+    color: colors.textBody,
+  },
+  comparisonValueText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textBody,
+  },
+
   // CTA
   ctaSection: {
     paddingHorizontal: 20,
@@ -346,6 +522,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: 'bold',
     color: colors.textHeading,
+  },
+  ctaWrapperDisabled: {
+    opacity: 0.6,
   },
   ctaFootnote: {
     fontSize: 12,
