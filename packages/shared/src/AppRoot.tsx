@@ -162,6 +162,17 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
     }
   }, [googleAuthResponse]);
 
+  // ─── Reset phase 2 state when user logs out ──────────────────────────────
+
+  useEffect(() => {
+    if (!isSignedIn && isReady) {
+      // User logged out — reset state for next login
+      console.log('[App] User logged out, resetting phase 2 state');
+      phase2Started.current = false;
+      setIsReady(false);
+    }
+  }, [isSignedIn, isReady]);
+
   // ─── Phase 2: DB switch + sync (runs once when integrity passed + signed in) ─
 
   useEffect(() => {
@@ -277,7 +288,8 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
   }
 
   // T251: Auth gate — shown when integrity passed but user is not signed in
-  if (integrityPassed && !isSignedIn && !isReady) {
+  // This gate is shown both before initial login AND after logout
+  if (integrityPassed && !isSignedIn) {
     return (
       <SafeAreaProvider>
         <View
