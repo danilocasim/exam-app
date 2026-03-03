@@ -25,9 +25,10 @@ import { TokenRefreshService } from './services/token-refresh-service';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { IntegrityBlockedScreen } from './components/IntegrityBlockedScreen';
 import { useAuthStore } from './stores/auth-store';
-import { usePurchaseStore } from './stores/purchase.store'; // ← add this line
+import { usePurchaseStore } from './stores/purchase.store';
 import { checkIntegrity } from './services/play-integrity.service';
 import { configureNotifications } from './services/notification.service';
+import { initBillingWithStore, disconnectBilling } from './services/billing.service';
 
 export interface AppRootProps {
   examTypeId: string;
@@ -136,6 +137,10 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
     return () => {
       subscription.remove();
       stopPersistence();
+      // T261: Clean up billing connection on unmount
+      disconnectBilling().catch((err) => {
+        console.warn('[App] Billing disconnect failed:', err);
+      });
     };
   }, [retryCount]);
 
@@ -219,6 +224,14 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
             `[App] Sync complete: ${result.questionsAdded} added, ${result.questionsUpdated} updated`,
           );
         }
+
+        // T261: Initialize billing with store integration
+        setSyncStatus('Setting up billing...');
+        await initBillingWithStore(examTypeId, (error) => {
+          console.warn('[App] Billing error:', error.code, error.message);
+        }).catch((err) => {
+          console.warn('[App] Billing initialization failed (non-fatal):', err);
+        });
 
         // Initialize persistence service (exam attempt sync + stats push)
         setSyncStatus('Setting up sync service...');

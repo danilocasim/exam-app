@@ -963,7 +963,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   };
   ```
 
-- [ ] T261 Implement subscription purchase flow in billing.service.ts:
+- [x] T261 Implement subscription purchase flow in billing.service.ts:
   1. Connect to Play Store billing client
   2. Fetch subscription details (price, billing period) via `getSubscriptions([...skus])`
   3. Initiate subscription via `subscribe(sku)` — opens Play Store subscription dialog
