@@ -533,7 +533,7 @@ exam-app/
 ### Current Implementation Status (as of February 25, 2026)
 
 **Codebase features beyond original spec** (implemented but not previously documented):
-- **UpgradeScreen**: Static "Forever Access" upgrade UI in `packages/shared/src/screens/UpgradeScreen.tsx` — one-time purchase branding ($14.99), benefits list, CTA button. No billing integration yet.
+- **UpgradeScreen**: Subscription plan selector UI in `packages/shared/src/screens/UpgradeScreen.tsx` — 3-plan layout (Monthly $2.99, Quarterly $6.99, Annual $19.99), benefits list, CTA button. No billing integration yet (placeholder — Phase 17 connects it).
 - **Bundle Service**: `packages/shared/src/services/bundle.service.ts` — loads initial question bank from bundled JSON assets for offline-first experience.
 - **14 screens**: HomeScreen, ExamScreen, ExamResultsScreen, PracticeScreen, PracticeSetupScreen, PracticeSummaryScreen, ReviewScreen, ExamHistoryScreen, AnalyticsScreen, CloudAnalyticsScreen, AuthScreen, SettingsScreen, UpgradeScreen + navigation route for each.
 - **14+ components**: Including DifficultySelector, DomainSelector, ErrorBoundary, FeedbackCard, Skeleton, SyncStatusIndicator, Timer, analytics subfolder (DomainPerformanceCard, ScoreTrendChart, StudyStatsCard).
@@ -726,8 +726,8 @@ exam-app/
 | Phase 14: Template & Script | 0.5 week (3 hrs) | Phase 13 complete | 📋 Not Started |
 | Phase 15: Testing & Docs | 1 week (6 hrs) | Phase 14 complete | 📋 Not Started |
 | Phase 16: Login-Gated Free Tier | 1.5 weeks (10 hrs) | Phase 15 complete | 📋 Not Started |
-| Phase 17: Play Billing Integration | 1.5 weeks (10 hrs) | Phase 16 complete + Play monetization access | 📋 Blocked (no Play access) |
-| **Total** | **~7-8 weeks** | **~51 dev-hours (1 developer)** | |
+| Phase 17: Play Billing Subscription | 2 weeks (12 hrs) | Phase 16 complete + Play monetization access (granted) | 📋 Ready |
+| **Total** | **~8-9 weeks** | **~53 dev-hours (1 developer)** | |
 
 ### Recommended Execution (1 Developer — Updated Order)
 
@@ -746,8 +746,11 @@ exam-app/
 **Week 5-6** (Free Tier — after MVP stable):
 - T247-T258: Login-gated free tier, 15 free questions, upgrade flow
 
-**Week 7-8** (Play Billing — last, requires Play access):
-- T259-T270: Play Billing API integration, one-time purchase, purchase validation
+**Week 7-8** (Play Billing Subscriptions — Play access granted):
+- T259-T264: Subscription infrastructure (billing service, SQLite extension, expiry/renewal logic)
+- T265-T266: Subscription UI (3-plan selector on UpgradeScreen, edge case handling)
+- T267: Multi-app subscription SKU config + deprecate one-time purchase references
+- T268-T270: Testing, subscription setup guide, E2E validation
 
 ### Comparison: Clone vs Monorepo
 
@@ -769,21 +772,28 @@ exam-app/
 **Status**: 📋 Ready for Implementation (Phase 16-17)  
 **Prerequisites**: Phase 4 (T207-T246) ✅ Complete, all MVP features stable  
 **Spec**: [spec.md § Phase 5](spec.md#phase-5-monetization--login-gated-free-tier--play-billing)  
-**Goal**: Convert from paid app model to freemium model: require Google login for all users, provide 15 free exam questions, and integrate Play Billing API for a one-time "Forever Access" purchase to unlock the full question bank.
+**Goal**: Convert from paid app model to freemium model: require Google login for all users, provide 15 free exam questions, and integrate Play Billing API for a subscription-based model (Monthly $2.99, Quarterly $6.99, Annual $19.99) to unlock the full question bank.
 
 ### Summary
 
-The current UpgradeScreen (`packages/shared/src/screens/UpgradeScreen.tsx`) already has the "Forever Access" UI with pricing ($14.99), benefits list, and CTA button — but no actual billing integration. Phase 5 adds the backend and mobile logic to make it functional.
+The current UpgradeScreen (`packages/shared/src/screens/UpgradeScreen.tsx`) already has a purchase UI with benefits list and CTA button — but no actual billing integration. Phase 5 adds the backend and mobile logic to make it functional with a 3-plan subscription model.
 
-**Why this order**: Monetization is intentionally placed after all MVP features are stable. The free tier provides conversion funnel data, and Play Billing requires active Play Console monetization access (currently unavailable). This separation ensures the core app experience is polished before adding billing complexity.
+**Why this order**: Monetization is intentionally placed after all MVP features are stable. The free tier provides conversion funnel data, and Play Billing requires active Play Console monetization access (now granted). This separation ensures the core app experience is polished before adding billing complexity.
 
-**Multi-app compatibility**: Each exam app has its own Play Store listing and its own product SKU. Purchase status is per-app, per-user — no cross-app entitlement issues. The free question limit and billing logic live in `packages/shared/` so all apps share the same implementation.
+**Multi-app compatibility**: Each exam app has its own Play Store listing and its own set of subscription product SKUs (3 per app: monthly, quarterly, annual). Subscription status is per-app, per-user — no cross-app entitlement issues. The free question limit and billing logic live in `packages/shared/` so all apps share the same implementation.
+
+**Subscription Pricing**:
+| Plan | Price | Effective $/mo | Savings | Badge |
+|------|-------|----------------|---------|-------|
+| Monthly | $2.99/mo | $2.99 | — | — |
+| Quarterly | $6.99/qtr | $2.33 | 22% | **MOST POPULAR** |
+| Annual | $19.99/yr | $1.67 | 44% | **BEST VALUE** |
 
 ### Technical Context
 
-**Billing Library**: `react-native-iap` (React Native In-App Purchases) — supports Google Play Billing Library v6+  
-**Purchase Type**: One-time (non-consumable) in-app purchase per app  
-**Free Tier**: 15 questions accessible without purchase, login required  
+**Billing Library**: `react-native-iap` (React Native In-App Purchases) — supports Google Play Billing Library v6+ subscriptions  
+**Purchase Type**: Subscription-based (auto-renewable) — 3 plans per app: Monthly ($2.99), Quarterly ($6.99), Annual ($19.99)  
+**Free Tier**: 15 questions accessible without subscription, login required  
 **Question Gating**: Client-side enforcement using purchase store + server-side validation optional  
 **Existing Foundation**: UpgradeScreen UI, Google OAuth login, question repository, Zustand stores
 
@@ -793,8 +803,8 @@ The current UpgradeScreen (`packages/shared/src/screens/UpgradeScreen.tsx`) alre
 
 - ✅ **No new projects**: Adds billing service + purchase store to existing packages/shared/
 - ✅ **Architecture preserved**: Offline-first preserved (purchase status cached locally). Multi-tenant preserved (per-app SKUs).
-- ✅ **Backward compatible**: Existing users who already have the app continue to work. Free tier is the new default for new installs.
-- ✅ **Incremental**: Phase 16 (free tier) works independently of Phase 17 (billing). Phase 16 can ship while waiting for Play access.
+- ✅ **Backward compatible**: Existing users who already have the app continue to work. Free tier is the new default for new installs. PurchaseStatus table extended (not replaced) with subscription fields.
+- ✅ **Incremental**: Phase 16 (free tier) works independently of Phase 17 (billing). Phase 16 can ship while waiting for Play access. Phase 17 adds subscription columns via ALTER TABLE (non-breaking).
 - ✅ **Test coverage**: Unit tests for gating logic, E2E tests for purchase flow
 - ✅ **Development-friendly**: Dev mode bypasses purchase check (similar to Play Integrity bypass)
 
@@ -821,85 +831,102 @@ The current UpgradeScreen (`packages/shared/src/screens/UpgradeScreen.tsx`) alre
 
 **Checkpoint**: Login required. Free tier limited to 15 questions. Upgrade prompt visible. UpgradeScreen accessible. No billing yet.
 
-#### Phase 17: Play Billing One-Time Purchase (T259–T270, ~10 dev-hours)
+#### Phase 17: Play Billing Subscription Model (T259–T270, ~12 dev-hours)
 
-**Goal**: Integrate Google Play Billing API for "Forever Access" one-time purchase. Unlock full question bank on purchase. **BLOCKED: Requires Play Console monetization access.**
+**Goal**: Integrate Google Play Billing API for subscription-based access (Monthly $2.99, Quarterly $6.99, Annual $19.99). Active subscription unlocks full question bank. Expired subscription auto-downgrades to FREE. **READY — Play Console monetization access granted.**
 
-**Prerequisite**: Active Google Play Console monetization profile and in-app product created.
+**Prerequisite**: Active Google Play Console monetization profile and subscription products created (3 per app).
+
+**Sub-phases**:
+- **Phase 17A** (T259–T264): Subscription infrastructure — billing service, SQLite extension, expiry/renewal handling
+- **Phase 17B** (T265–T266): Subscription UI — 3-plan selector on UpgradeScreen, edge case handling
+- **Phase 17C** (T267): Multi-app SKU config, deprecate one-time purchase references
+- **Testing** (T268–T270): Unit tests, setup guide, E2E validation
 
 | Task | Description | Est. |
 |------|-------------|------|
-| T259 | Add `react-native-iap` dependency to packages/shared/package.json and apps/aws-clp/package.json. Configure native module linking for Android. | 30 min |
-| T260 | Create packages/shared/src/services/billing.service.ts: `initBilling()`, `getProducts()`, `purchaseProduct(sku)`, `restorePurchases()`, `validatePurchase()`. Handle connection lifecycle. | 90 min |
-| T261 | Implement one-time purchase flow in billing.service.ts: connect to Play Store → fetch product details → initiate purchase → handle success/failure/pending → update purchase store → acknowledge purchase. | 60 min |
-| T262 | (Optional) Create api/src/billing/ module for server-side purchase validation: `POST /api/billing/verify` endpoint that validates purchase token with Google Play Developer API. Provides additional security against purchase spoofing. | 60 min |
-| T263 | Update packages/shared/src/stores/purchase.store.ts: integrate with billing service — on purchase success, set `tierLevel = 'PREMIUM'`, persist to SQLite via purchase repository. | 30 min |
-| T264 | Implement purchase restoration in billing.service.ts: on app reinstall or new device, check for existing purchases via `restorePurchases()`. Restore PREMIUM status if purchase found. | 45 min |
-| T265 | Update packages/shared/src/screens/UpgradeScreen.tsx: connect "Upgrade Now" button to billing.service.purchaseProduct(). Show loading state during purchase, success confirmation, error handling. | 45 min |
-| T266 | Handle billing edge cases in billing.service.ts: pending purchases (PAYMENT_PENDING), cancelled purchases, refunded purchases (check via server validation in T262), network errors during purchase, Play Store unavailable. | 45 min |
-| T267 | Configure per-app product IDs: each app scopes its SKU using examTypeId (e.g., `forever_access_clf_c02`, `forever_access_saa_c03`). Product ID pattern: `forever_access_{examTypeId.toLowerCase().replace('-', '_')}`. Add to app.config.ts. | 30 min |
-| T268 | Create packages/shared/__tests__/billing.service.test.ts: unit tests for purchase flow, restoration, edge cases. Mock react-native-iap. | 60 min |
-| T269 | Create documentation: Play Console setup guide (create in-app product, set price, configure testing), product ID naming convention, testing with license testers. | 30 min |
-| T270 | End-to-end purchase validation: test full flow from UpgradeScreen → Play Store → purchase → unlock → verify questions accessible. Test with Play Store internal testing track. | 45 min |
+| T259 | Add `react-native-iap` dependency. Configure for Android subscriptions. Verify build. | 30 min |
+| T260 | Create packages/shared/src/services/billing.service.ts: `initBilling()`, `getSubscriptions()`, `subscribe(sku)`, `restorePurchases()`, `validateSubscription()`, `checkExpiry()`, `handleRenewal()`, `cancelSubscription()`. Handle connection lifecycle. | 90 min |
+| T261 | Implement subscription flow: connect → fetch plan details → initiate subscription → handle success/failure/pending → update purchase store with expiry data → acknowledge. | 60 min |
+| T262 | Extend PurchaseStatus SQLite table (ALTER TABLE): add `subscription_type TEXT`, `expiry_date TEXT`, `auto_renewing INTEGER`. Non-breaking — existing rows keep null values. Update repository interface. | 45 min |
+| T262.5 | (Optional) Create api/src/billing/ module: `POST /api/billing/verify-subscription` — validates subscription via Google Play Developer API (`purchases.subscriptionsv2.get`). Returns expiry, auto-renew status, payment state. | 60 min |
+| T263 | Update purchase store: add `subscriptionType`, `expiryDate`, `autoRenewing` state. Add `setSubscription()` and `checkAndDowngrade()` actions. On launch: load → check expiry → downgrade if expired. | 45 min |
+| T264 | Implement subscription restoration and expiry: restore active subscriptions on reinstall. `checkExpiry()` on each launch. Auto-downgrade expired + non-renewing to FREE. Attempt restore for expired + auto-renewing. Grace period + account hold handling. | 60 min |
+| T265 | Update UpgradeScreen: 3-plan subscription selector (Monthly/Quarterly/Annual). Quarterly highlighted as "MOST POPULAR". Connect CTA to `subscribe()`. Show localized prices. Add "Restore Subscription" and "Manage Subscription" links. | 60 min |
+| T266 | Handle subscription edge cases: pending payment, cancelled (access until expiry), expired auto-downgrade, refund, network error, grace period, account hold, plan switching. | 45 min |
+| T267 | Configure per-app subscription SKUs: `monthly_{exam_type}`, `quarterly_{exam_type}`, `annual_{exam_type}`. Update AppConfig, app configs, template, create-app.sh. Deprecate `forever_access_*` references. | 45 min |
+| T268 | Create billing.service.test.ts: mock react-native-iap. Test all 3 plans, subscription/restore/expiry/renewal/downgrade/grace period flows. | 60 min |
+| T269 | Create subscription-setup-guide.md: Play Console setup for 3 subscription products per app, pricing, test mode, lifecycle docs. | 30 min |
+| T270 | E2E validation: full subscription flow → expiry → downgrade → resubscribe → restore. Test plan switching. Test with 2 apps. | 60 min |
 
-**Checkpoint**: "Forever Access" purchase works end-to-end. Free users see 15 questions. Paid users see all questions. Purchase persists across reinstalls via restore.
+**Checkpoint**: Subscription model works end-to-end. Free users see 15 questions. Subscribed users see all. Expired subscription = auto-downgrade to FREE. 3 SKUs per app.
 
 ### Implementation Constraints & Guidelines (Phase 5)
 
 #### ✅ DO: Non-Breaking Monetization
 
-- ✅ Free tier is the default — no purchase required to use core app features
+- ✅ Free tier is the default — no subscription required to use core app features
 - ✅ Login required but frictionless via existing Google OAuth
-- ✅ Purchase status cached locally for offline-first compatibility
-- ✅ Per-app product IDs prevent cross-app purchase conflicts
-- ✅ `__DEV__` bypass for billing (skip purchase check in dev mode)
-- ✅ Restore purchases on reinstall (no double-charging)
+- ✅ Subscription status cached locally for offline-first compatibility
+- ✅ Per-app subscription SKUs prevent cross-app conflicts (3 SKUs per app)
+- ✅ `__DEV__` bypass for billing (skip subscription check in dev mode)
+- ✅ Restore subscriptions on reinstall (no double-charging)
+- ✅ Auto-downgrade to FREE on subscription expiry (no manual intervention required)
 
 #### ❌ DON'T: Breaking Changes
 
 - ❌ Do NOT remove or modify Play Integrity logic — it remains independent of billing
-- ❌ Do NOT gate ALL features behind purchase — free tier must be functional
-- ❌ Do NOT require network for purchase validation on every launch (cache locally)
-- ❌ Do NOT share purchase entitlements across different exam apps
+- ❌ Do NOT gate ALL features behind subscription — free tier must be functional
+- ❌ Do NOT require network for subscription validation on every launch (cache locally, check expiry date)
+- ❌ Do NOT share subscription entitlements across different exam apps
 - ❌ Do NOT hardcode prices — use Play Billing API to fetch localized prices
 - ❌ Do NOT store sensitive purchase tokens in plain text (use purchase repository with SQLite)
+- ❌ Do NOT introduce new TierLevel values — keep only FREE | PREMIUM
+- ❌ Do NOT drop or recreate PurchaseStatus table — use ALTER TABLE to add subscription columns
 
 ### Architecture Preservation (Phase 5)
 
 | Component | Before (Phase 4) | After (Phase 5) | Impact |
 |-----------|-----------------|-----------------|--------|
 | **App Access** | Full access after Play Integrity | **Login required + free tier** | Additive gate |
-| **Question Access** | All questions available | **15 free, rest behind purchase** | Additive gating |
-| **UpgradeScreen** | Static UI (no billing) | **Connected to Play Billing** | Enhanced existing |
+| **Question Access** | All questions available | **15 free, rest behind subscription** | Additive gating |
+| **UpgradeScreen** | Static UI (no billing) | **3-plan subscription selector** | Enhanced existing |
 | **Play Integrity** | Blocks sideloaded APKs | Unchanged | Zero impact |
-| **Offline-First** | Full offline after verification | Purchase status cached locally | Preserved |
-| **Multi-App** | Per-app config | **+ per-app product SKU** | Additive only |
+| **Offline-First** | Full offline after verification | Subscription status cached locally + expiry check | Preserved |
+| **Multi-App** | Per-app config | **+ per-app subscription SKUs (3 per app)** | Additive only |
 | **Auth** | Optional Google login | **Required Google login** | Enforcement change |
-| **Backend** | Stateless integrity proxy | **+ optional billing verification** | Additive only |
+| **Backend** | Stateless integrity proxy | **+ optional subscription verification** | Additive only |
+| **PurchaseStatus** | Stores tier_level, product_id | **+ subscription_type, expiry_date, auto_renewing** | Extended (ALTER TABLE) |
 
 ### Risk Mitigation (Phase 5)
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Play Console access delays | High | Phase 17 blocked | Phase 16 (free tier) ships independently. Phase 17 waits. |
+| Play Console access delays | Low | Phase 17 unblocked | Phase 16 ships independently. Play Console monetization access now granted. |
 | Users dislike mandatory login | Medium | Lower adoption | Free tier is generous (15 questions). Login enables cloud sync benefits. |
-| Purchase spoofing | Low | Revenue loss | Server-side validation (T262) + Play Integrity blocks sideloaded apps |
-| react-native-iap compatibility issues | Medium | Billing broken | Library is mature (10K+ GitHub stars). Test on multiple devices. |
-| Cross-app SKU conflicts | Low | Wrong purchase | Per-app product IDs with examTypeId in SKU name prevents conflicts |
-| Refund handling | Medium | User confusion | Server-side validation periodically re-checks purchase status |
+| Subscription fatigue | Medium | Lower conversion | Quarterly plan ($6.99) positioned as default — aligns with typical 2-3 month exam study cycle. Annual ($19.99) provides best value anchor. |
+| Subscription spoofing | Low | Revenue loss | Server-side validation (T262.5) + Play Integrity blocks sideloaded apps |
+| react-native-iap compatibility issues | Medium | Billing broken | Library is mature (10K+ GitHub stars). Test on multiple devices. Subscriptions API well-supported. |
+| Cross-app SKU conflicts | Low | Wrong subscription | Per-app subscription SKUs with examTypeId in name prevents conflicts (3 SKUs per app) |
+| Expiry handling race conditions | Medium | PREMIUM shown to expired user | Check expiry on every app launch. If auto-renewing + expired, attempt restore before granting access. |
+| Subscription cancellation UX | Low | User confusion | Show clear status in SettingsScreen and UpgradeScreen. Link to Play Store subscription management. |
 
 ### Success Metrics (Phase 5)
 
 #### Functional Success
 - ✅ SC-015: Login required for all users (no anonymous access)
 - ✅ SC-016: Free tier limited to exactly 15 questions (consistent set per exam type)
-- ✅ SC-017: One-time purchase unlocks full question bank immediately
-- ✅ SC-018: Purchase persists across reinstalls via Google Play restore
-- ✅ SC-019: Each app has unique product SKU (no cross-app conflicts)
-- ✅ SC-020: Dev mode bypasses purchase check
-- ✅ SC-021: Offline access preserved after purchase (no network required)
+- ✅ SC-017: Subscription unlocks full question bank immediately upon activation
+- ✅ SC-018: Active subscription persists across reinstalls via Google Play restore
+- ✅ SC-019: Each app has 3 unique subscription SKUs (monthly, quarterly, annual — no cross-app conflicts)
+- ✅ SC-020: Dev mode bypasses subscription check
+- ✅ SC-021: Offline access preserved after subscription (no network required for cached subscription)
+- ✅ SC-022: Expired subscription auto-downgrades to FREE tier
+- ✅ SC-023: Quarterly plan presented as default recommended option
 
 #### Code Quality
 - ✅ Billing service test coverage >85%
 - ✅ Purchase gating logic test coverage >90%
+- ✅ Subscription lifecycle test coverage (active, expired, cancelled, grace period, account hold)
 - ✅ Zero breaking changes to existing Play Integrity, auth, sync logic
+- ✅ PurchaseStatus table extended, not replaced (ALTER TABLE for new columns)

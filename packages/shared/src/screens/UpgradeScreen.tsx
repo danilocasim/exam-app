@@ -62,10 +62,28 @@ interface BenefitItem {
 
 const benefits: BenefitItem[] = [
   {
-    key: 'unlimited',
+    key: 'daily',
     icon: <Infinity size={20} color={colors.primaryOrange} strokeWidth={2} />,
-    title: 'Unlimited Exam Attempts',
-    description: 'Take as many practice exams as you need with no restrictions',
+    title: 'Unlimited Daily Quizzes',
+    description: 'No cooldowns — take daily quizzes as often as you want',
+  },
+  {
+    key: 'missed',
+    icon: <ShieldOff size={20} color={colors.successLight} strokeWidth={2} />,
+    title: 'Missed Questions Quiz',
+    description: 'Target your weak spots with a focused missed-questions mode',
+  },
+  {
+    key: 'custom',
+    icon: <Sparkles size={20} color="#F59E0B" strokeWidth={2} />,
+    title: 'Custom Exam Builder',
+    description: 'Pick domains, question count, and timing to match your goals',
+  },
+  {
+    key: 'mock',
+    icon: <Target size={20} color="#3B82F6" strokeWidth={2} />,
+    title: 'Full Mock Exams',
+    description: 'Realistic exam conditions with timed sessions and scoring',
   },
   {
     key: 'questions',
@@ -74,34 +92,16 @@ const benefits: BenefitItem[] = [
     description: 'Access every question across all domains and difficulty levels',
   },
   {
-    key: 'mock',
-    icon: <Target size={20} color="#3B82F6" strokeWidth={2} />,
-    title: 'Mock Exam Simulation',
-    description: 'Realistic exam conditions with timed sessions and scoring',
-  },
-  {
     key: 'analytics',
     icon: <BarChart2 size={20} color="#8B5CF6" strokeWidth={2} />,
     title: 'Performance Analytics',
     description: 'Deep insights into your strengths and areas for improvement',
   },
   {
-    key: 'tracking',
-    icon: <Sparkles size={20} color="#F59E0B" strokeWidth={2} />,
-    title: 'Progress Tracking',
-    description: 'Track your improvement over time with detailed statistics',
-  },
-  {
     key: 'updates',
     icon: <RefreshCw size={20} color="#06B6D4" strokeWidth={2} />,
     title: 'Lifetime Updates',
     description: 'Receive all future question updates and new features at no cost',
-  },
-  {
-    key: 'noads',
-    icon: <ShieldOff size={20} color={colors.successLight} strokeWidth={2} />,
-    title: 'No Ads',
-    description: 'Enjoy a completely distraction-free study experience',
   },
 ];
 
@@ -170,8 +170,8 @@ export const UpgradeScreen: React.FC = () => {
 
             <Text style={styles.heroTitle}>Forever Access</Text>
             <Text style={styles.heroSubtitle}>
-              Unlock the full power of Dojo Exam. One purchase, lifetime access to everything you
-              need to ace your certification.
+              Unlock the full power of Dojo Exam. Unlimited daily quizzes, missed-question drills,
+              custom exams, and full mock tests — all in one lifetime upgrade.
             </Text>
 
             {/* Price badge */}
@@ -203,10 +203,12 @@ export const UpgradeScreen: React.FC = () => {
           </View>
           {/* Rows */}
           {[
-            { feature: 'Questions', free: `${FREE_QUESTION_LIMIT}`, premium: 'All' },
-            { feature: 'Mock exams', free: `${FREE_QUESTION_LIMIT}-Q mini`, premium: 'Full exam' },
+            { feature: 'Daily quiz attempts', free: '1 / 24h', premium: 'Unlimited' },
+            { feature: 'Missed questions quiz', free: false, premium: true },
+            { feature: 'Custom exam builder', free: false, premium: true },
+            { feature: 'Mock exams', free: false, premium: 'Full exam' },
+            { feature: 'Question bank', free: `${FREE_QUESTION_LIMIT}`, premium: 'All' },
             { feature: 'Analytics', free: false, premium: true },
-            { feature: 'All domains', free: false, premium: true },
             { feature: 'Lifetime updates', free: false, premium: true },
           ].map(({ feature, free, premium }) => (
             <View key={feature} style={styles.comparisonDataRow}>
@@ -272,9 +274,7 @@ export const UpgradeScreen: React.FC = () => {
               style={styles.ctaGradient}
             >
               <Crown size={20} color={colors.textHeading} strokeWidth={2.5} />
-              <Text style={styles.ctaText}>
-                {isPremium ? 'Already Unlocked' : 'Upgrade Now'}
-              </Text>
+              <Text style={styles.ctaText}>{isPremium ? 'Already Unlocked' : 'Upgrade Now'}</Text>
             </LinearGradient>
           </TouchableOpacity>
           <Text style={styles.ctaFootnote}>

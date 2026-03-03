@@ -57,7 +57,10 @@ export class UserStatsService {
       const totalTimeSpentMs = BigInt(dto.totalTimeSpentMs);
 
       // Helper: most-recent-wins merge for nullable DateTime fields
-      const mergeDate = (incoming: Date | null | undefined, server: Date | null): Date | null => {
+      const mergeDate = (
+        incoming: Date | null | undefined,
+        server: Date | null,
+      ): Date | null => {
         if (incoming && server) return incoming > server ? incoming : server;
         return incoming ?? server;
       };
@@ -73,7 +76,10 @@ export class UserStatsService {
               ? totalTimeSpentMs
               : existing.totalTimeSpentMs,
           // Keep the most recent activity timestamp
-          lastActivityAt: mergeDate(dto.lastActivityAt, existing.lastActivityAt),
+          lastActivityAt: mergeDate(
+            dto.lastActivityAt,
+            existing.lastActivityAt,
+          ),
           // Keep the most recent cooldown timestamps (most-recent-wins)
           dailyQuizLastCompletedAt: mergeDate(
             dto.dailyQuizLastCompletedAt,

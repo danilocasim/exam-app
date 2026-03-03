@@ -100,8 +100,8 @@ model ExamAttempt {
   syncRetries  Int        @default(0)
   syncStatus   SyncStatus @default(PENDING)
   localId      String?
-  domainScores Json?      // [{domainId, correct, total}] — per-domain breakdown
-  answers      Json?      // [{questionId, selectedAnswers, isCorrect, orderIndex}] — per-question answers
+  domainScores Json? // [{domainId, correct, total}] — per-domain breakdown
+  answers      Json? // [{questionId, selectedAnswers, isCorrect, orderIndex}] — per-question answers
   examType     ExamType   @relation(fields: [examTypeId], references: [id])
   user         User?      @relation(fields: [userId], references: [id])
 
@@ -113,17 +113,17 @@ model ExamAttempt {
 }
 
 model UserStats {
-  id                       String    @id @default(uuid())
-  userId                   String    @unique
-  totalExams               Int       @default(0)
-  totalPractice            Int       @default(0)
-  totalQuestions           Int       @default(0)
-  totalTimeSpentMs         BigInt    @default(0)
-  lastActivityAt           DateTime?
-  dailyQuizLastCompletedAt DateTime?
+  id                        String    @id @default(uuid())
+  userId                    String    @unique
+  totalExams                Int       @default(0)
+  totalPractice             Int       @default(0)
+  totalQuestions            Int       @default(0)
+  totalTimeSpentMs          BigInt    @default(0)
+  lastActivityAt            DateTime?
+  dailyQuizLastCompletedAt  DateTime?
   missedQuizLastCompletedAt DateTime?
-  updatedAt                DateTime  @updatedAt
-  user                     User      @relation(fields: [userId], references: [id])
+  updatedAt                 DateTime  @updatedAt
+  user                      User      @relation(fields: [userId], references: [id])
 }
 
 model StudyStreak {
