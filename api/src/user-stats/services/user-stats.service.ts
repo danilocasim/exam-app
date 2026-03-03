@@ -8,6 +8,8 @@ export interface UpsertUserStatsDto {
   totalQuestions: number;
   totalTimeSpentMs: number;
   lastActivityAt?: Date | null;
+  dailyQuizLastCompletedAt?: Date | null;
+  missedQuizLastCompletedAt?: Date | null;
 }
 
 /**
@@ -45,12 +47,21 @@ export class UserStatsService {
             totalQuestions: dto.totalQuestions,
             totalTimeSpentMs: dto.totalTimeSpentMs,
             lastActivityAt: dto.lastActivityAt ?? null,
+            dailyQuizLastCompletedAt: dto.dailyQuizLastCompletedAt ?? null,
+            missedQuizLastCompletedAt: dto.missedQuizLastCompletedAt ?? null,
           },
         });
       }
 
       // Take MAX of each counter so neither device's offline work is lost
       const totalTimeSpentMs = BigInt(dto.totalTimeSpentMs);
+
+      // Helper: most-recent-wins merge for nullable DateTime fields
+      const mergeDate = (incoming: Date | null | undefined, server: Date | null): Date | null => {
+        if (incoming && server) return incoming > server ? incoming : server;
+        return incoming ?? server;
+      };
+
       return tx.userStats.update({
         where: { userId },
         data: {
@@ -62,12 +73,16 @@ export class UserStatsService {
               ? totalTimeSpentMs
               : existing.totalTimeSpentMs,
           // Keep the most recent activity timestamp
-          lastActivityAt:
-            dto.lastActivityAt && existing.lastActivityAt
-              ? dto.lastActivityAt > existing.lastActivityAt
-                ? dto.lastActivityAt
-                : existing.lastActivityAt
-              : dto.lastActivityAt ?? existing.lastActivityAt,
+          lastActivityAt: mergeDate(dto.lastActivityAt, existing.lastActivityAt),
+          // Keep the most recent cooldown timestamps (most-recent-wins)
+          dailyQuizLastCompletedAt: mergeDate(
+            dto.dailyQuizLastCompletedAt,
+            existing.dailyQuizLastCompletedAt,
+          ),
+          missedQuizLastCompletedAt: mergeDate(
+            dto.missedQuizLastCompletedAt,
+            existing.missedQuizLastCompletedAt,
+          ),
         },
       });
     });

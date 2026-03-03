@@ -34,6 +34,14 @@ export class UpsertUserStatsBody {
   @IsOptional()
   @IsISO8601()
   lastActivityAt?: string | null; // ISO string from mobile
+
+  @IsOptional()
+  @IsISO8601()
+  dailyQuizLastCompletedAt?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  missedQuizLastCompletedAt?: string | null;
 }
 
 export class UserStatsResponse {
@@ -42,6 +50,8 @@ export class UserStatsResponse {
   totalQuestions: number;
   totalTimeSpentMs: number;
   lastActivityAt: string | null;
+  dailyQuizLastCompletedAt: string | null;
+  missedQuizLastCompletedAt: string | null;
 }
 
 /**
@@ -69,6 +79,8 @@ export class UserStatsController {
         totalQuestions: 0,
         totalTimeSpentMs: 0,
         lastActivityAt: null,
+        dailyQuizLastCompletedAt: null,
+        missedQuizLastCompletedAt: null,
       });
     }
     return {
@@ -77,6 +89,8 @@ export class UserStatsController {
       totalQuestions: stats.totalQuestions,
       totalTimeSpentMs: Number(stats.totalTimeSpentMs),
       lastActivityAt: stats.lastActivityAt?.toISOString() ?? null,
+      dailyQuizLastCompletedAt: stats.dailyQuizLastCompletedAt?.toISOString() ?? null,
+      missedQuizLastCompletedAt: stats.missedQuizLastCompletedAt?.toISOString() ?? null,
     };
   }
 
@@ -91,6 +105,12 @@ export class UserStatsController {
       totalQuestions: body.totalQuestions ?? 0,
       totalTimeSpentMs: body.totalTimeSpentMs ?? 0,
       lastActivityAt: body.lastActivityAt ? new Date(body.lastActivityAt) : null,
+      dailyQuizLastCompletedAt: body.dailyQuizLastCompletedAt
+        ? new Date(body.dailyQuizLastCompletedAt)
+        : null,
+      missedQuizLastCompletedAt: body.missedQuizLastCompletedAt
+        ? new Date(body.missedQuizLastCompletedAt)
+        : null,
     });
     return {
       totalExams: stats.totalExams,
@@ -98,6 +118,8 @@ export class UserStatsController {
       totalQuestions: stats.totalQuestions,
       totalTimeSpentMs: Number(stats.totalTimeSpentMs),
       lastActivityAt: stats.lastActivityAt?.toISOString() ?? null,
+      dailyQuizLastCompletedAt: stats.dailyQuizLastCompletedAt?.toISOString() ?? null,
+      missedQuizLastCompletedAt: stats.missedQuizLastCompletedAt?.toISOString() ?? null,
     };
   }
 }

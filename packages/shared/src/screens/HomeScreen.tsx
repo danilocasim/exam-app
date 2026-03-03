@@ -562,18 +562,26 @@ export const HomeScreen: React.FC = () => {
     label: 'Missed Question',
     sub: hasInProgressMissed
       ? 'In progress'
-      : missedEmpty
-        ? 'No missed questions yet'
-        : missedCooldownActive
-          ? formatCooldown(missedLastAttempt)
-          : `${missedCount} available`,
-    icon: (
+      : isPremium
+        ? missedEmpty
+          ? 'No missed questions yet'
+          : missedCooldownActive
+            ? formatCooldown(missedLastAttempt)
+            : `${missedCount} available`
+        : '',
+    icon: isPremium ? (
       <CircleX size={22} color={missedDisabled ? colors.textMuted : '#EF4444'} strokeWidth={1.8} />
+    ) : (
+      <Lock size={22} color={colors.textMuted} strokeWidth={1.8} />
     ),
-    iconBg: missedDisabled ? colors.surfaceHover : 'rgba(239, 68, 68, 0.12)',
-    locked: false,
-    cooldown: missedDisabled,
-    onPress: handleMissedCardPress,
+    iconBg: isPremium
+      ? missedDisabled
+        ? colors.surfaceHover
+        : 'rgba(239, 68, 68, 0.12)'
+      : colors.surfaceHover,
+    locked: !isPremium,
+    cooldown: isPremium && missedDisabled,
+    onPress: !isPremium ? () => navigation.navigate('Upgrade') : handleMissedCardPress,
   };
 
   const customCard = {
