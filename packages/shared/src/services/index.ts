@@ -142,3 +142,30 @@ export {
   cancelCooldownNotification,
   cancelAllCooldownNotifications,
 } from './notification.service';
+
+// Billing service — Google Play subscription billing (T260)
+export {
+  initBilling,
+  disconnectBilling,
+  setPurchaseListeners,
+  fetchSubscriptions,
+  subscribe,
+  restorePurchases,
+  validateSubscription,
+  checkExpiry,
+  handleRenewal,
+  acknowledgePurchase,
+  finishTransaction,
+  cancelSubscription,
+  isBillingConnected,
+  getSubscriptionSku,
+  getAllSubscriptionSkus,
+  getPlanFromProductId,
+  SUBSCRIPTION_PLANS,
+} from './billing.service';
+export type {
+  SubscriptionPlan,
+  SubscriptionInfo,
+  SubscriptionResult,
+  SubscriptionStatus,
+} from './billing.service';

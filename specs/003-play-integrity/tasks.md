@@ -38,7 +38,10 @@
 | Phase 13: Admin CRUD Backend | T225-T230 | 6 | 📋 Not Started | 5 hrs |
 | Phase 14: Admin CRUD Frontend | T231-T238 | 8 | 📋 Not Started | 6 hrs |
 | Phase 15: Testing & Docs | T239-T246 | 8 | 📋 Not Started | 6 hrs |
-| **Total** | **T151–T246** + optional | **97** | **📋 READY** | **~69 hrs core (1-2 devs, 8-9 weeks)** |
+| **Phase 5: Monetization** | | | | |
+| Phase 16: Login-Gated Free Tier | T247-T258 | 12 | ✅ Complete | 10 hrs |
+| Phase 17: Play Billing Subscription | T259-T270 | 13 | 📋 Ready | 12 hrs |
+| **Total** | **T151–T270** + optional | **122** | **📋 READY** | **~91 hrs core (1-2 devs, 11-12 weeks)** |
 
 ---
 
@@ -743,7 +746,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 - **Phase 14 (Template & Script)**: Depends on Phase 13 (admin portal must be able to create exam types first)
 - **Phase 15 (Testing & Docs)**: Depends on Phase 14
 - **Phase 16 (Login-Gated Free Tier)**: Depends on Phase 15 (MVP stable first). Can ship independently of Phase 17.
-- **Phase 17 (Play Billing)**: Depends on Phase 16 + Play Console monetization access. **READY — Play access granted.**
+- **Phase 17 (Play Billing Subscription)**: Depends on Phase 16 + Play Console monetization access. **READY — Play access granted.** Subscription model (Monthly $2.99, Quarterly $6.99, Annual $19.99).
 
 ### Updated Execution Order (1 Developer)
 
@@ -762,8 +765,11 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 **Week 5-6** (Free Tier):
 - T247-T258: Login-gated free tier with 15 questions, upgrade flow
 
-**Week 7-8** (Play Billing — when access granted):
-- T259-T270: Play Billing API integration, one-time purchase, validation
+**Week 7-8** (Play Billing Subscriptions — Play access granted):
+- T259-T264: Subscription infrastructure (billing service, SQLite extension, expiry logic)
+- T265-T266: Subscription UI (3-plan selector, edge cases)
+- T267: Multi-app subscription SKU config
+- T268-T270: Testing, documentation, E2E validation
 
 ### What CAN Be Parallelized ([P] Marked)
 
@@ -775,6 +781,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 | T242-T243 | ✅ Yes | Independent build config files |
 | T247-T250 | ✅ Yes | Independent store, repo, config files |
 | T259-T260 | ✅ Yes | Billing dependency + service (different concerns) |
+| T265-T266 | ✅ Yes | UI update + edge case handling (separate files) |
 
 ---
 
@@ -806,8 +813,9 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 6. **EAS Build monorepo support**: Expo/EAS officially supports monorepo builds. Key setting: `"extends"` in eas.json can share base config. Each app needs its own `projectId`.
 7. **No Prisma schema changes for admin CRUD**: ExamType model already has all needed fields. CRUD operations use existing Prisma client. Zero migrations.
 8. **Preserve all environment variable patterns**: `EXPO_PUBLIC_*` variables must work identically in `apps/{name}/` as they did in `mobile/`.
-9. **UpgradeScreen already exists**: `packages/shared/src/screens/UpgradeScreen.tsx` has static UI. Phase 16-17 enhances it with actual logic.
-10. **Phase 16 is independent of Phase 17**: Free tier can ship without Play Billing access. Phase 17 can start now that Play Console monetization is active.
+9. **UpgradeScreen already exists**: `packages/shared/src/screens/UpgradeScreen.tsx` has static UI. Phase 16-17 enhances it with actual logic. Phase 17 converts it from one-time purchase placeholder to 3-plan subscription selector.
+10. **Phase 16 is independent of Phase 17**: Free tier can ship without Play Billing access. Phase 17 adds subscription billing (Monthly $2.99, Quarterly $6.99, Annual $19.99). Play Console monetization is active.
+11. **Subscription model replaces one-time purchase**: Phase 17 was redesigned from "Forever Access" one-time purchase to a subscription model. TierLevel remains FREE | PREMIUM. Active subscription = PREMIUM. Expired = FREE. No new tier levels introduced.
 
 ---
 
@@ -906,112 +914,228 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ---
 
-## Phase 17: Play Billing One-Time Purchase (Phase 5 — Monetization Part 2)
+## Phase 17: Play Billing Subscription Model (Phase 5 — Monetization Part 2)
 
-**Purpose**: Integrate Google Play Billing API for "Forever Access" one-time purchase. Unlock full question bank.  
+**Purpose**: Integrate Google Play Billing API for subscription-based access (Monthly, Quarterly, Annual). Active subscription unlocks full question bank.  
 **Prerequisites**: Phase 16 (T247-T258) Complete + Active Google Play Console monetization profile  
 **Status**: 📋 **READY FOR IMPLEMENTATION** — Play Console monetization access granted
 
-**Key Principle**: One-time purchase, no subscriptions. Per-app product SKU. Purchase restores on reinstall. Offline-first — purchase status cached locally.
+**Key Principle**: Subscription model with 3 tiers. Per-app subscription product IDs. Active subscription = PREMIUM. Expired subscription = automatic downgrade to FREE. Purchase restores on reinstall. Offline-first — subscription status cached locally with expiry check.
 
-**Existing foundation**: UpgradeScreen already has UI with pricing ($14.99), benefits list, and CTA button. This phase connects the button to actual billing.
+**Existing foundation**: UpgradeScreen already has UI with benefits list and CTA button. This phase replaces the one-time purchase placeholder with a 3-plan subscription selector and connects it to actual billing.
 
-### Billing Infrastructure Tasks
+**Pricing Model**:
+| Plan | Price | Effective $/mo | Savings vs Monthly | Target User |
+|------|-------|----------------|--------------------|----|
+| Monthly | $2.99/month | $2.99 | — | Short-term prep, trial users |
+| Quarterly | $6.99/quarter | $2.33 | 22% | **Default recommended** — typical 2-3 month study cycle |
+| Annual | $19.99/year | $1.67 | 44% | Multi-cert learners, long-term prep |
 
-- [ ] T259 Add `react-native-iap` dependency to packages/shared/package.json and apps/aws-clp/package.json. Configure native module linking for Android. Run `cd apps/aws-clp && npx pod-install` if needed. Verify build succeeds.
+### Phase 17A: Subscription Infrastructure (T259–T264)
 
-- [ ] T260 Create packages/shared/src/services/billing.service.ts:
+**Purpose**: Introduce subscription logic while keeping existing purchase store structure intact.
+
+- [x] T259 Add `react-native-iap` dependency to packages/shared/package.json and apps/aws-clp/package.json. Configure native module linking for Android. Run `cd apps/aws-clp && npx pod-install` if needed. Verify build succeeds. **Note**: `react-native-iap` supports both subscriptions and one-time purchases — use `requestSubscription()` and `getSubscriptions()` APIs.
+
+- [x] T260 Create packages/shared/src/services/billing.service.ts:
   ```ts
-  // Core billing service methods
-  initBilling(): Promise<void>           // Initialize IAP connection
-  getProducts(skus: string[]): Promise<Product[]>  // Fetch product details from Play Store
-  purchaseProduct(sku: string): Promise<PurchaseResult>  // Initiate purchase flow
-  restorePurchases(): Promise<Purchase[]>  // Restore previous purchases
-  validatePurchase(token: string): Promise<boolean>  // Optional server-side validation
-  acknowledgePurchase(token: string): Promise<void>  // Acknowledge purchase (required by Google)
-  finishTransaction(purchase: Purchase): Promise<void>  // Complete transaction lifecycle
+  // Core subscription billing service methods
+  initBilling(): Promise<void>                              // Initialize IAP connection
+  getSubscriptions(skus: string[]): Promise<Subscription[]> // Fetch subscription details from Play Store
+  subscribe(sku: string): Promise<SubscriptionResult>       // Initiate subscription flow
+  restorePurchases(): Promise<Purchase[]>                   // Restore active subscriptions
+  validateSubscription(token: string): Promise<SubscriptionStatus>  // Server-side or local validation
+  checkExpiry(): Promise<boolean>                           // Check if cached subscription has expired
+  handleRenewal(purchase: Purchase): Promise<void>          // Process subscription renewal
+  acknowledgePurchase(token: string): Promise<void>         // Acknowledge (required by Google)
+  finishTransaction(purchase: Purchase): Promise<void>      // Complete transaction lifecycle
+  cancelSubscription(): void                                // Open Play Store subscription management
   ```
   Handle connection lifecycle (connect on init, disconnect on unmount). Handle `__DEV__` bypass.
 
-### Purchase Flow Tasks
+  **Subscription type constants**:
+  ```ts
+  export type SubscriptionPlan = 'monthly' | 'quarterly' | 'annual';
+  export const SUBSCRIPTION_PLANS: Record<SubscriptionPlan, { label: string; savings: string | null }> = {
+    monthly:   { label: 'Monthly',   savings: null },
+    quarterly: { label: 'Quarterly', savings: '22% off' },
+    annual:    { label: 'Annual',    savings: '44% off' },
+  };
+  ```
 
-- [ ] T261 Implement one-time purchase flow in billing.service.ts:
+- [ ] T261 Implement subscription purchase flow in billing.service.ts:
   1. Connect to Play Store billing client
-  2. Fetch product details (price, description) via `getProducts([sku])`
-  3. Initiate purchase via `purchaseProduct(sku)` — opens Play Store purchase dialog
-  4. On success: acknowledge purchase, update purchase store to PREMIUM, persist to SQLite
+  2. Fetch subscription details (price, billing period) via `getSubscriptions([...skus])`
+  3. Initiate subscription via `subscribe(sku)` — opens Play Store subscription dialog
+  4. On success: acknowledge, update purchase store to PREMIUM with expiry data, persist to SQLite
   5. On cancel: return to UpgradeScreen, no side effects
   6. On error: show error message, allow retry
-  7. On pending (PAYMENT_PENDING): show "Purchase pending" status, check again on next launch
+  7. On pending (PAYMENT_PENDING): show "Subscription pending" status, check again on next launch
+  8. Store `expiryDate`, `autoRenewing`, and `subscriptionType` in PurchaseStatus
 
-- [ ] T262 (Optional) Create api/src/billing/ module for server-side purchase validation:
-  - `POST /api/billing/verify` endpoint
-  - Accepts: `{ productId: string, purchaseToken: string, packageName: string }`
-  - Validates purchase token with Google Play Developer API (`purchases.products.get`)
-  - Returns: `{ valid: boolean, purchaseState: number, consumptionState: number }`
-  - Provides additional security against local purchase token spoofing
-  - Requires Google Play Developer API service account credentials
+- [ ] T262 Extend packages/shared/src/storage/repositories/purchase.repository.ts and database.ts:
+  - **Non-breaking migration**: ADD columns to existing PurchaseStatus table (do not drop/recreate):
+    ```sql
+    ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT;      -- 'monthly' | 'quarterly' | 'annual' | null
+    ALTER TABLE PurchaseStatus ADD COLUMN expiry_date TEXT;            -- ISO 8601 expiry timestamp
+    ALTER TABLE PurchaseStatus ADD COLUMN auto_renewing INTEGER DEFAULT 0; -- boolean: 1 = auto-renewing
+    ```
+  - Update `PurchaseStatus` interface to include new fields:
+    ```ts
+    interface PurchaseStatus {
+      id: string;
+      tier_level: TierLevel;
+      product_id: string | null;
+      purchase_token: string | null;
+      purchased_at: string | null;
+      subscription_type: SubscriptionPlan | null;  // NEW
+      expiry_date: string | null;                  // NEW
+      auto_renewing: boolean;                      // NEW
+      created_at: string;
+      updated_at: string;
+    }
+    ```
+  - Update `savePurchaseStatus()` to persist new fields
+  - **No schema-breaking changes**: Existing rows with `null` subscription fields remain valid (backward-compatible with Phase 16 data)
 
-- [ ] T263 Update packages/shared/src/stores/purchase.store.ts: integrate with billing service. On purchase success: `setPremium(productId, purchaseToken)`, persist to SQLite. On app launch: load purchase status from SQLite, if PREMIUM skip billing check.
+- [ ] T263 Update packages/shared/src/stores/purchase.store.ts: integrate with billing service for subscriptions.
+  - Add state fields: `subscriptionType: SubscriptionPlan | null`, `expiryDate: string | null`, `autoRenewing: boolean`
+  - Add action: `setSubscription(productId, purchaseToken, subscriptionType, expiryDate, autoRenewing)` — sets PREMIUM + subscription metadata, persists to SQLite
+  - Keep existing `setPremium()` for backward compatibility (calls `setSubscription` internally)
+  - Add action: `checkAndDowngrade()` — if `expiryDate` is past and `autoRenewing` is false → reset to FREE
+  - On app launch: `loadFromStorage()` → if subscription data exists → call `checkAndDowngrade()` before granting PREMIUM
+  - Add selectors: `useSubscriptionType()`, `useExpiryDate()`, `useIsAutoRenewing()`
 
-- [ ] T264 Implement purchase restoration in billing.service.ts: on app reinstall or new device, call `restorePurchases()` during initialization (after login, before question sync). If previous purchase found → restore PREMIUM status. If not found → remain FREE. Handle multiple purchases (take most recent).
+- [ ] T264 Implement subscription restoration and expiry handling in billing.service.ts:
+  - On app reinstall or new device: call `restorePurchases()` during initialization (after login, before question sync)
+  - If active subscription found → restore PREMIUM status with full subscription metadata
+  - If expired subscription found → set FREE, show "Subscription expired" message
+  - If not found → remain FREE
+  - `checkExpiry()`: called on each app launch — compare `expiryDate` with current date:
+    - If expired + `autoRenewing = false` → downgrade to FREE automatically
+    - If expired + `autoRenewing = true` → attempt `restorePurchases()` to check renewal; if renewed → update expiry; if not → downgrade
+  - `handleRenewal()`: when Play Store sends renewal event via purchase listener → update `expiryDate` and `purchaseToken` in store + SQLite
 
-### UI Integration Tasks
+### Phase 17B: Subscription UI (T265–T266)
+
+**Purpose**: Replace UpgradeScreen content with 3-plan subscription selector. Maintain existing CTA structure.
 
 - [ ] T265 Update packages/shared/src/screens/UpgradeScreen.tsx:
-  - Connect "Upgrade Now" button to `billing.service.purchaseProduct(sku)`
-  - Show loading spinner during purchase flow
-  - On success: show success animation/message, navigate to HomeScreen
+  - **Replace** one-time "Forever Access" branding with subscription plan selector
+  - Display 3 plan cards (Monthly $2.99, Quarterly $6.99, Annual $19.99):
+    - Each card shows: plan name, price, effective monthly cost, savings badge
+    - Quarterly card highlighted as **"MOST POPULAR"** (recommended default)
+    - Annual card shows **"BEST VALUE"** badge
+  - Pre-select Quarterly plan by default
+  - Connect CTA button to `billing.service.subscribe(selectedSku)`
+  - Show loading spinner during subscription flow
+  - On success: show success message, navigate to HomeScreen
   - On error: show error message with retry button
-  - Fetch and display localized price from Play Store (don't hardcode $14.99)
-  - Add "Restore Purchase" link at bottom for reinstall scenarios
+  - Fetch and display localized prices from Play Store (don't hardcode prices)
+  - Add "Restore Subscription" link at bottom for reinstall scenarios
+  - If already PREMIUM: show subscription status (plan, renewal date, auto-renew toggle)
+  - Add "Manage Subscription" link → opens Play Store subscription management
+  - Keep existing free vs premium comparison table (update wording from "Forever Access" to "Premium Access")
 
-- [ ] T266 Handle billing edge cases in billing.service.ts:
-  - PAYMENT_PENDING: Store pending status, check on next launch
-  - Cancelled purchase: No side effects, return to UpgradeScreen
-  - Refunded purchase: If server-side validation (T262) enabled, check periodically; downgrade to FREE
-  - Network error during purchase: Purchase saved by Play Store, acknowledged on next launch
+- [ ] T266 Handle subscription edge cases in billing.service.ts and UpgradeScreen:
+  - PAYMENT_PENDING: Store pending status, check on next launch, show "Subscription pending" badge
+  - Cancelled subscription: Access continues until `expiryDate`, show "Expires on {date}" in settings
+  - Expired subscription: Auto-downgrade to FREE, show "Subscription expired — renew to continue" prompt
+  - Refunded subscription: If server-side validation (T262.5) enabled, check periodically; downgrade to FREE
+  - Network error during subscription: Subscription saved by Play Store, acknowledged on next launch
   - Play Store unavailable: Show "Play Store required" message
-  - Already purchased: Restore silently, don't charge again
+  - Already subscribed: Show current plan details, allow plan changes via Play Store
+  - Grace period: Google Play provides a grace period for failed payments — maintain PREMIUM during grace period
+  - Account hold: After grace period, Google puts subscription on hold — downgrade to FREE, show "Update payment" prompt
+  - Upgrade/downgrade between plans: Handled by Play Store UI (prorated). App re-reads subscription details on resume.
 
-### Multi-App Configuration Tasks
+### Phase 17C: Multi-App & Deprecation (T267)
 
-- [ ] T267 Configure per-app product IDs:
-  - Product ID pattern: `forever_access_{examTypeId.toLowerCase().replace('-', '_')}` (e.g., `forever_access_clf_c02`, `forever_access_saa_c03`)
-  - Add `productId` to AppConfig interface in packages/shared/src/config/types.ts
-  - Add to each app's config: `apps/aws-clp/src/config/app.config.ts` → `productId: 'forever_access_clf_c02'`
-  - Update apps/template/ to include `__PRODUCT_ID__` placeholder token
-  - Update scripts/create-app.sh to auto-generate product ID from exam type
+**Purpose**: Configure per-app subscription product IDs. Deprecate one-time purchase references.
 
-### Testing & Documentation Tasks
+- [ ] T267 Configure per-app subscription product IDs:
+  - Product ID pattern per plan:
+    - `monthly_{examTypeId.toLowerCase().replace('-', '_')}` (e.g., `monthly_clf_c02`, `monthly_saa_c03`)
+    - `quarterly_{examTypeId.toLowerCase().replace('-', '_')}` (e.g., `quarterly_clf_c02`, `quarterly_saa_c03`)
+    - `annual_{examTypeId.toLowerCase().replace('-', '_')}` (e.g., `annual_clf_c02`, `annual_saa_c03`)
+  - Add `subscriptionSkus` to AppConfig interface in packages/shared/src/config/types.ts:
+    ```ts
+    interface AppConfig {
+      examTypeId: string;
+      appName: string;
+      branding: { primaryColor: string };
+      subscriptionSkus: {
+        monthly: string;
+        quarterly: string;
+        annual: string;
+      };
+    }
+    ```
+  - Update each app's config:
+    - `apps/aws-clp/src/config/app.config.ts` → `subscriptionSkus: { monthly: 'monthly_clf_c02', quarterly: 'quarterly_clf_c02', annual: 'annual_clf_c02' }`
+    - `apps/saa-c03/src/config/app.config.ts` → `subscriptionSkus: { monthly: 'monthly_saa_c03', quarterly: 'quarterly_saa_c03', annual: 'annual_saa_c03' }`
+  - Update apps/template/src/config/app.config.ts.template to include `__SUBSCRIPTION_SKUS__` placeholder tokens:
+    ```ts
+    subscriptionSkus: {
+      monthly: 'monthly___EXAM_TYPE_SKU__',
+      quarterly: 'quarterly___EXAM_TYPE_SKU__',
+      annual: 'annual___EXAM_TYPE_SKU__',
+    },
+    ```
+  - Update scripts/create-app.sh to auto-generate `__EXAM_TYPE_SKU__` from examTypeId (lowercase, replace `-` with `_`)
+  - **Deprecation**: Remove `forever_access_*` references from all documentation. Remove hardcoded `$14.99` price from UpgradeScreen. Remove "Forever Access" branding text.
+
+### Backend Validation (Optional — T262.5)
+
+- [ ] T262.5 (Optional) Create api/src/billing/ module for server-side subscription validation:
+  - `POST /api/billing/verify-subscription` endpoint
+  - Accepts: `{ productId: string, purchaseToken: string, packageName: string }`
+  - Validates subscription token with Google Play Developer API (`purchases.subscriptionsv2.get`)
+  - Returns: `{ valid: boolean, expiryTimeMillis: number, autoRenewing: boolean, paymentState: number, cancelReason?: number }`
+  - Provides additional security against local subscription spoofing
+  - Can be called periodically (e.g., on app launch when online) to re-validate subscription status
+  - Requires Google Play Developer API service account credentials (reuse Play Integrity service account)
+
+### Testing & Documentation Tasks (T268–T270)
 
 - [ ] T268 Create packages/shared/__tests__/billing.service.test.ts:
   - Mock react-native-iap module
-  - Test purchase flow: success, cancel, error, pending
-  - Test purchase restoration: found, not found
+  - Test subscription flow: subscribe success, cancel, error, pending for each plan (monthly, quarterly, annual)
+  - Test subscription restoration: active found, expired found, not found
+  - Test expiry checking: active subscription, expired + auto-renewing, expired + cancelled
+  - Test renewal handling: update expiry date and token
+  - Test automatic downgrade: expired subscription → FREE tier
   - Test acknowledgement lifecycle
   - Test `__DEV__` bypass (defaults to PREMIUM)
-  - Test per-app SKU generation from examTypeId
+  - Test per-app subscription SKU generation from examTypeId
+  - Test grace period and account hold states
 
-- [ ] T269 Create documentation: specs/003-play-integrity/billing-setup-guide.md:
-  - Play Console setup: create in-app product, set price tiers, description
-  - Product ID naming convention per exam type
-  - Testing with license testers (set up in Play Console)
+- [ ] T269 Create documentation: specs/003-play-integrity/subscription-setup-guide.md:
+  - Play Console setup: create 3 subscription products per app, set base plans and pricing
+  - Subscription product ID naming convention per exam type and plan
+  - Pricing table: Monthly $2.99, Quarterly $6.99, Annual $19.99
+  - Testing with license testers (set up in Play Console — subscriptions auto-renew faster in test mode)
   - Testing with Google Play internal test track
-  - Server-side validation setup (if T262 implemented)
-  - Troubleshooting common billing errors
+  - Server-side validation setup (if T262.5 implemented)
+  - Subscription lifecycle: active → grace period → account hold → cancelled → expired
+  - Troubleshooting common subscription billing errors
+  - Play Console subscription reporting and analytics
 
-- [ ] T270 End-to-end purchase validation:
+- [ ] T270 End-to-end subscription validation:
   1. Upload app to Play Console internal test track
-  2. Add license testers
-  3. Install test build on device
-  4. Complete purchase flow UpgradeScreen → Play Store → purchase → unlock
-  5. Verify questions accessible (full bank unlocked)
-  6. Uninstall → reinstall → "Restore Purchase" → verify PREMIUM restored
-  7. Test with second exam app (different product SKU)
-  8. Document: purchase completes in <10s, restore completes in <5s
+  2. Create 3 subscription products (monthly, quarterly, annual) per exam app
+  3. Add license testers
+  4. Install test build on device
+  5. Complete subscription flow: UpgradeScreen → select Quarterly plan → Play Store → subscribe → unlock
+  6. Verify questions accessible (full bank unlocked)
+  7. Wait for test subscription to expire (accelerated in test mode) → verify auto-downgrade to FREE
+  8. Resubscribe → verify PREMIUM restored
+  9. Uninstall → reinstall → "Restore Subscription" → verify active subscription restored
+  10. Test with second exam app (different subscription SKUs)
+  11. Test plan switching (monthly → annual) via Play Store subscription management
+  12. Document: subscription completes in <10s, restore completes in <5s, expiry check <100ms
 
-**Checkpoint**: "Forever Access" purchase works end-to-end. Free users see 15 questions. Paid users see all. Purchase persists across reinstalls via Google Play restore. Each app has unique product SKU.
+**Checkpoint**: Subscription model works end-to-end. Free users see 15 questions. Subscribed users see all. Active subscription = PREMIUM. Expired subscription = auto-downgrade to FREE. Each app has unique subscription SKUs (3 per app).
 
 ---
 
@@ -1025,9 +1149,10 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 - [ ] TypeScript strict: tsc --noEmit passes
 - [ ] No breaking changes to existing Play Integrity, auth, sync logic
 - [ ] Tier gating logic consistent across exam/practice/review
-- [ ] Offline-first preserved (purchase status cached locally)
+- [ ] Offline-first preserved (subscription status cached locally)
+- [ ] Subscription expiry check implemented (downgrade on expiry)
 - [ ] __DEV__ bypass works (defaults to PREMIUM)
-- [ ] Multi-app compatible (per-app SKU, no cross-app conflicts)
+- [ ] Multi-app compatible (per-app subscription SKUs, no cross-app conflicts)
 - [ ] Spec compliance: Implements [FR-XXX]
 - [ ] Documentation: Updated if needed
 - [ ] Reviewed: Code style, edge cases
@@ -1042,9 +1167,13 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 3. **Consistent free question set**: FREE tier users must always see the same 15 questions (ordered by domain + id). This prevents gaming by reinstalling.
 4. **Login is already implemented**: Google OAuth via `@react-native-google-signin/google-signin` is fully working. Just enforce it as a gate in AppRoot.
 5. **`__DEV__` bypass for billing**: In dev mode, default to PREMIUM tier. Don't require billing setup for local development.
-6. **react-native-iap is mature**: 10K+ GitHub stars, supports Play Billing Library v6+. Use it instead of building custom billing.
-7. **Per-app product IDs prevent conflicts**: `forever_access_clf_c02` and `forever_access_saa_c03` are separate products. No cross-app entitlement.
-8. **Server-side validation (T262) is optional but recommended**: Prevents local purchase token spoofing. Adds ~1 hour of work.
-9. **No Prisma schema changes**: Purchase status is mobile-local only (SQLite). Backend billing verification (T262) is stateless.
-10. **Price localization**: Use Play Billing API to fetch localized prices. Don't hardcode $14.99 — it varies by country.
+6. **react-native-iap is mature**: 10K+ GitHub stars, supports Play Billing Library v6+ subscriptions. Use `getSubscriptions()` and `requestSubscription()` APIs.
+7. **Per-app subscription SKUs prevent conflicts**: `monthly_clf_c02` and `monthly_saa_c03` are separate products. No cross-app entitlement. 3 SKUs per app (monthly, quarterly, annual).
+8. **Server-side validation (T262.5) is optional but recommended**: Prevents local subscription spoofing and provides accurate expiry data. Adds ~1 hour of work.
+9. **No Prisma schema changes**: Subscription status is mobile-local only (SQLite). Backend subscription verification (T262.5) is stateless.
+10. **Price localization**: Use Play Billing API to fetch localized prices. Don't hardcode $2.99/$6.99/$19.99 — prices vary by country.
+11. **Subscription expiry handling**: Check `expiryDate` on every app launch. If expired + not auto-renewing → downgrade to FREE immediately. If expired + auto-renewing → try `restorePurchases()` to detect renewal.
+12. **TierLevel stays FREE | PREMIUM**: Do not introduce new tier levels. Active subscription = PREMIUM. Expired/cancelled = FREE. The `subscriptionType` field tracks *which* plan, not *which* tier.
+13. **PurchaseStatus table is extended, not replaced**: New columns (`subscription_type`, `expiry_date`, `auto_renewing`) are added via ALTER TABLE. Existing rows with null values remain valid. No migration breakage.
+14. **Quarterly is the default recommended plan**: Pre-select it in the UI. Most exam prep takes 2-3 months — this aligns with user behavior and maximizes revenue per user.
 

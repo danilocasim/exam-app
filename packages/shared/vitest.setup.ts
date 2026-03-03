@@ -104,6 +104,22 @@ vi.mock('expo-web-browser', () => ({
   openAuthSessionAsync: vi.fn(),
 }));
 
+// Mock react-native-iap (subscription billing)
+vi.mock('react-native-iap', () => ({
+  initConnection: vi.fn(async () => true),
+  endConnection: vi.fn(async () => {}),
+  getSubscriptions: vi.fn(async () => []),
+  requestSubscription: vi.fn(async () => null),
+  getAvailablePurchases: vi.fn(async () => []),
+  acknowledgePurchaseAndroid: vi.fn(async () => {}),
+  finishTransaction: vi.fn(async () => {}),
+  purchaseUpdatedListener: vi.fn(() => ({ remove: vi.fn() })),
+  purchaseErrorListener: vi.fn(() => ({ remove: vi.fn() })),
+  flushFailedPurchasesCachedAsPendingAndroid: vi.fn(async () => []),
+  SubscriptionPlatform: { GOOGLE_PLAY: 'android' },
+  ProrationModesAndroid: {},
+}));
+
 // Mock AsyncStorage
 vi.mock('@react-native-async-storage/async-storage', () => ({
   setItem: vi.fn(async () => null),
