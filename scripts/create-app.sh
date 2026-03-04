@@ -100,6 +100,9 @@ fi
 # APP_SLUG: lowercase exam type with hyphens (e.g., SAA-C03 → saa-c03)
 APP_SLUG=$(echo "$EXAM_TYPE" | tr '[:upper:]' '[:lower:]')
 
+# EXAM_TYPE_SKU: lowercase exam type, hyphens replaced with underscores (e.g., SAA-C03 → saa_c03)
+EXAM_TYPE_SKU=$(echo "$EXAM_TYPE" | tr '[:upper:]' '[:lower:]' | tr '-' '_')
+
 # BUNDLE_ID: iOS bundle identifier (same as Android package for simplicity)
 BUNDLE_ID="$PACKAGE_NAME"
 
@@ -189,6 +192,7 @@ replace_tokens() {
       -e "s|__PACKAGE_NAME__|$PACKAGE_NAME|g" \
       -e "s|__BUNDLE_ID__|$BUNDLE_ID|g" \
       -e "s|__EXAM_TYPE_ID__|$EXAM_TYPE|g" \
+      -e "s|__EXAM_TYPE_SKU__|$EXAM_TYPE_SKU|g" \
       -e "s|__PRIMARY_COLOR__|$PRIMARY_COLOR|g" \
       "$file"
   fi

@@ -1020,7 +1020,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 **Purpose**: Replace UpgradeScreen content with 3-plan subscription selector. Maintain existing CTA structure.
 
-- [ ] T265 Update packages/shared/src/screens/UpgradeScreen.tsx:
+- [x] T265 Update packages/shared/src/screens/UpgradeScreen.tsx:
   - **Replace** one-time "Forever Access" branding with subscription plan selector
   - Display 3 plan cards (Monthly $2.99, Quarterly $6.99, Annual $19.99):
     - Each card shows: plan name, price, effective monthly cost, savings badge
@@ -1037,7 +1037,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - Add "Manage Subscription" link → opens Play Store subscription management
   - Keep existing free vs premium comparison table (update wording from "Forever Access" to "Premium Access")
 
-- [ ] T266 Handle subscription edge cases in billing.service.ts and UpgradeScreen:
+- [x] T266 Handle subscription edge cases in billing.service.ts and UpgradeScreen:
   - PAYMENT_PENDING: Store pending status, check on next launch, show "Subscription pending" badge
   - Cancelled subscription: Access continues until `expiryDate`, show "Expires on {date}" in settings
   - Expired subscription: Auto-downgrade to FREE, show "Subscription expired — renew to continue" prompt
@@ -1053,7 +1053,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 **Purpose**: Configure per-app subscription product IDs. Deprecate one-time purchase references.
 
-- [ ] T267 Configure per-app subscription product IDs:
+- [x] T267 Configure per-app subscription product IDs:
   - Product ID pattern per plan:
     - `monthly_{examTypeId.toLowerCase().replace('-', '_')}` (e.g., `monthly_clf_c02`, `monthly_saa_c03`)
     - `quarterly_{examTypeId.toLowerCase().replace('-', '_')}` (e.g., `quarterly_clf_c02`, `quarterly_saa_c03`)
@@ -1087,7 +1087,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Backend Validation (Optional — T262.5)
 
-- [ ] T262.5 (Optional) Create api/src/billing/ module for server-side subscription validation:
+- [X] T262.5 (Optional) Create api/src/billing/ module for server-side subscription validation:
   - `POST /api/billing/verify-subscription` endpoint
   - Accepts: `{ productId: string, purchaseToken: string, packageName: string }`
   - Validates subscription token with Google Play Developer API (`purchases.subscriptionsv2.get`)
@@ -1098,7 +1098,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
 
 ### Testing & Documentation Tasks (T268–T270)
 
-- [ ] T268 Create packages/shared/__tests__/billing.service.test.ts:
+- [X] T268 Create packages/shared/__tests__/billing.service.test.ts:
   - Mock react-native-iap module
   - Test subscription flow: subscribe success, cancel, error, pending for each plan (monthly, quarterly, annual)
   - Test subscription restoration: active found, expired found, not found
@@ -1110,7 +1110,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - Test per-app subscription SKU generation from examTypeId
   - Test grace period and account hold states
 
-- [ ] T269 Create documentation: specs/003-play-integrity/subscription-setup-guide.md:
+- [X] T269 Create documentation: specs/003-play-integrity/subscription-setup-guide.md:
   - Play Console setup: create 3 subscription products per app, set base plans and pricing
   - Subscription product ID naming convention per exam type and plan
   - Pricing table: Monthly $2.99, Quarterly $6.99, Annual $19.99

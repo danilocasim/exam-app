@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { ExamAttemptModule } from './exam-attempts/exam-attempt.module';
 import { SyncModule } from './sync/sync.module';
 import { IntegrityModule } from './integrity/integrity.module';
+import { BillingModule } from './billing/billing.module';
 import { UserStatsModule } from './user-stats/user-stats.module';
 import { UserStreakModule } from './user-streak/user-streak.module';
 import { LegalModule } from './legal';
@@ -59,6 +60,7 @@ import {
     ExamAttemptModule,
     SyncModule,
     IntegrityModule,
+    BillingModule,
     UserStatsModule,
     UserStreakModule,
     LegalModule,

@@ -13,4 +13,14 @@ export interface AppConfig {
   branding?: {
     primaryColor?: string;
   };
+
+  /**
+   * T267: Per-app subscription product IDs matching Google Play Console configuration.
+   * Pattern: {plan}_{exam_type_lowercase_underscored}
+   */
+  subscriptionSkus: {
+    monthly: string;
+    quarterly: string;
+    annual: string;
+  };
 }
