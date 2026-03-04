@@ -560,11 +560,11 @@ export const backfillDomainScores = async (accessToken: string): Promise<void> =
  * Call this on login / app resume to reconcile cross-device data.
  */
 export const pullAndMergeAllStats = async (accessToken: string): Promise<void> => {
-  await Promise.all([
-    pullAndMergeUserStats(accessToken),
-    pullAndMergeStreak(accessToken),
-    pullAndMergeExamHistory(accessToken),
-  ]);
+  // Run sequentially to avoid "database is locked" errors —
+  // expo-sqlite does not support concurrent write transactions.
+  await pullAndMergeUserStats(accessToken);
+  await pullAndMergeStreak(accessToken);
+  await pullAndMergeExamHistory(accessToken);
   // Backfill runs after history pull so newly inserted records are also candidates
   await backfillDomainScores(accessToken);
 };

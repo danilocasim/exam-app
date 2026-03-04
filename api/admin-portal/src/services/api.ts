@@ -67,6 +67,7 @@ export interface AdminQuestion {
   type: string;
   domain: string;
   difficulty: string;
+  set: string | null;
   options: QuestionOption[];
   correctAnswers: string[];
   explanation: string;
@@ -94,6 +95,7 @@ export interface QuestionInput {
   type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE';
   domain: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  set?: string | null;
   options: QuestionOption[];
   correctAnswers: string[];
   explanation: string;
@@ -142,6 +144,7 @@ export interface BulkImportQuestionItem {
   type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE';
   domain: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  set?: string;
   options: QuestionOption[];
   correctAnswers: string[];
   explanation: string;
@@ -150,6 +153,7 @@ export interface BulkImportQuestionItem {
 
 export interface BulkImportPayload {
   examTypeId: string;
+  set?: string;
   questions: BulkImportQuestionItem[];
 }
 
@@ -182,6 +186,34 @@ export interface BulkImportResult {
   imported: number;
   examTypeId: string;
   questionIds: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Question Set types
+// ---------------------------------------------------------------------------
+
+export interface QuestionSet {
+  id: string;
+  examTypeId: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  isSystem: boolean;
+  archivedAt: string | null;
+  questionCount: number;
+  createdAt: string;
+}
+
+export interface CreateQuestionSetInput {
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export interface UpdateQuestionSetInput {
+  name?: string;
+  slug?: string;
+  description?: string;
 }
 
 export interface AdminStats {
@@ -271,6 +303,7 @@ export const api = {
     status?: string;
     domain?: string;
     difficulty?: string;
+    set?: string;
     page?: number;
     limit?: number;
   }) {
@@ -307,6 +340,22 @@ export const api = {
     });
   },
 
+  bulkApproveQuestions(params: {
+    examTypeId: string;
+    domain?: string;
+    difficulty?: string;
+    set?: string;
+  }) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') search.set(k, String(v));
+    });
+    return request<{ approved: number }>(
+      `/admin/questions/bulk-approve?${search.toString()}`,
+      { method: 'POST' },
+    );
+  },
+
   archiveQuestion(id: string) {
     return request<AdminQuestion>(`/admin/questions/${id}/archive`, {
       method: 'POST',
@@ -328,10 +377,13 @@ export const api = {
    * Returns a detailed validation result including errors and duplicates.
    */
   validateBulkImport(payload: BulkImportPayload) {
-    return request<BulkImportValidationResult>('/admin/questions/bulk-import/validate', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return request<BulkImportValidationResult>(
+      '/admin/questions/bulk-import/validate',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   /**
@@ -350,7 +402,52 @@ export const api = {
    */
   getBulkImportTemplateUrl(examTypeId?: string): string {
     const base = `${API_BASE_URL}/admin/questions/bulk-import/template`;
-    return examTypeId ? `${base}?examTypeId=${encodeURIComponent(examTypeId)}` : base;
+    return examTypeId
+      ? `${base}?examTypeId=${encodeURIComponent(examTypeId)}`
+      : base;
+  },
+
+  // -------------------------------------------------------------------------
+  // Question Sets
+  // -------------------------------------------------------------------------
+
+  getQuestionSets(examTypeId: string, includeArchived = true) {
+    return request<QuestionSet[]>(
+      `/admin/question-sets?examTypeId=${encodeURIComponent(examTypeId)}&includeArchived=${includeArchived}`,
+    );
+  },
+
+  getQuestionSet(id: string) {
+    return request<QuestionSet>(`/admin/question-sets/${id}`);
+  },
+
+  createQuestionSet(examTypeId: string, input: CreateQuestionSetInput) {
+    return request<QuestionSet>(
+      `/admin/question-sets?examTypeId=${encodeURIComponent(examTypeId)}`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  updateQuestionSet(id: string, input: UpdateQuestionSetInput) {
+    return request<QuestionSet>(`/admin/question-sets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  archiveQuestionSet(id: string) {
+    return request<QuestionSet>(`/admin/question-sets/${id}/archive`, {
+      method: 'PATCH',
+    });
+  },
+
+  unarchiveQuestionSet(id: string) {
+    return request<QuestionSet>(`/admin/question-sets/${id}/unarchive`, {
+      method: 'PATCH',
+    });
   },
 
   /**

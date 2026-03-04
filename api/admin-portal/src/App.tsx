@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { QuestionListPage } from './pages/QuestionListPage';
 import { QuestionDetailPage } from './pages/QuestionDetailPage';
+import { QuestionSetsPage } from './pages/QuestionSetsPage';
 import { ExamTypeListPage } from './pages/ExamTypeListPage';
 import { ExamTypeFormPage } from './pages/ExamTypeFormPage';
 import { BulkImportPage } from './pages/BulkImportPage';
@@ -37,6 +38,10 @@ export function App() {
                     element={<ExamTypeFormPage />}
                   />
                   <Route path="/questions" element={<QuestionListPage />} />
+                  <Route
+                    path="/questions/sets"
+                    element={<QuestionSetsPage />}
+                  />
                   <Route
                     path="/questions/bulk-import"
                     element={<BulkImportPage />}

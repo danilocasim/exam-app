@@ -37,6 +37,8 @@ import {
   GeneratedExam,
   generateExamFromMissed,
   generateCustomExam,
+  generateDailyQuiz,
+  generateDiagnosticExam,
 } from './exam-generator.service';
 import { getCachedExamTypeConfig } from './sync.service';
 import { TierLevel } from '../config/tiers';
@@ -78,6 +80,7 @@ export interface NavigationResult {
 export const startExam = async (
   tier: TierLevel = 'PREMIUM',
   mode: ExamMode = 'mock',
+  selectedSets?: string[],
 ): Promise<ExamSession> => {
   // Check for an existing in-progress exam of the SAME mode only
   const existing = await getInProgressExamAttempt(mode);
@@ -95,8 +98,12 @@ export const startExam = async (
   // Also handle any other expired exams
   await handleExpiredExams();
 
-  // Generate exam with weighted questions (tier-aware)
-  const generated: GeneratedExam = await generateExamForTier(tier);
+  // Generate exam: daily mode picks random questions from full bank;
+  // other modes use tier-aware weighted generation.
+  const generated: GeneratedExam =
+    mode === 'daily'
+      ? await generateDailyQuiz()
+      : await generateExamForTier(tier, undefined, selectedSets);
   const { questions, config } = generated;
 
   if (questions.length === 0) {
@@ -220,7 +227,52 @@ export const startCustomExam = async (
 };
 
 /**
- * Resume an existing in-progress exam
+ * Start a Diagnostic Test.
+ *
+ * Uses questions from the 'diagnostic' set. Available to all users (free and premium).
+ * Independent exam slot — does not conflict with mock, daily, etc.
+ */
+export const startDiagnosticExam = async (): Promise<ExamSession> => {
+  const mode: ExamMode = 'diagnostic';
+
+  // Check for an existing in-progress diagnostic exam
+  const existing = await getInProgressExamAttempt(mode);
+  if (existing) {
+    const expiresAt = new Date(existing.expiresAt).getTime();
+    if (Date.now() > expiresAt) {
+      await abandonExamAttempt(existing.id);
+    } else {
+      throw new Error(
+        'A diagnostic test is already in progress. Please complete or abandon it first.',
+      );
+    }
+  }
+
+  await handleExpiredExams();
+
+  // Generate diagnostic exam
+  const generated: GeneratedExam = await generateDiagnosticExam();
+  const { questions, config } = generated;
+
+  if (questions.length === 0) {
+    throw new Error('No diagnostic questions available.');
+  }
+
+  const timeLimitMs = config.timeLimit * 60 * 1000;
+  const attempt = await createExamAttempt(questions.length, timeLimitMs, mode);
+  const questionIds = questions.map((q) => q.id);
+  const answers = await createExamAnswersBatch(attempt.id, questionIds);
+
+  return {
+    attempt,
+    answers,
+    questions,
+    currentIndex: 0,
+    config,
+  };
+};
+
+/**
  * Returns null if no exam in progress or if expired
  * When mode is specified, only resumes an exam of that mode.
  */

@@ -118,6 +118,7 @@ vi.mock('react-native-iap', () => ({
   flushFailedPurchasesCachedAsPendingAndroid: vi.fn(async () => []),
   SubscriptionPlatform: { GOOGLE_PLAY: 'android' },
   ProrationModesAndroid: {},
+  PurchaseStateAndroid: { UNSPECIFIED_STATE: 0, PURCHASED: 1, PENDING: 2 },
 }));
 
 // Mock AsyncStorage

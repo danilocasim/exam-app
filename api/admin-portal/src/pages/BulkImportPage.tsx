@@ -15,7 +15,13 @@ import { colors, radius, shadow, font } from '../theme';
 // Types
 // ---------------------------------------------------------------------------
 
-type PageState = 'idle' | 'validating' | 'validated' | 'importing' | 'success' | 'error';
+type PageState =
+  | 'idle'
+  | 'validating'
+  | 'validated'
+  | 'importing'
+  | 'success'
+  | 'error';
 
 interface ParsedFile {
   name: string;
@@ -49,12 +55,26 @@ function clientPreValidate(payload: BulkImportPayload): string[] {
     errs.push('"questions" array is empty — nothing to import.');
   }
   if (payload.questions.length > 500) {
-    errs.push(`Too many questions: ${payload.questions.length}. Maximum is 500 per upload.`);
+    errs.push(
+      `Too many questions: ${payload.questions.length}. Maximum is 500 per upload.`,
+    );
   }
 
-  const VALID_TYPES = new Set(['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE']);
+  const VALID_TYPES = new Set([
+    'SINGLE_CHOICE',
+    'MULTIPLE_CHOICE',
+    'TRUE_FALSE',
+  ]);
   const VALID_DIFF = new Set(['EASY', 'MEDIUM', 'HARD']);
-  const REQUIRED = ['text', 'type', 'domain', 'difficulty', 'options', 'correctAnswers', 'explanation'];
+  const REQUIRED = [
+    'text',
+    'type',
+    'domain',
+    'difficulty',
+    'options',
+    'correctAnswers',
+    'explanation',
+  ];
 
   for (let i = 0; i < Math.min(payload.questions.length, 500); i++) {
     const q = payload.questions[i] as Record<string, unknown>;
@@ -67,16 +87,25 @@ function clientPreValidate(payload: BulkImportPayload): string[] {
     }
 
     if (typeof q.type === 'string' && !VALID_TYPES.has(q.type)) {
-      errs.push(`${prefix}: invalid type "${q.type}". Must be SINGLE_CHOICE, MULTIPLE_CHOICE, or TRUE_FALSE.`);
+      errs.push(
+        `${prefix}: invalid type "${q.type}". Must be SINGLE_CHOICE, MULTIPLE_CHOICE, or TRUE_FALSE.`,
+      );
     }
     if (typeof q.difficulty === 'string' && !VALID_DIFF.has(q.difficulty)) {
-      errs.push(`${prefix}: invalid difficulty "${q.difficulty}". Must be EASY, MEDIUM, or HARD.`);
+      errs.push(
+        `${prefix}: invalid difficulty "${q.difficulty}". Must be EASY, MEDIUM, or HARD.`,
+      );
     }
     if (!Array.isArray(q.options) || (q.options as unknown[]).length < 2) {
       errs.push(`${prefix}: "options" must be an array with at least 2 items.`);
     }
-    if (!Array.isArray(q.correctAnswers) || (q.correctAnswers as unknown[]).length < 1) {
-      errs.push(`${prefix}: "correctAnswers" must be an array with at least 1 item.`);
+    if (
+      !Array.isArray(q.correctAnswers) ||
+      (q.correctAnswers as unknown[]).length < 1
+    ) {
+      errs.push(
+        `${prefix}: "correctAnswers" must be an array with at least 1 item.`,
+      );
     }
 
     // Bail out after 20 structural errors to keep the list readable
@@ -124,7 +153,9 @@ function SummaryCard({
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, color: colors.subtle, marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: colors.subtle, marginTop: 4 }}>
+        {label}
+      </div>
     </div>
   );
 }
@@ -240,7 +271,9 @@ function ErrorRow({ err }: { err: ImportValidationError }) {
       }}
     >
       <Badge label={`Q${err.questionIndex}`} color={colors.error} />
-      <span style={{ color: colors.errorText, fontFamily: font.mono, fontSize: 12 }}>
+      <span
+        style={{ color: colors.errorText, fontFamily: font.mono, fontSize: 12 }}
+      >
         {err.field}
       </span>
       <span style={{ color: colors.body, flex: 1 }}>{err.message}</span>
@@ -305,12 +338,16 @@ export function BulkImportPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [parsedFile, setParsedFile] = useState<ParsedFile | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
-  const [validation, setValidation] = useState<BulkImportValidationResult | null>(null);
-  const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
+  const [validation, setValidation] =
+    useState<BulkImportValidationResult | null>(null);
+  const [importResult, setImportResult] = useState<BulkImportResult | null>(
+    null,
+  );
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   // Auto-fill examTypeId from context when the file hasn't been loaded yet
-  const effectiveExamTypeId = parsedFile?.payload.examTypeId ?? selectedExamType;
+  const effectiveExamTypeId =
+    parsedFile?.payload.examTypeId ?? selectedExamType;
 
   // ---- File processing ----
 
@@ -383,7 +420,8 @@ export function BulkImportPage() {
   );
 
   function stripDocKeys(payload: unknown): BulkImportPayload {
-    if (typeof payload !== 'object' || payload === null) return payload as BulkImportPayload;
+    if (typeof payload !== 'object' || payload === null)
+      return payload as BulkImportPayload;
     const result: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(payload as Record<string, unknown>)) {
       if (k.startsWith('_')) continue;
@@ -575,14 +613,23 @@ export function BulkImportPage() {
         >
           <div style={{ fontSize: 40, marginBottom: 8 }}>✓</div>
           <div
-            style={{ fontSize: 20, fontWeight: 700, color: colors.successText, marginBottom: 8 }}
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              color: colors.successText,
+              marginBottom: 8,
+            }}
           >
-            {importResult.imported} question{importResult.imported !== 1 ? 's' : ''} imported
-            successfully
+            {importResult.imported} question
+            {importResult.imported !== 1 ? 's' : ''} imported successfully
           </div>
           <p style={{ color: colors.muted, margin: '0 0 16px' }}>
-            Exam type: <strong style={{ color: colors.body }}>{importResult.examTypeId}</strong>.
-            All questions are saved as DRAFT — review and approve them individually.
+            Exam type:{' '}
+            <strong style={{ color: colors.body }}>
+              {importResult.examTypeId}
+            </strong>
+            . All questions are saved as DRAFT — review and approve them
+            individually.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
             <button
@@ -591,7 +638,10 @@ export function BulkImportPage() {
             >
               View Questions
             </button>
-            <button onClick={handleClear} style={btnStyle(colors.surfaceHover, colors.body)}>
+            <button
+              onClick={handleClear}
+              style={btnStyle(colors.surfaceHover, colors.body)}
+            >
               Import Another File
             </button>
           </div>
@@ -646,13 +696,22 @@ export function BulkImportPage() {
             ) : parsedFile ? (
               <div>
                 <div style={{ fontSize: 28, marginBottom: 6 }}>📄</div>
-                <div style={{ fontWeight: 600, color: colors.heading, fontSize: 15 }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: colors.heading,
+                    fontSize: 15,
+                  }}
+                >
                   {parsedFile.name}
                 </div>
-                <div style={{ color: colors.subtle, fontSize: 12, marginTop: 2 }}>
-                  {parsedFile.sizeKb} KB · {parsedFile.payload.questions.length} question
-                  {parsedFile.payload.questions.length !== 1 ? 's' : ''} detected ·{' '}
-                  {parsedFile.payload.examTypeId}
+                <div
+                  style={{ color: colors.subtle, fontSize: 12, marginTop: 2 }}
+                >
+                  {parsedFile.sizeKb} KB · {parsedFile.payload.questions.length}{' '}
+                  question
+                  {parsedFile.payload.questions.length !== 1 ? 's' : ''}{' '}
+                  detected · {parsedFile.payload.examTypeId}
                 </div>
                 <button
                   onClick={(e) => {
@@ -675,11 +734,17 @@ export function BulkImportPage() {
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.5 }}>📂</div>
-                <div style={{ fontWeight: 600, color: colors.body, fontSize: 15 }}>
+                <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.5 }}>
+                  📂
+                </div>
+                <div
+                  style={{ fontWeight: 600, color: colors.body, fontSize: 15 }}
+                >
                   Drag & drop your JSON file here
                 </div>
-                <div style={{ color: colors.subtle, fontSize: 13, marginTop: 4 }}>
+                <div
+                  style={{ color: colors.subtle, fontSize: 13, marginTop: 4 }}
+                >
                   or click to browse — .json only, max 5 MB, max 500 questions
                 </div>
               </div>
@@ -698,11 +763,23 @@ export function BulkImportPage() {
               }}
             >
               <div
-                style={{ fontWeight: 600, color: colors.errorText, marginBottom: 8, fontSize: 13 }}
+                style={{
+                  fontWeight: 600,
+                  color: colors.errorText,
+                  marginBottom: 8,
+                  fontSize: 13,
+                }}
               >
                 File cannot be parsed:
               </div>
-              <ul style={{ margin: 0, padding: '0 0 0 18px', color: colors.errorText, fontSize: 13 }}>
+              <ul
+                style={{
+                  margin: 0,
+                  padding: '0 0 0 18px',
+                  color: colors.errorText,
+                  fontSize: 13,
+                }}
+              >
                 {parseErrors.map((e, i) => (
                   <li key={i} style={{ marginBottom: 4 }}>
                     {e}
@@ -749,7 +826,9 @@ export function BulkImportPage() {
                   label="Errors"
                   value={validation.summary.errors}
                   accent={
-                    validation.summary.errors > 0 ? colors.error : colors.success
+                    validation.summary.errors > 0
+                      ? colors.error
+                      : colors.success
                   }
                 />
                 <SummaryCard
@@ -846,13 +925,18 @@ export function BulkImportPage() {
               </button>
 
               <button
-                onClick={() => parsedFile && runServerValidation(parsedFile.payload)}
+                onClick={() =>
+                  parsedFile && runServerValidation(parsedFile.payload)
+                }
                 style={btnStyle(colors.surfaceHover, colors.body)}
               >
                 Re-validate
               </button>
 
-              <button onClick={handleClear} style={btnStyle(colors.surfaceHover, colors.muted)}>
+              <button
+                onClick={handleClear}
+                style={btnStyle(colors.surfaceHover, colors.muted)}
+              >
                 Clear
               </button>
             </div>
@@ -910,46 +994,123 @@ function SchemaDoc() {
 
           <FieldTable
             rows={[
-              ['examTypeId', 'string', 'Required', 'Must match an existing exam type ID (e.g. "CLF-C02").'],
-              ['questions', 'array', 'Required', 'Array of question objects — min 1, max 500.'],
+              [
+                'examTypeId',
+                'string',
+                'Required',
+                'Must match an existing exam type ID (e.g. "CLF-C02").',
+              ],
+              [
+                'questions',
+                'array',
+                'Required',
+                'Array of question objects — min 1, max 500.',
+              ],
+              [
+                'set',
+                'string?',
+                'Optional',
+                'Default set slug for all questions (e.g. "set-1"). Can be overridden per question.',
+              ],
             ]}
           />
 
-          <p style={{ color: colors.body, margin: '16px 0 6px', fontWeight: 600 }}>
+          <p
+            style={{
+              color: colors.body,
+              margin: '16px 0 6px',
+              fontWeight: 600,
+            }}
+          >
             Each question object:
           </p>
 
           <FieldTable
             rows={[
               ['text', 'string', 'min 20 chars', 'The full question stem.'],
-              ['type', 'enum', 'Required', 'SINGLE_CHOICE | MULTIPLE_CHOICE | TRUE_FALSE'],
-              ['domain', 'string', 'Required', 'Must match a domain id defined on the exam type.'],
+              [
+                'type',
+                'enum',
+                'Required',
+                'SINGLE_CHOICE | MULTIPLE_CHOICE | TRUE_FALSE',
+              ],
+              [
+                'domain',
+                'string',
+                'Required',
+                'Must match a domain id defined on the exam type.',
+              ],
               ['difficulty', 'enum', 'Required', 'EASY | MEDIUM | HARD'],
-              ['options', 'array', 'min 2 items', 'Array of { id: string, text: string }. IDs must be unique.'],
-              ['correctAnswers', 'string[]', 'min 1', 'Option IDs. SINGLE_CHOICE allows exactly 1. TRUE_FALSE allows exactly 1.'],
-              ['explanation', 'string', 'min 50 chars', 'Full explanation shown after the student answers.'],
-              ['explanationBlocks', 'array?', 'Optional', 'Structured rich-text blocks (same as single-question editor).'],
+              [
+                'set',
+                'string?',
+                'Optional',
+                'Per-question override of the top-level set. If omitted, uses the top-level set.',
+              ],
+              [
+                'options',
+                'array',
+                'min 2 items',
+                'Array of { id: string, text: string }. IDs must be unique.',
+              ],
+              [
+                'correctAnswers',
+                'string[]',
+                'min 1',
+                'Option IDs. SINGLE_CHOICE allows exactly 1. TRUE_FALSE allows exactly 1.',
+              ],
+              [
+                'explanation',
+                'string',
+                'min 50 chars',
+                'Full explanation shown after the student answers.',
+              ],
+              [
+                'explanationBlocks',
+                'array?',
+                'Optional',
+                'Structured rich-text blocks (same as single-question editor).',
+              ],
             ]}
           />
 
-          <p style={{ color: colors.body, margin: '16px 0 6px', fontWeight: 600 }}>
+          <p
+            style={{
+              color: colors.body,
+              margin: '16px 0 6px',
+              fontWeight: 600,
+            }}
+          >
             Common mistakes:
           </p>
-          <ul style={{ color: colors.muted, margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+          <ul
+            style={{
+              color: colors.muted,
+              margin: 0,
+              paddingLeft: 20,
+              lineHeight: 1.7,
+            }}
+          >
             <li>
-              <code style={{ color: colors.primaryText }}>correctAnswers</code> values must exactly
-              match <code style={{ color: colors.primaryText }}>options[].id</code> (case-sensitive).
+              <code style={{ color: colors.primaryText }}>correctAnswers</code>{' '}
+              values must exactly match{' '}
+              <code style={{ color: colors.primaryText }}>options[].id</code>{' '}
+              (case-sensitive).
             </li>
             <li>TRUE_FALSE questions require exactly 2 options.</li>
             <li>SINGLE_CHOICE questions must have exactly 1 correct answer.</li>
             <li>
-              Duplicate question text (even with different casing or whitespace) is rejected.
+              Duplicate question text (even with different casing or whitespace)
+              is rejected.
             </li>
             <li>
-              Questions already existing in the database for this exam type are rejected as
-              duplicates.
+              Questions already existing in the database for this exam type are
+              rejected as duplicates.
             </li>
-            <li>If any question fails validation, the entire file is rejected (no partial inserts).</li>
+            <li>
+              If any question fails validation, the entire file is rejected (no
+              partial inserts).
+            </li>
           </ul>
         </div>
       )}
@@ -1031,7 +1192,11 @@ function FieldTable({ rows }: { rows: [string, string, string, string][] }) {
 // Tiny helpers
 // ---------------------------------------------------------------------------
 
-function btnStyle(bg: string, color: string, disabled = false): React.CSSProperties {
+function btnStyle(
+  bg: string,
+  color: string,
+  disabled = false,
+): React.CSSProperties {
   return {
     padding: '10px 20px',
     background: bg,

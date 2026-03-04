@@ -25,10 +25,13 @@ import {
   User,
   Cloud,
   Calendar,
+  Crown,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../stores/auth-store';
 import { useStreakStore } from '../stores/streak.store';
+import { useIsPremium } from '../stores/purchase.store';
 import { DatePickerModal } from '../components/DatePickerModal';
 import {
   performFullSync,
@@ -40,21 +43,7 @@ import {
 import { getDatabase, SYNC_META_KEYS } from '../storage';
 import { getTotalQuestionCount } from '../storage/repositories/question.repository';
 import { EXAM_TYPE_ID, EXAM_CONFIG } from '../config';
-
-// AWS Modern Color Palette (matching HomeScreen)
-const colors = {
-  background: '#232F3E',
-  surface: '#1F2937',
-  surfaceHover: '#374151',
-  borderDefault: '#374151',
-  textHeading: '#F9FAFB',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  success: '#10B981',
-  error: '#EF4444',
-  info: '#3B82F6',
-};
+import { colors, spacing, radii } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -62,6 +51,7 @@ export const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { isSignedIn, user } = useAuthStore();
+  const isPremium = useIsPremium();
   const { streak, saveExamDate, loadStreak } = useStreakStore();
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -169,6 +159,45 @@ export const SettingsScreen: React.FC = () => {
           { paddingBottom: Math.max(40, insets.bottom) },
         ]}
       >
+        {/* Subscription Status Card */}
+        <View style={styles.subscriptionCard}>
+          {isPremium ? (
+            <View style={styles.subscriptionContent}>
+              <View style={styles.subscriptionHeader}>
+                <CheckCircle2 size={18} color={colors.success} strokeWidth={2.5} />
+                <Text style={styles.subscriptionTitle}>Premium Plan</Text>
+              </View>
+              <Text style={styles.subscriptionSubtitle}>
+                All {questionCount} questions unlocked
+              </Text>
+              <TouchableOpacity
+                style={styles.subscriptionCtaPremium}
+                onPress={() => navigation.navigate('Upgrade')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.subscriptionCtaPremiumText}>View Current Plan</Text>
+                <ChevronRight size={14} color={colors.textMuted} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.subscriptionContent}>
+              <View style={styles.subscriptionHeader}>
+                <Crown size={18} color={colors.gold} strokeWidth={2} />
+                <Text style={styles.subscriptionTitle}>Free Plan</Text>
+              </View>
+              <Text style={styles.subscriptionSubtitle}>Limited access to questions</Text>
+              <TouchableOpacity
+                style={styles.subscriptionCta}
+                onPress={() => navigation.navigate('Upgrade')}
+                activeOpacity={0.85}
+              >
+                <Crown size={14} color={colors.background} strokeWidth={2.2} />
+                <Text style={styles.subscriptionCtaText}>View Premium Plans</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {/* Account Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -555,5 +584,64 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.success,
+  },
+
+  /* ── Subscription Status Card ── */
+  subscriptionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    marginBottom: spacing.lg,
+  },
+  subscriptionContent: {
+    padding: spacing.md,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: 4,
+  },
+  subscriptionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textHeading,
+  },
+  subscriptionSubtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+    marginLeft: spacing.lg + 2,
+  },
+  subscriptionCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.gold,
+    borderRadius: radii.pill,
+    paddingVertical: 12,
+  },
+  subscriptionCtaText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.background,
+  },
+  subscriptionCtaPremium: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    borderRadius: radii.pill,
+    paddingVertical: 10,
+    marginTop: spacing.xs,
+  },
+  subscriptionCtaPremiumText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
 });

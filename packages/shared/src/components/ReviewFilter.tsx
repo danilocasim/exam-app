@@ -1,7 +1,6 @@
 // T064: ReviewFilter - filter chips for review (All / Incorrect / Correct)
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CheckCircle2, XCircle } from 'lucide-react-native';
 import { ReviewFilterType } from '../services/review.service';
 
 // AWS Modern Color Palette
@@ -39,14 +38,14 @@ const FILTER_OPTIONS: FilterOption[] = [
     label: 'Incorrect',
     color: colors.error,
     bgColor: colors.errorDark,
-    icon: <XCircle size={14} color={colors.error} strokeWidth={2} />,
+    icon: null,
   },
   {
     id: 'correct',
     label: 'Correct',
     color: colors.success,
     bgColor: colors.successDark,
-    icon: <CheckCircle2 size={14} color={colors.success} strokeWidth={2} />,
+    icon: null,
   },
 ];
 

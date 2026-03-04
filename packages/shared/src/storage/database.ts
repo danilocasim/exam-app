@@ -6,6 +6,9 @@ import { EXAM_TYPE_ID } from '../config';
 // Database instance (singleton per active session)
 let db: SQLite.SQLiteDatabase | null = null;
 
+// Initialization promise guard — prevents concurrent getDatabase() from racing
+let dbInitPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
 // Default anonymous database name (includes exam type for multi-app isolation)
 const ANONYMOUS_DB = `dojoexam_${EXAM_TYPE_ID.toLowerCase().replace(/[^a-z0-9]/g, '_')}.db`;
 
@@ -33,15 +36,38 @@ const getDbNameForUser = (email: string | null): string =>
 export const getCurrentDbName = (): string => currentDbName;
 
 /**
- * Get or create the SQLite database instance
+ * Get or create the SQLite database instance.
+ * Uses a promise guard to prevent concurrent initialization races.
  */
 export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   if (db) {
     return db;
   }
 
-  db = await SQLite.openDatabaseAsync(currentDbName);
-  return db;
+  // If another call is already initializing, wait for it
+  if (dbInitPromise) {
+    return dbInitPromise;
+  }
+
+  dbInitPromise = (async () => {
+    const newDb = await SQLite.openDatabaseAsync(currentDbName);
+
+    // busy_timeout: retry for up to 5s on SQLITE_BUSY instead of failing immediately
+    await newDb.execAsync('PRAGMA busy_timeout = 5000;');
+
+    // foreign_keys: enforce referential integrity
+    await newDb.execAsync('PRAGMA foreign_keys = ON;');
+
+    // WAL mode: use getFirstAsync because PRAGMA journal_mode returns a result row.
+    // execAsync is write-only and cannot handle result-returning PRAGMAs.
+    await newDb.getFirstAsync<{ journal_mode: string }>('PRAGMA journal_mode = WAL;');
+
+    db = newDb;
+    dbInitPromise = null;
+    return newDb;
+  })();
+
+  return dbInitPromise;
 };
 
 /**
@@ -51,10 +77,9 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 export const initializeDatabase = async (): Promise<void> => {
   const database = await getDatabase();
 
-  // Enable foreign keys
-  await database.execAsync('PRAGMA foreign_keys = ON;');
-
-  // Create Question table
+  // Consolidate all DDL into a single execAsync call to avoid
+  // "database is locked" errors from rapid successive native bridge calls.
+  // PRAGMAs are set in getDatabase() at connection time.
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS Question (
       id TEXT PRIMARY KEY,
@@ -66,6 +91,7 @@ export const initializeDatabase = async (): Promise<void> => {
       correctAnswers TEXT NOT NULL,
       explanation TEXT NOT NULL,
       explanationBlocks TEXT,
+      "set" TEXT,
       version INTEGER NOT NULL DEFAULT 1,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
@@ -73,19 +99,8 @@ export const initializeDatabase = async (): Promise<void> => {
     CREATE INDEX IF NOT EXISTS idx_question_domain ON Question(domain);
     CREATE INDEX IF NOT EXISTS idx_question_difficulty ON Question(difficulty);
     CREATE INDEX IF NOT EXISTS idx_question_version ON Question(version);
-  `);
+    CREATE INDEX IF NOT EXISTS idx_question_set ON Question("set");
 
-  // Migration: add explanationBlocks column for existing databases
-  try {
-    await database.execAsync(`
-      ALTER TABLE Question ADD COLUMN explanationBlocks TEXT;
-    `);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Create ExamAttempt table
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS ExamAttempt (
       id TEXT PRIMARY KEY,
       mode TEXT NOT NULL DEFAULT 'mock',
@@ -100,19 +115,7 @@ export const initializeDatabase = async (): Promise<void> => {
     );
     CREATE INDEX IF NOT EXISTS idx_exam_attempt_status ON ExamAttempt(status);
     CREATE INDEX IF NOT EXISTS idx_exam_attempt_started_at ON ExamAttempt(startedAt);
-  `);
 
-  // Migration: add mode column for existing databases
-  try {
-    await database.execAsync(`
-      ALTER TABLE ExamAttempt ADD COLUMN mode TEXT NOT NULL DEFAULT 'mock';
-    `);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Create ExamSubmission table (for historical submissions with sync tracking)
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS ExamSubmission (
       id TEXT PRIMARY KEY,
       userId TEXT,
@@ -131,24 +134,7 @@ export const initializeDatabase = async (): Promise<void> => {
     CREATE INDEX IF NOT EXISTS idx_submission_exam_type ON ExamSubmission(examTypeId);
     CREATE INDEX IF NOT EXISTS idx_submission_sync_status ON ExamSubmission(syncStatus);
     CREATE INDEX IF NOT EXISTS idx_submission_submitted_at ON ExamSubmission(submittedAt);
-  `);
 
-  // Migration: add localId column to existing databases (idempotency key for cloud sync)
-  try {
-    await database.execAsync(`ALTER TABLE ExamSubmission ADD COLUMN localId TEXT;`);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Migration: add domainScores column to existing databases (per-domain breakdown)
-  try {
-    await database.execAsync(`ALTER TABLE ExamSubmission ADD COLUMN domainScores TEXT;`);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Create ExamAnswer table
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS ExamAnswer (
       id TEXT PRIMARY KEY,
       examAttemptId TEXT NOT NULL,
@@ -164,10 +150,7 @@ export const initializeDatabase = async (): Promise<void> => {
     );
     CREATE INDEX IF NOT EXISTS idx_exam_answer_attempt ON ExamAnswer(examAttemptId);
     CREATE INDEX IF NOT EXISTS idx_exam_answer_question ON ExamAnswer(questionId);
-  `);
 
-  // Create PracticeSession table
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS PracticeSession (
       id TEXT PRIMARY KEY,
       startedAt TEXT NOT NULL,
@@ -179,10 +162,7 @@ export const initializeDatabase = async (): Promise<void> => {
     );
     CREATE INDEX IF NOT EXISTS idx_practice_session_started_at ON PracticeSession(startedAt);
     CREATE INDEX IF NOT EXISTS idx_practice_session_domain ON PracticeSession(domain);
-  `);
 
-  // Create PracticeAnswer table
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS PracticeAnswer (
       id TEXT PRIMARY KEY,
       sessionId TEXT NOT NULL,
@@ -195,19 +175,13 @@ export const initializeDatabase = async (): Promise<void> => {
     );
     CREATE INDEX IF NOT EXISTS idx_practice_answer_session ON PracticeAnswer(sessionId);
     CREATE INDEX IF NOT EXISTS idx_practice_answer_question ON PracticeAnswer(questionId);
-  `);
 
-  // Create SyncMeta table (key-value store)
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS SyncMeta (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
-  `);
 
-  // Create UserStats table (single row)
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS UserStats (
       id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
       totalExams INTEGER NOT NULL DEFAULT 0,
@@ -217,11 +191,7 @@ export const initializeDatabase = async (): Promise<void> => {
       lastActivityAt TEXT
     );
     INSERT OR IGNORE INTO UserStats (id) VALUES (1);
-  `);
 
-  // Create IntegrityStatus table (T151: Phase 3 - Play Integrity Guard)
-  // Stores cached result of Play Integrity verification with 30-day TTL
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS IntegrityStatus (
       id TEXT PRIMARY KEY DEFAULT 'singleton',
       integrity_verified INTEGER NOT NULL DEFAULT 0,
@@ -229,10 +199,7 @@ export const initializeDatabase = async (): Promise<void> => {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-  `);
 
-  // Create StudyStreak table (singleton row, tracks daily exam streak)
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS StudyStreak (
       id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
       currentStreak INTEGER NOT NULL DEFAULT 0,
@@ -241,40 +208,39 @@ export const initializeDatabase = async (): Promise<void> => {
       examDate TEXT
     );
     INSERT OR IGNORE INTO StudyStreak (id) VALUES (1);
-  `);
 
-  // Create PurchaseStatus table (T250: Phase 16 - Monetization Free Tier)
-  // Stores local purchase/tier status with singleton pattern
-  await database.execAsync(`
     CREATE TABLE IF NOT EXISTS PurchaseStatus (
       id TEXT PRIMARY KEY DEFAULT 'singleton',
       tier_level TEXT NOT NULL DEFAULT 'FREE',
       product_id TEXT,
       purchase_token TEXT,
       purchased_at TEXT,
+      subscription_type TEXT,
+      expiry_date TEXT,
+      auto_renewing INTEGER DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
-  // T262: Migration — add subscription columns to PurchaseStatus
-  // Non-breaking: existing rows keep NULL values for new columns (backward-compatible)
-  try {
-    await database.execAsync(`ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT;`);
-  } catch {
-    // Column already exists — ignore
-  }
-  try {
-    await database.execAsync(`ALTER TABLE PurchaseStatus ADD COLUMN expiry_date TEXT;`);
-  } catch {
-    // Column already exists — ignore
-  }
-  try {
-    await database.execAsync(
-      `ALTER TABLE PurchaseStatus ADD COLUMN auto_renewing INTEGER DEFAULT 0;`,
-    );
-  } catch {
-    // Column already exists — ignore
+  // Run ALTER TABLE migrations for databases created before these columns existed.
+  // Each is in a separate try/catch since they fail (harmlessly) if column already exists.
+  const migrations = [
+    `ALTER TABLE Question ADD COLUMN explanationBlocks TEXT`,
+    `ALTER TABLE ExamAttempt ADD COLUMN mode TEXT NOT NULL DEFAULT 'mock'`,
+    `ALTER TABLE ExamSubmission ADD COLUMN localId TEXT`,
+    `ALTER TABLE ExamSubmission ADD COLUMN domainScores TEXT`,
+    `ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT`,
+    `ALTER TABLE PurchaseStatus ADD COLUMN expiry_date TEXT`,
+    `ALTER TABLE PurchaseStatus ADD COLUMN auto_renewing INTEGER DEFAULT 0`,
+    `ALTER TABLE Question ADD COLUMN "set" TEXT`,
+  ];
+  for (const migration of migrations) {
+    try {
+      await database.execAsync(migration);
+    } catch {
+      // Column already exists — ignore
+    }
   }
 };
 
@@ -285,6 +251,7 @@ export const closeDatabase = async (): Promise<void> => {
   if (db) {
     await db.closeAsync();
     db = null;
+    dbInitPromise = null;
   }
 };
 
@@ -553,6 +520,9 @@ export const switchUserDatabase = async (email: string | null): Promise<void> =>
   // Close current database
   await closeDatabase();
 
+  // Brief delay to let the native SQLite layer fully release the connection
+  await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
   // Switch to target
   currentDbName = targetDbName;
 
@@ -567,25 +537,28 @@ export const switchUserDatabase = async (email: string | null): Promise<void> =>
 
   if ((!questionCount || questionCount.count === 0) && questionsToCopy.length > 0) {
     console.log(`[Database] Copying ${questionsToCopy.length} questions to ${targetDbName}`);
-    for (const q of questionsToCopy) {
-      await database.runAsync(
-        `INSERT OR IGNORE INTO Question (id, text, type, domain, difficulty, options, correctAnswers, explanation, version, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          q.id,
-          q.text,
-          q.type,
-          q.domain,
-          q.difficulty,
-          q.options,
-          q.correctAnswers,
-          q.explanation,
-          q.version,
-          q.createdAt,
-          q.updatedAt,
-        ],
-      );
-    }
+    await database.withTransactionAsync(async () => {
+      for (const q of questionsToCopy) {
+        await database.runAsync(
+          `INSERT OR IGNORE INTO Question (id, text, type, domain, difficulty, options, correctAnswers, explanation, "set", version, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            q.id,
+            q.text,
+            q.type,
+            q.domain,
+            q.difficulty,
+            q.options,
+            q.correctAnswers,
+            q.explanation,
+            q.set ?? null,
+            q.version,
+            q.createdAt,
+            q.updatedAt,
+          ],
+        );
+      }
+    });
   }
 
   // Copy SyncMeta if the new database is empty (so question sync knows its version)
@@ -594,12 +567,14 @@ export const switchUserDatabase = async (email: string | null): Promise<void> =>
   );
   if ((!syncMetaCount || syncMetaCount.count === 0) && syncMetaToCopy.length > 0) {
     console.log(`[Database] Copying SyncMeta to ${targetDbName}`);
-    for (const row of syncMetaToCopy) {
-      await database.runAsync(
-        'INSERT OR IGNORE INTO SyncMeta (key, value, updatedAt) VALUES (?, ?, ?)',
-        [row.key, row.value, row.updatedAt],
-      );
-    }
+    await database.withTransactionAsync(async () => {
+      for (const row of syncMetaToCopy) {
+        await database.runAsync(
+          'INSERT OR IGNORE INTO SyncMeta (key, value, updatedAt) VALUES (?, ?, ?)',
+          [row.key, row.value, row.updatedAt],
+        );
+      }
+    });
   }
 
   console.log(`[Database] Switched to database: ${targetDbName}`);

@@ -69,7 +69,7 @@ export const PracticeSummaryScreen: React.FC = () => {
 
   // Get summary from store if available
   const storedSummary = usePracticeStore((state) => state.summary);
-  const resetPracticeState = usePracticeStore((state) => state.resetPracticeState);
+  const resetForNewSession = usePracticeStore((state) => state.resetForNewSession);
 
   useEffect(() => {
     loadSummary();
@@ -155,12 +155,12 @@ export const PracticeSummaryScreen: React.FC = () => {
   };
 
   const handleGoHome = () => {
-    resetPracticeState();
+    resetForNewSession();
     navigation.navigate('MainTabs');
   };
 
   const handlePracticeAgain = () => {
-    resetPracticeState();
+    resetForNewSession();
     navigation.navigate('MainTabs', { screen: 'PracticeTab' });
   };
 

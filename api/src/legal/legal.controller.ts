@@ -6,7 +6,7 @@ export class LegalController {
   @Header('Content-Type', 'text/html; charset=utf-8')
   getPrivacyPolicy(): string {
     const lastUpdated = 'March 4, 2026';
-    const contactEmail = 'danilocasim@gmail.com';
+    const contactEmail = 'danilo.casim14@gmail.com';
     const developerName = 'Danilo Casim';
 
     return `<!DOCTYPE html>

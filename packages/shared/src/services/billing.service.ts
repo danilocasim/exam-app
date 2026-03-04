@@ -96,11 +96,11 @@ export interface SubscriptionStatus {
 
 /**
  * Generate subscription SKU for a given exam type and plan.
- * Format: {plan}_{exam_type_lowercase_nodash}
- * e.g. "monthly_clfc02", "quarterly_saac03"
+ * Format: {plan}_{exam_type_lowercase_underscored}
+ * e.g. "monthly_clf_c02", "quarterly_saa_c03"
  */
 export const getSubscriptionSku = (examTypeId: string, plan: SubscriptionPlan): string => {
-  const normalizedId = examTypeId.toLowerCase().replace(/-/g, '');
+  const normalizedId = examTypeId.toLowerCase().replace(/-/g, '_');
   return `${plan}_${normalizedId}`;
 };
 
@@ -541,6 +541,8 @@ export const handleSubscriptionPurchase = async (
   // Step 2: Handle pending payment
   if (!result.success && result.error?.code === 'PAYMENT_PENDING') {
     console.log('[Billing] Purchase pending — will check on next launch');
+    // T266: Store pending product ID for UI badge and next-launch check
+    usePurchaseStore.getState().setPendingSubscription(sku);
     return {
       ...result,
       plan: plan ?? undefined,
@@ -645,6 +647,9 @@ export const processPurchaseUpdate = async (
   const status = validateSubscription(purchase);
 
   if (status.isActive && status.productId && status.purchaseToken) {
+    // T266: Clear any pending state — purchase completed
+    usePurchaseStore.getState().setPendingSubscription(null);
+
     // Update store to PREMIUM with subscription metadata
     const plan = getPlanFromProductId(status.productId);
     if (plan && status.expiryDate) {

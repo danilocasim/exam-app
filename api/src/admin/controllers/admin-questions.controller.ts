@@ -113,6 +113,26 @@ export class AdminQuestionsController {
     return this.bulkImportService.importQuestions(dto, admin.id);
   }
 
+  /**
+   * POST /admin/questions/bulk-approve?examTypeId=...
+   * Approve all DRAFT and PENDING questions matching the filters.
+   */
+  @Post('bulk-approve')
+  @HttpCode(HttpStatus.OK)
+  async bulkApprove(
+    @Query('examTypeId') examTypeId: string,
+    @Query('domain') domain?: string,
+    @Query('difficulty') difficulty?: string,
+    @Query('set') set?: string,
+    @CurrentAdmin() admin?: AdminUser,
+  ): Promise<{ approved: number }> {
+    return this.questionsService.bulkApprove(examTypeId, admin!.id, {
+      domain,
+      difficulty,
+      set,
+    });
+  }
+
   // -------------------------------------------------------------------------
 
   /**

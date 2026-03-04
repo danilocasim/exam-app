@@ -2,15 +2,14 @@
  * T257: Purchase Tier Unit Tests
  *
  * Tests for tier gating logic:
- * - FREE tier returns the consistent 15-question free pool
+ * - FREE tier uses diagnostic set
  * - PREMIUM tier returns all questions
- * - Question ordering consistency for FREE tier
- * - Exam generation with tier limits (mini-exam vs full exam)
+ * - Exam generation with tier limits (diagnostic exam vs full exam)
  * - Purchase store state transitions (FREE → PREMIUM, reset)
  * - __DEV__ bypass defaults to PREMIUM
  */
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { FREE_QUESTION_LIMIT, TIER_CONFIGS } from '../src/config/tiers';
+import { TIER_CONFIGS } from '../src/config/tiers';
 
 // ─── Top-level mocks (vi.mock is hoisted — no local vars in factory fns) ──────
 
@@ -30,7 +29,7 @@ vi.mock('../src/services/sync.service', () => ({
 
 // Mock the question repository at the top level with vi.fn() placeholders
 vi.mock('../src/storage/repositories/question.repository', () => ({
-  getQuestionsForTier: vi.fn(),
+  getQuestionsBySet: vi.fn(),
   getRandomQuestionsByDomain: vi.fn(),
   getQuestionCountByDomain: vi.fn(),
   getTotalQuestionCount: vi.fn(),
@@ -70,97 +69,40 @@ const makeRows = (count: number) =>
 // ─── Tier Configuration ───────────────────────────────────────────────────────
 
 describe('Tier Configuration', () => {
-  test('FREE_QUESTION_LIMIT is 15', () => {
-    expect(FREE_QUESTION_LIMIT).toBe(15);
-  });
-
-  test('FREE tier config has questionLimit of 15', () => {
-    expect(TIER_CONFIGS.FREE.questionLimit).toBe(15);
+  test('FREE tier config restricts full exams and analytics', () => {
     expect(TIER_CONFIGS.FREE.canTakeFullExams).toBe(false);
     expect(TIER_CONFIGS.FREE.canViewAnalytics).toBe(false);
   });
 
-  test('PREMIUM tier config has no question limit', () => {
-    expect(TIER_CONFIGS.PREMIUM.questionLimit).toBeNull();
+  test('PREMIUM tier config allows all features', () => {
     expect(TIER_CONFIGS.PREMIUM.canTakeFullExams).toBe(true);
     expect(TIER_CONFIGS.PREMIUM.canViewAnalytics).toBe(true);
   });
 });
 
-// ─── Question Repository — Tier Gating ───────────────────────────────────────
+// ─── FREE tier uses Diagnostic Set ───────────────────────────────────────────
 
-describe('getQuestionsForTier', () => {
-  let mockDb: ReturnType<typeof vi.fn>;
+describe('FREE tier uses diagnostic set', () => {
+  test('generateExamForTier FREE delegates to generateDiagnosticExam', async () => {
+    const diagnosticQuestions = makeRows(16);
+    const { getQuestionsBySet } = await import('../src/storage/repositories/question.repository');
+    (getQuestionsBySet as any).mockResolvedValue(diagnosticQuestions);
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    const { getDatabase } = await import('../src/storage/database');
-    mockDb = vi.fn();
-    (getDatabase as any).mockResolvedValue({ getAllAsync: mockDb });
-  });
+    const { getCachedExamTypeConfig } = await import('../src/services/sync.service');
+    const mockConfig = {
+      questionCount: 65,
+      timeLimit: 90,
+      passingScore: 70,
+      domains: [{ id: 'CLF-C02-1', name: 'Domain 1', weight: 100, questionCount: 65 }],
+    };
+    (getCachedExamTypeConfig as any).mockResolvedValue(mockConfig);
 
-  test('FREE tier queries with LIMIT and ORDER BY', async () => {
-    mockDb.mockResolvedValue(makeRows(15));
-    // Import directly (not mocked for this describe block — use the real impl)
-    const questionRepo = await import('../src/storage/repositories/question.repository');
-    // Restore the actual implementation temporarily by calling the real fn via the mockDb
-    // Since the module is mocked at the top, we verify via the mock return values
-    const { getQuestionsForTier } = questionRepo;
-    // Override to test real behavior: unmock for this call
-    (getQuestionsForTier as any).mockImplementation(async (tier: string) => {
-      const db = await (await import('../src/storage/database')).getDatabase();
-      if (tier === 'FREE') {
-        return db.getAllAsync(
-          'SELECT * FROM Question ORDER BY domain ASC, id ASC LIMIT ?',
-          [FREE_QUESTION_LIMIT],
-        );
-      }
-      return db.getAllAsync('SELECT * FROM Question');
-    });
+    const { generateExamForTier } = await import('../src/services/exam-generator.service');
+    const result = await generateExamForTier('FREE');
 
-    await getQuestionsForTier('FREE');
-
-    expect(mockDb).toHaveBeenCalledWith(
-      'SELECT * FROM Question ORDER BY domain ASC, id ASC LIMIT ?',
-      [FREE_QUESTION_LIMIT],
-    );
-  });
-
-  test('PREMIUM tier queries all questions without LIMIT', async () => {
-    mockDb.mockResolvedValue(makeRows(200));
-    const { getQuestionsForTier } = await import(
-      '../src/storage/repositories/question.repository'
-    );
-    (getQuestionsForTier as any).mockImplementation(async (tier: string) => {
-      const db = await (await import('../src/storage/database')).getDatabase();
-      if (tier === 'FREE') {
-        return db.getAllAsync(
-          'SELECT * FROM Question ORDER BY domain ASC, id ASC LIMIT ?',
-          [FREE_QUESTION_LIMIT],
-        );
-      }
-      return db.getAllAsync('SELECT * FROM Question');
-    });
-
-    await getQuestionsForTier('PREMIUM');
-
-    expect(mockDb).toHaveBeenCalledWith('SELECT * FROM Question');
-  });
-
-  test('FREE tier always returns same 15 questions for consistency', async () => {
-    const orderedRows = makeRows(15);
-    // Same rows returned both times — ORDER BY in the query ensures consistency
-    mockDb.mockResolvedValue(orderedRows);
-    const { getQuestionsForTier } = await import(
-      '../src/storage/repositories/question.repository'
-    );
-    (getQuestionsForTier as any).mockResolvedValue(orderedRows);
-
-    const first = await getQuestionsForTier('FREE');
-    const second = await getQuestionsForTier('FREE');
-
-    expect(first.map((q: any) => q.id)).toEqual(second.map((q: any) => q.id));
-    expect(first).toHaveLength(15);
+    expect(result.questions).toHaveLength(16);
+    expect(result.totalQuestions).toBe(16);
+    expect(getQuestionsBySet).toHaveBeenCalledWith('diagnostic');
   });
 });
 
@@ -208,33 +150,29 @@ describe('generateExamForTier', () => {
     (getCachedExamTypeConfig as any).mockResolvedValue(mockConfig);
   });
 
-  test('FREE tier builds mini-exam with proportionally scaled time limit', async () => {
-    const freeQuestions = makeRows(15);
-    const { getQuestionsForTier } = await import(
-      '../src/storage/repositories/question.repository'
-    );
-    (getQuestionsForTier as any).mockResolvedValue(freeQuestions);
+  test('FREE tier builds diagnostic exam with proportionally scaled time limit', async () => {
+    const diagnosticQuestions = makeRows(16);
+    const { getQuestionsBySet } = await import('../src/storage/repositories/question.repository');
+    (getQuestionsBySet as any).mockResolvedValue(diagnosticQuestions);
 
     const { generateExamForTier } = await import('../src/services/exam-generator.service');
     const result = await generateExamForTier('FREE', mockConfig);
 
-    expect(result.questions).toHaveLength(15);
-    expect(result.totalQuestions).toBe(15);
-    // Math.max(5, Math.round(90 * 15/65)) = Math.max(5, 21) = 21
-    expect(result.config.timeLimit).toBe(21);
+    expect(result.questions).toHaveLength(16);
+    expect(result.totalQuestions).toBe(16);
+    // Math.max(5, Math.round(90 * 16/65)) = Math.max(5, 22) = 22
+    expect(result.config.timeLimit).toBe(22);
     // Passing score percentage stays the same
     expect(result.config.passingScore).toBe(70);
-    expect(result.config.questionCount).toBe(15);
+    expect(result.config.questionCount).toBe(16);
   });
 
   test('FREE tier scales time limit to minimum of 5 minutes', async () => {
-    // Tiny free pool relative to huge config → time limit would be < 5
+    // Tiny diagnostic set relative to huge config → time limit would be < 5
     const tinyConfig = { ...mockConfig, questionCount: 1000, timeLimit: 120 };
-    const freeQuestions = makeRows(3); // 3 out of 1000 → 120 * 3/1000 = 0.36 → max(5, 0) = 5
-    const { getQuestionsForTier } = await import(
-      '../src/storage/repositories/question.repository'
-    );
-    (getQuestionsForTier as any).mockResolvedValue(freeQuestions);
+    const diagnosticQuestions = makeRows(3); // 3 out of 1000 → 120 * 3/1000 = 0.36 → max(5, 0) = 5
+    const { getQuestionsBySet } = await import('../src/storage/repositories/question.repository');
+    (getQuestionsBySet as any).mockResolvedValue(diagnosticQuestions);
 
     const { generateExamForTier } = await import('../src/services/exam-generator.service');
     const result = await generateExamForTier('FREE', tinyConfig);
@@ -242,7 +180,7 @@ describe('generateExamForTier', () => {
     expect(result.config.timeLimit).toBeGreaterThanOrEqual(5);
   });
 
-  test('FREE tier uses PREMIUM path when tier is PREMIUM', async () => {
+  test('PREMIUM tier uses full generateExam path', async () => {
     const allQuestions = makeRows(65);
     const { getRandomQuestionsByDomain, getQuestionCountByDomain, getTotalQuestionCount } =
       await import('../src/storage/repositories/question.repository');
@@ -286,9 +224,7 @@ describe('Purchase Store', () => {
   });
 
   test('reset transitions store back to FREE', async () => {
-    const { clearPurchaseStatus } = await import(
-      '../src/storage/repositories/purchase.repository'
-    );
+    const { clearPurchaseStatus } = await import('../src/storage/repositories/purchase.repository');
     (clearPurchaseStatus as any).mockResolvedValue(undefined);
 
     const { usePurchaseStore } = await import('../src/stores/purchase.store');
@@ -364,12 +300,13 @@ describe('__DEV__ bypass', () => {
     expect(usePurchaseStore.getState().isPremium).toBe(false);
   });
 
-  test('PREMIUM tier bypasses question limit (null = unlimited)', () => {
-    expect(TIER_CONFIGS.PREMIUM.questionLimit).toBeNull();
+  test('PREMIUM tier allows all features', () => {
+    expect(TIER_CONFIGS.PREMIUM.canTakeFullExams).toBe(true);
+    expect(TIER_CONFIGS.PREMIUM.canViewAnalytics).toBe(true);
   });
 
-  test('FREE tier enforces question limit of 15', () => {
-    expect(TIER_CONFIGS.FREE.questionLimit).toBe(FREE_QUESTION_LIMIT);
-    expect(FREE_QUESTION_LIMIT).toBe(15);
+  test('FREE tier restricts features', () => {
+    expect(TIER_CONFIGS.FREE.canTakeFullExams).toBe(false);
+    expect(TIER_CONFIGS.FREE.canViewAnalytics).toBe(false);
   });
 });

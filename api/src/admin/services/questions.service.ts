@@ -42,6 +42,7 @@ export class QuestionsService {
       status,
       domain,
       difficulty,
+      set,
       page = 1,
       limit = 20,
     } = query;
@@ -51,6 +52,7 @@ export class QuestionsService {
       ...(status && { status: status as QuestionStatus }),
       ...(domain && { domain }),
       ...(difficulty && { difficulty: difficulty as Difficulty }),
+      ...(set !== undefined && { set: set === '__none__' ? null : set }),
     };
 
     const [questions, total] = await Promise.all([
@@ -123,6 +125,7 @@ export class QuestionsService {
         explanationBlocks: input.explanationBlocks
           ? (input.explanationBlocks as unknown as Prisma.InputJsonValue)
           : undefined,
+        set: input.set ?? null,
         status: QuestionStatus.DRAFT,
         createdById: adminId,
       },
@@ -218,6 +221,7 @@ export class QuestionsService {
         explanationBlocks: input.explanationBlocks
           ? (input.explanationBlocks as unknown as Prisma.InputJsonValue)
           : Prisma.DbNull,
+        set: input.set ?? null,
         // Reset to DRAFT on edit if previously pending/approved
         status: QuestionStatus.DRAFT,
       },
@@ -277,6 +281,43 @@ export class QuestionsService {
 
     this.logger.log(`Question approved: ${question.id} by admin ${adminId}`);
     return this.toAdminQuestionDto(question);
+  }
+
+  /**
+   * Bulk approve all DRAFT and PENDING questions matching the given filters.
+   * Returns the count of approved questions.
+   */
+  async bulkApprove(
+    examTypeId: string,
+    adminId: string,
+    filters?: { domain?: string; difficulty?: string; set?: string },
+  ): Promise<{ approved: number }> {
+    const where: Prisma.QuestionWhereInput = {
+      examTypeId,
+      status: { in: [QuestionStatus.DRAFT, QuestionStatus.PENDING] },
+      ...(filters?.domain && { domain: filters.domain }),
+      ...(filters?.difficulty && {
+        difficulty: filters.difficulty as Difficulty,
+      }),
+      ...(filters?.set !== undefined && {
+        set: filters.set === '__none__' ? null : filters.set,
+      }),
+    };
+
+    const result = await this.prisma.question.updateMany({
+      where,
+      data: {
+        status: QuestionStatus.APPROVED,
+        approvedById: adminId,
+        approvedAt: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `Bulk approved ${result.count} questions for exam type '${examTypeId}' by admin ${adminId}`,
+    );
+
+    return { approved: result.count };
   }
 
   /**
@@ -402,6 +443,7 @@ export class QuestionsService {
     type: QuestionType;
     domain: string;
     difficulty: Difficulty;
+    set?: string | null;
     options: unknown;
     correctAnswers: string[];
     explanation: string;
@@ -429,6 +471,7 @@ export class QuestionsService {
       type: question.type,
       domain: question.domain,
       difficulty: question.difficulty,
+      set: question.set ?? null,
       options: question.options as { id: string; text: string }[],
       correctAnswers: question.correctAnswers,
       explanation: question.explanation,

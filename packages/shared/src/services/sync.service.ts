@@ -51,6 +51,7 @@ interface ApiQuestion {
   type: 'single-choice' | 'multiple-choice' | 'true-false';
   domain: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  set?: string | null;
   options: Array<{ id: string; text: string }>;
   correctAnswers: string[];
   explanation: string;
@@ -275,72 +276,77 @@ const upsertQuestions = async (
   let added = 0;
   let updated = 0;
 
-  for (const q of questions) {
-    const existing = await db.getFirstAsync<QuestionRow>('SELECT id FROM Question WHERE id = ?', [
-      q.id,
-    ]);
+  await db.withTransactionAsync(async () => {
+    for (const q of questions) {
+      const existing = await db.getFirstAsync<QuestionRow>('SELECT id FROM Question WHERE id = ?', [
+        q.id,
+      ]);
 
-    const row: QuestionRow = {
-      id: q.id,
-      text: q.text,
-      type: mapQuestionType(q.type),
-      domain: q.domain,
-      difficulty: mapDifficulty(q.difficulty),
-      options: JSON.stringify(q.options),
-      correctAnswers: JSON.stringify(q.correctAnswers),
-      explanation: q.explanation,
-      explanationBlocks: q.explanationBlocks ? JSON.stringify(q.explanationBlocks) : null,
-      version: q.version,
-      createdAt: q.createdAt,
-      updatedAt: q.updatedAt,
-    };
+      const row: QuestionRow = {
+        id: q.id,
+        text: q.text,
+        type: mapQuestionType(q.type),
+        domain: q.domain,
+        difficulty: mapDifficulty(q.difficulty),
+        options: JSON.stringify(q.options),
+        correctAnswers: JSON.stringify(q.correctAnswers),
+        explanation: q.explanation,
+        explanationBlocks: q.explanationBlocks ? JSON.stringify(q.explanationBlocks) : null,
+        set: q.set ?? null,
+        version: q.version,
+        createdAt: q.createdAt,
+        updatedAt: q.updatedAt,
+      };
 
-    if (existing) {
-      await db.runAsync(
-        `UPDATE Question SET 
-          text = ?, type = ?, domain = ?, difficulty = ?,
-          options = ?, correctAnswers = ?, explanation = ?,
-          explanationBlocks = ?, version = ?, createdAt = ?, updatedAt = ?
-        WHERE id = ?`,
-        [
-          row.text,
-          row.type,
-          row.domain,
-          row.difficulty,
-          row.options,
-          row.correctAnswers,
-          row.explanation,
-          row.explanationBlocks,
-          row.version,
-          row.createdAt,
-          row.updatedAt,
-          row.id,
-        ],
-      );
-      updated++;
-    } else {
-      await db.runAsync(
-        `INSERT INTO Question 
-          (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, version, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          row.id,
-          row.text,
-          row.type,
-          row.domain,
-          row.difficulty,
-          row.options,
-          row.correctAnswers,
-          row.explanation,
-          row.explanationBlocks,
-          row.version,
-          row.createdAt,
-          row.updatedAt,
-        ],
-      );
-      added++;
+      if (existing) {
+        await db.runAsync(
+          `UPDATE Question SET 
+            text = ?, type = ?, domain = ?, difficulty = ?,
+            options = ?, correctAnswers = ?, explanation = ?,
+            explanationBlocks = ?, "set" = ?, version = ?, createdAt = ?, updatedAt = ?
+          WHERE id = ?`,
+          [
+            row.text,
+            row.type,
+            row.domain,
+            row.difficulty,
+            row.options,
+            row.correctAnswers,
+            row.explanation,
+            row.explanationBlocks,
+            row.set,
+            row.version,
+            row.createdAt,
+            row.updatedAt,
+            row.id,
+          ],
+        );
+        updated++;
+      } else {
+        await db.runAsync(
+          `INSERT INTO Question 
+            (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, "set", version, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            row.id,
+            row.text,
+            row.type,
+            row.domain,
+            row.difficulty,
+            row.options,
+            row.correctAnswers,
+            row.explanation,
+            row.explanationBlocks,
+            row.set,
+            row.version,
+            row.createdAt,
+            row.updatedAt,
+          ],
+        );
+        added++;
+      }
     }
-  }
+  });
 
   return { added, updated };
 };
@@ -375,18 +381,28 @@ export const syncQuestions = async (examTypeId: string = EXAM_TYPE_ID): Promise<
       };
     }
 
-    // Counts differ — clear local questions and re-download fresh set
+    // Counts differ — re-download fresh question set.
+    // IMPORTANT: We must NOT delete ExamAnswer / ExamAttempt / ExamSubmission
+    // because that would destroy all exam history (scores, missed-questions
+    // tracking, etc.). Instead we temporarily disable FK checks, clear only
+    // the Question table (+ lightweight Practice tables), re-insert all
+    // questions, then re-enable FK checks. ExamAnswer rows that reference
+    // questions removed from the server will simply be excluded by INNER JOIN
+    // queries (e.g. missed-questions).
     console.warn(
-      `[SyncService] Count mismatch (local=${localCount}, remote=${remoteCount}), clearing local questions...`,
+      `[SyncService] Count mismatch (local=${localCount}, remote=${remoteCount}), re-syncing questions (preserving exam history)...`,
     );
     const db = await getDatabase();
-    // Clear all tables that reference Question to avoid foreign key constraint violations
-    await db.runAsync('DELETE FROM PracticeAnswer');
-    await db.runAsync('DELETE FROM PracticeSession');
-    await db.runAsync('DELETE FROM ExamAnswer');
-    await db.runAsync('DELETE FROM ExamSubmission');
-    await db.runAsync('DELETE FROM ExamAttempt');
-    await db.runAsync('DELETE FROM Question');
+    await db.execAsync('PRAGMA foreign_keys = OFF;');
+    try {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync('DELETE FROM PracticeAnswer');
+        await db.runAsync('DELETE FROM PracticeSession');
+        await db.runAsync('DELETE FROM Question');
+      });
+    } finally {
+      await db.execAsync('PRAGMA foreign_keys = ON;');
+    }
 
     let totalAdded = 0;
     let hasMore = true;
@@ -460,6 +476,47 @@ export const isSyncNeeded = async (): Promise<boolean> => {
   return now - lastSyncAt > SYNC_CONFIG.AUTO_SYNC_INTERVAL_MS;
 };
 
+// =============================================================================
+// Question Sets (slug → name mapping)
+// =============================================================================
+
+interface QuestionSetPublic {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+}
+
+/**
+ * Fetch question sets from API and cache locally
+ */
+export const fetchAndCacheQuestionSets = async (
+  examTypeId: string = EXAM_TYPE_ID,
+): Promise<void> => {
+  try {
+    const response = await get<{ sets: QuestionSetPublic[] }>(`/exam-types/${examTypeId}/sets`);
+    const mapping: Record<string, string> = {};
+    for (const s of response.sets) {
+      mapping[s.slug] = s.name;
+    }
+    await saveSyncMeta(SYNC_META_KEYS.QUESTION_SETS, JSON.stringify(mapping));
+  } catch (error) {
+    console.warn('[SyncService] Failed to fetch question sets, skipping:', error);
+  }
+};
+
+/**
+ * Get cached question set slug → name mapping
+ */
+export const getCachedQuestionSets = async (): Promise<Record<string, string>> => {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM SyncMeta WHERE key = ?',
+    [SYNC_META_KEYS.QUESTION_SETS],
+  );
+  return row ? JSON.parse(row.value) : {};
+};
+
 /**
  * Full sync: fetch exam type config + sync questions (with retry)
  */
@@ -474,6 +531,9 @@ export const performFullSync = async (examTypeId: string = EXAM_TYPE_ID): Promis
     );
     await saveExamTypeConfig(config);
     console.warn(`[SyncService] Config saved: ${config.questionCount} questions required`);
+
+    // Fetch and cache question set names (non-blocking)
+    await fetchAndCacheQuestionSets(examTypeId);
 
     // Sync questions (compares local count vs remote count)
     return await syncQuestions(examTypeId);

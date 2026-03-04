@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { QuestionStatus, QuestionType, Difficulty, Prisma } from '@prisma/client';
+import {
+  QuestionStatus,
+  QuestionType,
+  Difficulty,
+  Prisma,
+} from '@prisma/client';
 import type {
   BulkImportQuestionsDto,
   BulkImportQuestionItemDto,
@@ -27,7 +32,10 @@ function normalizeText(text: string): string {
 
 /** SHA-256 hash of normalized text (first 16 hex chars) — used for fast set lookups */
 function hashText(normalized: string): string {
-  return createHash('sha256').update(normalized, 'utf8').digest('hex').slice(0, 16);
+  return createHash('sha256')
+    .update(normalized, 'utf8')
+    .digest('hex')
+    .slice(0, 16);
 }
 
 // ---------------------------------------------------------------------------
@@ -153,8 +161,6 @@ export class BulkImportService {
 
     if (uniqueNormsToCheck.length > 0) {
       // Fetch all non-archived question texts for this exam type in one query.
-      // We compare normalized versions after fetching (no DB function for this).
-      // For up to 500 questions this is perfectly efficient.
       const existingQuestions = await this.prisma.question.findMany({
         where: {
           examTypeId: dto.examTypeId,
@@ -163,12 +169,13 @@ export class BulkImportService {
         select: { text: true },
       });
 
-      const dbNormSet = new Set(existingQuestions.map((q) => normalizeText(q.text)));
+      const dbNormSet = new Set(
+        existingQuestions.map((q) => normalizeText(q.text)),
+      );
 
       const uniqueNormSet = new Set(uniqueNormsToCheck);
       for (let i = 0; i < dto.questions.length; i++) {
         const norm = normalizedTexts[i];
-        // Skip if already flagged as in-file duplicate (avoid double-reporting)
         if (
           duplicates.some(
             (d) => d.questionIndex === i && d.reason === 'DUPLICATE_IN_FILE',
@@ -182,8 +189,37 @@ export class BulkImportService {
             reason: 'DUPLICATE_IN_DB',
             text: dto.questions[i].text,
           });
-          // Remove from uniqueNormSet so we don't flag further duplicates of the same text
           uniqueNormSet.delete(norm);
+        }
+      }
+    }
+
+    // ---- 4. Validate set slugs exist (if provided) -------------------------
+    const setsUsed = new Set<string>();
+    if (dto.set) setsUsed.add(dto.set);
+    for (const q of dto.questions) {
+      const effectiveSet = q.set ?? dto.set;
+      if (effectiveSet) setsUsed.add(effectiveSet);
+    }
+
+    if (setsUsed.size > 0) {
+      const existingSets = await this.prisma.questionSet.findMany({
+        where: {
+          examTypeId: dto.examTypeId,
+          slug: { in: [...setsUsed] },
+        },
+        select: { slug: true },
+      });
+      const validSlugs = new Set(existingSets.map((s) => s.slug));
+
+      for (let i = 0; i < dto.questions.length; i++) {
+        const setSlug = dto.questions[i].set ?? dto.set;
+        if (setSlug && !validSlugs.has(setSlug)) {
+          errors.push({
+            questionIndex: i,
+            field: 'set',
+            message: `Set "${setSlug}" does not exist for exam type "${dto.examTypeId}". Create it first.`,
+          });
         }
       }
     }
@@ -226,7 +262,8 @@ export class BulkImportService {
 
     if (!validation.valid) {
       throw new UnprocessableEntityException({
-        message: 'Import failed validation. Fix all errors and duplicates before importing.',
+        message:
+          'Import failed validation. Fix all errors and duplicates before importing.',
         validation,
       });
     }
@@ -250,6 +287,7 @@ export class BulkImportService {
               explanationBlocks: q.explanationBlocks
                 ? (q.explanationBlocks as unknown as Prisma.InputJsonValue)
                 : undefined,
+              set: q.set ?? dto.set ?? null,
               status: QuestionStatus.DRAFT,
               createdById: adminId,
             },
@@ -289,6 +327,7 @@ export class BulkImportService {
    */
   async getTemplate(examTypeId?: string): Promise<string> {
     let domains: string[] = ['domain-id-1', 'domain-id-2'];
+    let setSlugs: string[] = [];
 
     if (examTypeId) {
       const examType = await this.prisma.examType.findUnique({
@@ -299,9 +338,17 @@ export class BulkImportService {
         const raw = examType.domains as Array<{ id: string; name: string }>;
         domains = raw.map((d) => d.id);
       }
+
+      const sets = await this.prisma.questionSet.findMany({
+        where: { examTypeId, archivedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { slug: true },
+      });
+      setSlugs = sets.map((s) => s.slug);
     }
 
     const exampleDomain = domains[0] ?? 'domain-id-1';
+    const exampleSet = setSlugs[0] ?? 'set-1';
 
     const template = {
       _instructions: [
@@ -311,16 +358,21 @@ export class BulkImportService {
         'All questions are imported as DRAFT — review and approve them individually.',
       ],
       examTypeId: examTypeId ?? 'CLF-C02',
+      set: exampleSet,
       _fieldReference: {
         text: 'string — min 20 chars. The full question stem.',
         type: 'SINGLE_CHOICE | MULTIPLE_CHOICE | TRUE_FALSE',
         domain: `string — one of: ${domains.join(', ')}`,
         difficulty: 'EASY | MEDIUM | HARD',
-        options: 'array of { id: string, text: string } — min 2 items. Option ids must be unique.',
+        set: `(optional, top-level or per-question) string — slug of a QuestionSet. Available: ${setSlugs.length ? setSlugs.join(', ') : 'none yet — create sets first'}. Top-level set applies to all questions unless overridden per question.`,
+        options:
+          'array of { id: string, text: string } — min 2 items. Option ids must be unique.',
         correctAnswers:
           'array of option ids — must reference valid option ids. SINGLE_CHOICE allows exactly 1.',
-        explanation: 'string — min 50 chars. Full explanation shown after answering.',
-        explanationBlocks: '(optional) array of structured blocks for rich explanations.',
+        explanation:
+          'string — min 50 chars. Full explanation shown after answering.',
+        explanationBlocks:
+          '(optional) array of structured blocks for rich explanations.',
       },
       _commonMistakes: [
         'correctAnswers values must match option ids exactly (case-sensitive).',
@@ -350,7 +402,8 @@ export class BulkImportService {
             'use it to store and protect any amount of data for a range of use cases.',
         },
         {
-          _comment: 'Example 2: MULTIPLE_CHOICE — multiple correct answers allowed',
+          _comment:
+            'Example 2: MULTIPLE_CHOICE — multiple correct answers allowed',
           text: 'Which of the following are valid AWS compute services? Select TWO.',
           type: 'MULTIPLE_CHOICE',
           domain: domains[1] ?? exampleDomain,

@@ -30,6 +30,8 @@ interface PurchaseStoreState {
   subscriptionType: SubscriptionPlan | null;
   expiryDate: string | null;
   autoRenewing: boolean;
+  // T266: Pending subscription tracking
+  pendingProductId: string | null;
 
   // Actions
   setPremium: (productId: string, purchaseToken: string) => Promise<void>;
@@ -40,6 +42,7 @@ interface PurchaseStoreState {
     expiryDate: string,
     autoRenewing: boolean,
   ) => Promise<void>;
+  setPendingSubscription: (productId: string | null) => void;
   checkAndDowngrade: () => Promise<boolean>;
   reset: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
@@ -66,6 +69,7 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
   subscriptionType: null,
   expiryDate: null,
   autoRenewing: false,
+  pendingProductId: null,
 
   /**
    * Set PREMIUM tier with basic product info (backward-compatible).
@@ -122,7 +126,16 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
       subscriptionType,
       expiryDate,
       autoRenewing,
+      pendingProductId: null, // Clear pending on successful subscription
     });
+  },
+
+  /**
+   * T266: Track a pending subscription (PAYMENT_PENDING).
+   * Set to null to clear pending state.
+   */
+  setPendingSubscription: (productId: string | null) => {
+    set({ pendingProductId: productId });
   },
 
   /**
@@ -172,6 +185,7 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
       subscriptionType: null,
       expiryDate: null,
       autoRenewing: false,
+      pendingProductId: null,
     });
   },
 
@@ -249,3 +263,8 @@ export const useExpiryDate = () => usePurchaseStore((state) => state.expiryDate)
  * Get whether the subscription is auto-renewing.
  */
 export const useIsAutoRenewing = () => usePurchaseStore((state) => state.autoRenewing);
+
+/**
+ * T266: Get the pending subscription product ID (if any).
+ */
+export const usePendingProductId = () => usePurchaseStore((state) => state.pendingProductId);

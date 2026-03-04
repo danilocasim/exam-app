@@ -52,6 +52,10 @@ export class BulkImportQuestionItemDto {
   })
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
 
+  @IsOptional()
+  @IsString()
+  set?: string;
+
   @IsArray()
   @ArrayMinSize(2, { message: 'At least 2 options are required' })
   @ValidateNested({ each: true })
@@ -89,6 +93,10 @@ export class BulkImportQuestionsDto {
   @IsString()
   @IsNotEmpty({ message: 'examTypeId is required' })
   examTypeId: string;
+
+  @IsOptional()
+  @IsString()
+  set?: string;
 
   @IsArray()
   @ArrayMinSize(1, { message: 'questions array must have at least 1 item' })

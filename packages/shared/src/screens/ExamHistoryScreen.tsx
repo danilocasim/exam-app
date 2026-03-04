@@ -1,14 +1,6 @@
 // T061: ExamHistoryScreen - list of completed exams with scores and dates
-import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, SectionList, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,33 +10,14 @@ import { getExamHistory, ExamHistoryEntry } from '../services/review.service';
 import { useExamStore } from '../stores';
 import { abandonCurrentExam } from '../services';
 import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
-
-// AWS Modern Color Palette
-const colors = {
-  background: '#232F3E',
-  surface: '#1F2937',
-  surfaceHover: '#374151',
-  borderDefault: '#374151',
-  trackGray: '#4B5563',
-  textHeading: '#F9FAFB',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  secondaryOrange: '#EC7211',
-  orangeDark: 'rgba(255, 153, 0, 0.2)',
-  orangeLight: '#FFB84D',
-  success: '#10B981',
-  successLight: '#6EE7B7',
-  successDark: 'rgba(16, 185, 129, 0.15)',
-  error: '#EF4444',
-  errorLight: '#FCA5A5',
-  errorDark: 'rgba(239, 68, 68, 0.15)',
-};
+import { ScoreBadge } from '../components/ScoreBadge';
+import { HistoryScreenSkeleton } from '../components/Shimmer';
+import { colors, spacing, radii } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExamHistory'>;
 
 /**
- * ExamHistoryScreen - displays list of completed exams
+ * ExamHistoryScreen - displays list of completed exams grouped by date
  */
 export const ExamHistoryScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -106,24 +79,44 @@ export const ExamHistoryScreen: React.FC = () => {
     }
   };
 
-  const formatDate = (dateStr: string): string => {
+  // ── Date helpers ──
+  const formatDateKey = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const formatDateLabel = (dateStr: string): string => {
     const date = new Date(dateStr);
     const now = new Date();
     const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(nowDay);
+    yesterday.setDate(yesterday.getDate() - 1);
+
     if (dateDay.getTime() === nowDay.getTime()) return 'Today';
+    if (dateDay.getTime() === yesterday.getTime()) return 'Yesterday';
     return date.toLocaleDateString('en-US', {
+      weekday: 'long',
       month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     });
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 70) return colors.success;
-    if (score >= 60) return colors.primaryOrange;
-    return colors.error;
-  };
+  // ── Group entries by date ──
+  const sections = useMemo(() => {
+    const groups: { [key: string]: { label: string; data: ExamHistoryEntry[] } } = {};
+    for (const entry of entries) {
+      const key = formatDateKey(entry.submittedAt);
+      if (!groups[key]) {
+        groups[key] = { label: formatDateLabel(entry.submittedAt), data: [] };
+      }
+      groups[key].data.push(entry);
+    }
+    return Object.entries(groups)
+      .sort(([a], [b]) => b.localeCompare(a)) // newest first
+      .map(([, group]) => ({ title: group.label, data: group.data }));
+  }, [entries]);
 
   const renderExamEntry = ({ item }: { item: ExamHistoryEntry }) => (
     <TouchableOpacity
@@ -131,17 +124,10 @@ export const ExamHistoryScreen: React.FC = () => {
       activeOpacity={0.7}
       style={styles.entryRow}
     >
-      {/* Pass/Fail indicator */}
-      <View
-        style={[styles.statusDot, { backgroundColor: item.passed ? colors.success : colors.error }]}
-      />
-
       {/* Main info */}
       <View style={styles.entryInfo}>
         <View style={styles.entryTopRow}>
-          <Text style={[styles.scoreText, { color: getScoreColor(item.score) }]}>
-            {item.score}%
-          </Text>
+          <ScoreBadge score={item.score} passed={item.passed} />
           <Text style={styles.entryDetailText}>
             {item.correctCount}/{item.totalQuestions}
           </Text>
@@ -150,18 +136,22 @@ export const ExamHistoryScreen: React.FC = () => {
             <Text style={styles.entryDetailMuted}>{item.timeSpent}</Text>
           </View>
         </View>
-        <Text style={styles.dateText}>{formatDate(item.submittedAt)}</Text>
       </View>
 
       <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
     </TouchableOpacity>
   );
 
+  const renderSectionHeader = ({ section }: { section: { title: string } }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderText}>{section.title}</Text>
+    </View>
+  );
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primaryOrange} />
-        <Text style={styles.loadingText}>Loading history...</Text>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <HistoryScreenSkeleton />
       </SafeAreaView>
     );
   }
@@ -204,16 +194,19 @@ export const ExamHistoryScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={entries}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.attempt.id}
           renderItem={renderExamEntry}
+          renderSectionHeader={renderSectionHeader}
+          stickySectionHeadersEnabled
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: Math.max(32, insets.bottom) },
           ]}
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          SectionSeparatorComponent={() => <View style={{ height: spacing.xs }} />}
         />
       )}
     </SafeAreaView>
@@ -225,29 +218,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  loadingText: {
-    color: colors.textMuted,
-    fontSize: 16,
-    marginTop: 16,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderDefault,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: radii.md,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -263,25 +245,34 @@ const styles = StyleSheet.create({
     width: 40,
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingHorizontal: spacing.md + 4,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
   },
+  // ── Section headers (date grouping) ──
+  sectionHeader: {
+    backgroundColor: colors.background,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  // ── Entry row ──
   entryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 2,
     borderWidth: 1,
     borderColor: colors.borderDefault,
-    gap: 12,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    gap: spacing.md,
   },
   entryInfo: {
     flex: 1,
@@ -291,10 +282,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  scoreText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
   entryDetailText: {
     fontSize: 13,
@@ -310,10 +297,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
   },
-  dateText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -323,11 +306,11 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.borderDefault,
   },
@@ -335,20 +318,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.textHeading,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   emptySubtitle: {
     fontSize: 14,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   emptyButton: {
     backgroundColor: colors.primaryOrange,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md - 4,
+    borderRadius: radii.md,
   },
   emptyButtonText: {
     color: colors.textHeading,
@@ -359,13 +342,13 @@ const styles = StyleSheet.create({
     color: colors.errorLight,
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   retryButton: {
     backgroundColor: colors.surface,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md - 4,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.borderDefault,
   },

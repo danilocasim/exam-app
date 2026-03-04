@@ -3,7 +3,9 @@ import type {
   QuestionInput,
   ExamType,
   ExplanationBlock,
+  QuestionSet,
 } from '../services/api';
+import { api } from '../services/api';
 import { ExplanationEditor } from './ExplanationEditor';
 import { colors, radius } from '../theme';
 
@@ -35,6 +37,7 @@ export function QuestionForm({
     type: initialValues?.type || 'SINGLE_CHOICE',
     domain: initialValues?.domain || domains[0]?.id || '',
     difficulty: initialValues?.difficulty || 'MEDIUM',
+    set: initialValues?.set ?? null,
     options: initialValues?.options || [
       { id: 'A', text: '' },
       { id: 'B', text: '' },
@@ -47,6 +50,17 @@ export function QuestionForm({
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]);
+
+  // Fetch question sets for the current exam type
+  useEffect(() => {
+    const etId = formData.examTypeId || selectedExamType;
+    if (!etId) return;
+    api
+      .getQuestionSets(etId, false)
+      .then(setQuestionSets)
+      .catch(() => setQuestionSets([]));
+  }, [formData.examTypeId, selectedExamType]);
 
   // Sync examTypeId and domain when selectedExamType loads asynchronously
   useEffect(() => {
@@ -235,6 +249,21 @@ export function QuestionForm({
             <option value="EASY">Easy</option>
             <option value="MEDIUM">Medium</option>
             <option value="HARD">Hard</option>
+          </select>
+        </label>
+        <label style={labelStyle}>
+          Set
+          <select
+            value={formData.set ?? ''}
+            onChange={(e) => updateField('set', e.target.value || null)}
+            style={selectStyle}
+          >
+            <option value="">(none)</option>
+            {questionSets.map((s) => (
+              <option key={s.slug} value={s.slug}>
+                {s.name}
+              </option>
+            ))}
           </select>
         </label>
       </div>

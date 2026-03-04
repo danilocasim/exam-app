@@ -2,18 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DomainId } from '../storage/schema';
-
-// AWS Modern Color Palette
-const colors = {
-  surface: '#1F2937',
-  surfaceHover: '#374151',
-  borderDefault: '#374151',
-  textHeading: '#F9FAFB',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  orangeDark: 'rgba(255, 153, 0, 0.2)',
-};
+import { colors, radii } from '../theme';
 
 /**
  * Domain option with id and display info

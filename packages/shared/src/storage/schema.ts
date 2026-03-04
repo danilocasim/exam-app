@@ -23,7 +23,7 @@ export type ExamStatus = 'in-progress' | 'completed' | 'abandoned';
 /**
  * Exam mode — distinguishes Daily Quiz, Mock Exam, Missed Questions Quiz, and Custom Exam
  */
-export type ExamMode = 'daily' | 'mock' | 'missed' | 'custom';
+export type ExamMode = 'daily' | 'mock' | 'missed' | 'custom' | 'diagnostic';
 
 /**
  * Configuration for a Custom Exam (selected before starting)
@@ -31,6 +31,7 @@ export type ExamMode = 'daily' | 'mock' | 'missed' | 'custom';
 export interface CustomExamOptions {
   questionCount: number;
   selectedDomains: string[];
+  selectedSets: string[];
   isTimed: boolean;
 }
 
@@ -90,6 +91,8 @@ export interface Question {
   explanation: string;
   /** Optional structured explanation blocks for rich content */
   explanationBlocks?: ExplanationBlockData[] | null;
+  /** Question set slug (e.g. 'diagnostic', 'set-1') */
+  set: string | null;
   /** Sync version number */
   version: number;
   /** ISO timestamp when created */
@@ -111,6 +114,7 @@ export interface QuestionRow {
   correctAnswers: string; // JSON string
   explanation: string;
   explanationBlocks: string | null; // JSON string or null
+  set: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -293,6 +297,8 @@ export const SYNC_META_KEYS = {
   BUNDLED_VERSION: 'bundledVersion',
   /** Exam type configuration JSON */
   EXAM_TYPE_CONFIG: 'examTypeConfig',
+  /** Question sets JSON (slug → name mapping) */
+  QUESTION_SETS: 'questionSets',
 } as const;
 
 export type SyncMetaKey = (typeof SYNC_META_KEYS)[keyof typeof SYNC_META_KEYS];

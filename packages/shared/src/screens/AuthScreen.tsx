@@ -3,7 +3,7 @@
  *
  * Displays Google Sign-In button or signed-in user profile.
  * Uses expo-auth-session for Expo Go compatible OAuth flow.
- * Design: AWS Modern palette, consistent with Home / Settings screens.
+ * Design: Premium dark mode using shared design tokens.
  */
 import React, { useEffect } from 'react';
 import {
@@ -14,14 +14,15 @@ import {
   ScrollView,
   StyleSheet,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ChevronLeft,
-  ChevronRight,
   LogOut,
   Cloud,
   Smartphone,
@@ -35,29 +36,7 @@ import {
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../stores/auth-store';
 import { useGoogleAuthRequest, handleGoogleAuthSuccess, signOut } from '../services/auth-service';
-
-// AWS Modern Color Palette (shared with Home / Settings)
-const colors = {
-  background: '#232F3E',
-  surface: '#1F2937',
-  surfaceHover: '#374151',
-  borderDefault: '#374151',
-  trackGray: '#4B5563',
-  textHeading: '#F9FAFB',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  secondaryOrange: '#EC7211',
-  orangeDark: 'rgba(255, 153, 0, 0.2)',
-  orangeLight: '#FFB84D',
-  success: '#10B981',
-  successLight: '#6EE7B7',
-  successDark: 'rgba(16, 185, 129, 0.15)',
-  error: '#EF4444',
-  errorLight: '#FCA5A5',
-  errorDark: 'rgba(239, 68, 68, 0.15)',
-  info: '#3B82F6',
-};
+import { colors, spacing, radii, typography, MIN_TAP_SIZE } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -121,19 +100,24 @@ export function AuthScreen(): React.ReactElement {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ChevronLeft size={24} color={colors.textHeading} />
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+            style={styles.backButton}
+          >
+            <ChevronLeft size={24} color={colors.textHeading} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Account</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: MIN_TAP_SIZE }} />
         </View>
 
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(40, insets.bottom) },
+            { paddingBottom: Math.max(spacing.xxl, insets.bottom) },
           ]}
+          showsVerticalScrollIndicator={false}
         >
           {/* Profile Card */}
           <View style={styles.profileCard}>
@@ -235,127 +219,180 @@ export function AuthScreen(): React.ReactElement {
 
   // ── Signed-out state ──
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft size={24} color={colors.textHeading} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Account</Text>
-        <View style={{ width: 40 }} />
+    <View style={styles.container}>
+      {/* ── Atmospheric gradient orb (top-right) ── */}
+      <View style={styles.atmosphereOrb}>
+        <LinearGradient
+          colors={['rgba(255, 140, 0, 0.18)', 'rgba(255, 140, 0, 0.06)', 'transparent']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0.7, y: 0 }}
+          end={{ x: 0.2, y: 1 }}
+        />
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          styles.scrollContentCentered,
-          { paddingBottom: Math.max(40, insets.bottom) },
-        ]}
-      >
-        {/* Hero */}
-        <View style={styles.heroSection}>
-          <View style={styles.heroIconOuter}>
-            <View style={styles.heroIcon}>
-              <Cloud size={32} color={colors.textHeading} strokeWidth={1.8} />
-            </View>
-          </View>
-          <Text style={styles.heroTitle}>Sign in to sync</Text>
-          <Text style={styles.heroSubtitle}>
-            Back up your exam results and access them across all your devices
-          </Text>
-        </View>
-
-        {/* Sign-in CTA */}
-        <TouchableOpacity
-          onPress={handleSignIn}
-          disabled={isLoading || !request}
-          activeOpacity={0.85}
-          style={[styles.ctaWrapper, (!request || isLoading) && styles.ctaDisabled]}
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <LinearGradient
-            colors={[colors.primaryOrange, colors.secondaryOrange]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.ctaGradient}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <View style={styles.ctaContent}>
-                <View style={styles.ctaLeft}>
-                  <View style={styles.ctaIconCircle}>
-                    <User size={18} color={colors.textHeading} strokeWidth={2.5} />
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+              style={styles.backButton}
+            >
+              <ChevronLeft size={24} color={colors.textHeading} strokeWidth={2} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Account</Text>
+            <View style={{ width: MIN_TAP_SIZE }} />
+          </View>
+
+          {/* ── Top Branding ── */}
+          <View style={styles.brandSection}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logoIcon}>
+                <Cloud size={28} color={colors.textHeading} strokeWidth={2.5} />
+              </View>
+            </View>
+            <Text style={styles.brandTitle}>Dojo Exam</Text>
+            <Text style={styles.brandSubtitle}>Sign in to sync your progress across devices</Text>
+          </View>
+
+          {/* ── Glass Card (bottom sheet–style) ── */}
+          <View style={styles.glassCard}>
+            <View style={styles.glassTopBorder} />
+
+            <ScrollView
+              contentContainerStyle={[
+                styles.glassContent,
+                { paddingBottom: Math.max(spacing.xxl, insets.bottom + spacing.md) },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Primary CTA — Google Sign-In */}
+              <TouchableOpacity
+                onPress={handleSignIn}
+                disabled={isLoading || !request}
+                activeOpacity={0.85}
+                style={[styles.googleBtn, (!request || isLoading) && styles.btnDisabled]}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.textHeading} />
+                ) : (
+                  <>
+                    <GoogleIcon />
+                    <Text style={styles.googleBtnText}>Continue with Google</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Continue without account */}
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+                style={styles.skipBtn}
+              >
+                <Text style={styles.skipBtnText}>Continue without an account</Text>
+              </TouchableOpacity>
+
+              {/* ── Benefits ── */}
+              <View style={styles.benefitsSection}>
+                <Text style={styles.benefitsSectionTitle}>What you get</Text>
+                <View style={styles.card}>
+                  <View style={styles.benefitRow}>
+                    <View style={[styles.benefitIcon, { backgroundColor: colors.orangeDark }]}>
+                      <Cloud size={16} color={colors.primaryOrange} strokeWidth={2} />
+                    </View>
+                    <View style={styles.benefitText}>
+                      <Text style={styles.benefitTitle}>Cloud Backup</Text>
+                      <Text style={styles.benefitDesc}>
+                        Exam results safely stored in the cloud
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.ctaTitle}>Sign in with Google</Text>
-                    <Text style={styles.ctaSub}>Quick & secure authentication</Text>
+                  <View style={styles.cardDivider} />
+                  <View style={styles.benefitRow}>
+                    <View style={[styles.benefitIcon, { backgroundColor: colors.infoDark }]}>
+                      <Smartphone size={16} color={colors.info} strokeWidth={2} />
+                    </View>
+                    <View style={styles.benefitText}>
+                      <Text style={styles.benefitTitle}>Cross-Device Access</Text>
+                      <Text style={styles.benefitDesc}>
+                        Continue studying on any device seamlessly
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.cardDivider} />
+                  <View style={styles.benefitRow}>
+                    <View style={[styles.benefitIcon, { backgroundColor: colors.successDark }]}>
+                      <BarChart2 size={16} color={colors.success} strokeWidth={2} />
+                    </View>
+                    <View style={styles.benefitText}>
+                      <Text style={styles.benefitTitle}>Cloud Analytics</Text>
+                      <Text style={styles.benefitDesc}>
+                        Detailed performance insights across all exams
+                      </Text>
+                    </View>
                   </View>
                 </View>
-                <ChevronRight size={20} color={colors.textHeading} strokeWidth={2} />
               </View>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
 
-        {/* Benefits Card */}
-        <View style={[styles.section, { marginTop: 24 }]}>
-          <Text style={styles.sectionTitle}>What you get</Text>
-          <View style={styles.card}>
-            <View style={styles.benefitRow}>
-              <View style={[styles.benefitIcon, { backgroundColor: colors.orangeDark }]}>
-                <Cloud size={16} color={colors.primaryOrange} strokeWidth={2} />
-              </View>
-              <View style={styles.benefitText}>
-                <Text style={styles.benefitTitle}>Cloud Backup</Text>
-                <Text style={styles.benefitDesc}>Exam results are safely stored in the cloud</Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.benefitRow}>
-              <View style={[styles.benefitIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                <Smartphone size={16} color={colors.info} strokeWidth={2} />
-              </View>
-              <View style={styles.benefitText}>
-                <Text style={styles.benefitTitle}>Cross-Device Access</Text>
-                <Text style={styles.benefitDesc}>Continue studying on any device seamlessly</Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.benefitRow}>
-              <View style={[styles.benefitIcon, { backgroundColor: colors.successDark }]}>
-                <BarChart2 size={16} color={colors.success} strokeWidth={2} />
-              </View>
-              <View style={styles.benefitText}>
-                <Text style={styles.benefitTitle}>Cloud Analytics</Text>
-                <Text style={styles.benefitDesc}>
-                  Detailed performance insights across all exams
+              {/* ── Privacy note ── */}
+              <View style={styles.privacyNote}>
+                <Shield size={14} color={colors.textMuted} strokeWidth={2} />
+                <Text style={styles.privacyText}>
+                  We only access your name and email. Your study data never leaves your device
+                  unless you choose to sync.
                 </Text>
               </View>
-            </View>
-          </View>
-        </View>
 
-        {/* Privacy note */}
-        <View style={styles.privacyNote}>
-          <Shield size={14} color={colors.textMuted} strokeWidth={2} />
-          <Text style={styles.privacyText}>
-            We only access your name and email. Your study data never leaves your device unless you
-            choose to sync.
-          </Text>
-        </View>
-
-        {/* Error display */}
-        {error && (
-          <View style={styles.errorRow}>
-            <AlertTriangle size={14} color={colors.errorLight} strokeWidth={2} />
-            <Text style={styles.errorText}>{error}</Text>
+              {/* ── Error ── */}
+              {error && (
+                <View style={styles.errorRow}>
+                  <AlertTriangle size={14} color={colors.errorLight} strokeWidth={2} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+            </ScrollView>
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
+
+// ── Google "G" icon (inline SVG-style component) ──
+const GoogleIcon: React.FC = () => (
+  <View style={googleStyles.container}>
+    <Text style={googleStyles.letter}>G</Text>
+  </View>
+);
+
+const googleStyles = StyleSheet.create({
+  container: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  letter: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4285F4',
+    marginTop: -1,
+  },
+});
 
 // ── Styles ──
 const styles = StyleSheet.create({
@@ -369,22 +406,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderDefault,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: MIN_TAP_SIZE,
+    height: MIN_TAP_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: radii.sm,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textHeading,
+    ...typography.title,
   },
 
   // Scroll
@@ -392,142 +427,161 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  scrollContentCentered: {
-    flexGrow: 1,
+    padding: spacing.md + 4,
   },
 
-  // Hero (signed-out)
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 28,
-    marginTop: 12,
+  // ── Signed-out layout ──
+  signedOutContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.md + 4,
   },
-  heroIconOuter: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+
+  // Atmospheric radial gradient orb
+  atmosphereOrb: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    overflow: 'hidden',
+  },
+
+  // Branding (top section with 64px margin)
+  brandSection: {
+    alignItems: 'center',
+    marginTop: 64,
+    paddingHorizontal: spacing.md + 4,
+  },
+  logoContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.xl,
     backgroundColor: colors.orangeDark,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.md,
   },
-  heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  logoIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
     backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+  brandTitle: {
+    fontSize: 26,
+    fontWeight: '800',
     color: colors.textHeading,
-    marginBottom: 8,
+    letterSpacing: -0.3,
+    marginBottom: spacing.sm,
   },
-  heroSubtitle: {
-    fontSize: 14,
+  brandSubtitle: {
+    fontSize: 15,
     color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
     maxWidth: 280,
   },
 
-  // CTA button (matching Home's Start Exam)
-  ctaWrapper: {
-    borderRadius: 14,
+  // Actions (inside glass card, no extra margin)
+  actionsSection: {
+    marginTop: spacing.xxl,
+  },
+
+  // ── Glass card container (bottom sheet) ──
+  glassCard: {
+    flex: 1,
+    marginTop: spacing.xl,
+    backgroundColor: 'rgba(36, 42, 56, 0.65)',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     overflow: 'hidden',
   },
-  ctaDisabled: {
-    opacity: 0.5,
+  glassTopBorder: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  ctaGradient: {
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+  glassContent: {
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md + 4,
   },
-  ctaContent: {
+
+  // Google sign-in button — solid orange pill
+  googleBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  ctaLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  ctaIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.md - 4,
+    height: 52,
+    backgroundColor: '#FF8C00',
+    borderRadius: radii.pill,
   },
-  ctaTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
+  googleBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.textHeading,
   },
-  ctaSub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 1,
+  btnDisabled: {
+    opacity: 0.5,
   },
 
-  // Sections & Cards (matching Settings)
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-  },
-  row: {
+  // Divider row
+  dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 12,
+    marginVertical: spacing.lg,
+    gap: spacing.md,
   },
-  rowLabel: {
+  dividerLine: {
     flex: 1,
-    fontSize: 15,
-    color: colors.textBody,
-  },
-  rowValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textHeading,
-    maxWidth: 180,
-  },
-  divider: {
     height: 1,
     backgroundColor: colors.borderDefault,
-    marginHorizontal: 12,
+  },
+  dividerText: {
+    ...typography.caption,
+    color: colors.textDisabled,
   },
 
-  // Benefits (signed-out)
+  // Skip / continue without account
+  skipBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.md - 2,
+  },
+  skipBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textMuted,
+  },
+
+  // Benefits section
+  benefitsSection: {
+    marginTop: spacing.xl,
+  },
+  benefitsSectionTitle: {
+    ...typography.sectionHeader,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
+  },
+  card: {
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    padding: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: colors.borderDefault,
+    marginHorizontal: spacing.md,
+  },
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    gap: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 2,
+    gap: spacing.md,
   },
   benefitIcon: {
     width: 36,
@@ -555,10 +609,10 @@ const styles = StyleSheet.create({
   privacyNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    paddingHorizontal: 4,
-    marginTop: 4,
-    marginBottom: 16,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
   privacyText: {
     flex: 1,
@@ -567,14 +621,16 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
 
-  // Profile (signed-in)
+  // ── Signed-in styles ──
+
+  // Profile
   profileCard: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.lg + 4,
+    paddingHorizontal: spacing.md + 4,
+    marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderDefault,
   },
@@ -585,13 +641,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: spacing.md - 2,
   },
   avatarLargeImg: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    marginBottom: 14,
+    marginBottom: spacing.md - 2,
   },
   avatarLargeText: {
     fontSize: 28,
@@ -602,21 +658,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.textHeading,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   profileEmail: {
     fontSize: 14,
     color: colors.textMuted,
-    marginBottom: 14,
+    marginBottom: spacing.md - 2,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.successDark,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: radii.pill,
   },
   statusBadgeText: {
     fontSize: 12,
@@ -624,15 +680,48 @@ const styles = StyleSheet.create({
     color: colors.successLight,
   },
 
+  // Sections & cards (signed-in)
+  section: {
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    ...typography.sectionHeader,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 4,
+    gap: spacing.md,
+  },
+  rowLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textBody,
+  },
+  rowValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textHeading,
+    maxWidth: 180,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderDefault,
+    marginHorizontal: spacing.md,
+  },
+
   // Sign-out
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
     backgroundColor: colors.errorDark,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md - 2,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.25)',
   },
@@ -646,12 +735,12 @@ const styles = StyleSheet.create({
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
     backgroundColor: colors.errorDark,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
+    borderRadius: radii.sm + 2,
+    paddingHorizontal: spacing.md - 2,
+    paddingVertical: spacing.sm + 2,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.25)',
   },

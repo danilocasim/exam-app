@@ -21,6 +21,7 @@ model ExamType {
   updatedAt     DateTime      @updatedAt
   examAttempts  ExamAttempt[]
   questions     Question[]
+  questionSets  QuestionSet[]
   syncVersions  SyncVersion?
 }
 
@@ -34,9 +35,26 @@ model Admin {
   createdQuestions  Question[] @relation("CreatedBy")
 }
 
+model QuestionSet {
+  id          String    @id @default(uuid())
+  examTypeId  String
+  name        String
+  slug        String
+  description String?
+  isSystem    Boolean   @default(false)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  examType    ExamType  @relation(fields: [examTypeId], references: [id])
+
+  @@unique([examTypeId, slug])
+  @@index([examTypeId])
+}
+
 model Question {
   id                String         @id @default(uuid())
   examTypeId        String
+  set               String?
   text              String
   type              QuestionType
   domain            String
@@ -61,7 +79,9 @@ model Question {
   @@index([domain])
   @@index([status])
   @@index([version])
+  @@index([set])
   @@index([examTypeId, status])
+  @@index([examTypeId, set])
 }
 
 model SyncVersion {

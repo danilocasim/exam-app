@@ -2,20 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Difficulty } from '../storage/schema';
-
-// AWS Modern Color Palette
-const colors = {
-  surface: '#1F2937',
-  borderDefault: '#374151',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  orangeDark: 'rgba(255, 153, 0, 0.2)',
-  success: '#10B981',
-  successDark: 'rgba(16, 185, 129, 0.15)',
-  error: '#EF4444',
-  errorDark: 'rgba(239, 68, 68, 0.15)',
-};
+import { colors, radii } from '../theme';
 
 /**
  * Difficulty option with styling info
@@ -87,7 +74,6 @@ export const DifficultySelector: React.FC<DifficultySelectorProps> = ({
                 },
               ]}
             >
-              <View style={[styles.dot, { backgroundColor: option.color }]} />
               <Text
                 style={[styles.chipText, isSelected && { color: option.color, fontWeight: '600' }]}
               >
@@ -143,11 +129,6 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.primaryOrange,
     fontWeight: '600',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
 });
 

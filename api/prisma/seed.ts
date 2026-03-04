@@ -60,6 +60,39 @@ async function main() {
 
   console.log(`✅ Created exam type: ${clfC02.name} (${clfC02.id})`);
 
+  // Create system question sets (diagnostic + set1)
+  const systemSets = [
+    {
+      slug: 'diagnostic',
+      name: 'Diagnostic',
+      description:
+        'Core diagnostic test — assesses overall exam readiness across all domains.',
+    },
+    {
+      slug: 'set-1',
+      name: 'Set 1',
+      description: 'Default question set for general practice.',
+    },
+  ];
+
+  for (const ss of systemSets) {
+    await prisma.questionSet.upsert({
+      where: {
+        examTypeId_slug: { examTypeId: clfC02.id, slug: ss.slug },
+      },
+      update: {},
+      create: {
+        examTypeId: clfC02.id,
+        name: ss.name,
+        slug: ss.slug,
+        description: ss.description,
+        isSystem: true,
+      },
+    });
+  }
+
+  console.log(`✅ Created system question sets: diagnostic, set-1`);
+
   console.log(
     '✅ Skipping SyncVersion (version is now based on question count)',
   );

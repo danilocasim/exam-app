@@ -7,11 +7,13 @@ import { AdminAuthService } from './auth';
 import { JwtStrategy, JwtAuthGuard } from './guards';
 import { QuestionsService, AdminExamTypesService, S3Service } from './services';
 import { BulkImportService } from './services/bulk-import.service';
+import { QuestionSetsService } from './services/question-sets.service';
 import {
   AdminAuthController,
   AdminQuestionsController,
   AdminExamTypesController,
 } from './controllers';
+import { AdminQuestionSetsController } from './controllers/admin-question-sets.controller';
 import { UploadsController } from './controllers/uploads.controller';
 
 @Module({
@@ -42,6 +44,7 @@ import { UploadsController } from './controllers/uploads.controller';
     AdminAuthController,
     AdminQuestionsController,
     AdminExamTypesController,
+    AdminQuestionSetsController,
     UploadsController,
   ],
   providers: [
@@ -50,6 +53,7 @@ import { UploadsController } from './controllers/uploads.controller';
     JwtAuthGuard,
     QuestionsService,
     AdminExamTypesService,
+    QuestionSetsService,
     S3Service,
     BulkImportService,
   ],
@@ -57,6 +61,7 @@ import { UploadsController } from './controllers/uploads.controller';
     AdminAuthService,
     QuestionsService,
     AdminExamTypesService,
+    QuestionSetsService,
     S3Service,
     BulkImportService,
   ],

@@ -51,3 +51,10 @@ export { RichExplanation } from './RichExplanation';
 export type { ExplanationBlock, RichExplanationProps } from './RichExplanation';
 export { ExplanationModal } from './ExplanationModal';
 export { ImageViewer } from './ImageViewer';
+
+// UI Kit – shared primitives
+export { BaseCard } from './BaseCard';
+export { HeaderNav } from './HeaderNav';
+export { PrimaryCTA } from './PrimaryCTA';
+export { PremiumUpsellCTA, PremiumGlowCard } from './PremiumUpsellCTA';
+export { ScoreBadge } from './ScoreBadge';
