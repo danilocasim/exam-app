@@ -33,6 +33,6 @@ import { PrismaModule } from '../prisma/prisma.module';
     JwtStrategy,
     JwtAuthGuard,
   ],
-  exports: [JwtService, GoogleOAuthService, UserService],
+  exports: [JwtService, JwtAuthGuard, GoogleOAuthService, UserService],
 })
 export class AuthModule {}
