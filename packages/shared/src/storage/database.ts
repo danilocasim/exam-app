@@ -260,16 +260,12 @@ export const initializeDatabase = async (): Promise<void> => {
   // T262: Migration — add subscription columns to PurchaseStatus
   // Non-breaking: existing rows keep NULL values for new columns (backward-compatible)
   try {
-    await database.execAsync(
-      `ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT;`,
-    );
+    await database.execAsync(`ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT;`);
   } catch {
     // Column already exists — ignore
   }
   try {
-    await database.execAsync(
-      `ALTER TABLE PurchaseStatus ADD COLUMN expiry_date TEXT;`,
-    );
+    await database.execAsync(`ALTER TABLE PurchaseStatus ADD COLUMN expiry_date TEXT;`);
   } catch {
     // Column already exists — ignore
   }

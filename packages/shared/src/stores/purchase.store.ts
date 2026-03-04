@@ -238,8 +238,7 @@ export const useQuestionLimit = () =>
 /**
  * Get the current subscription plan type.
  */
-export const useSubscriptionType = () =>
-  usePurchaseStore((state) => state.subscriptionType);
+export const useSubscriptionType = () => usePurchaseStore((state) => state.subscriptionType);
 
 /**
  * Get the subscription expiry date (ISO 8601).
@@ -249,5 +248,4 @@ export const useExpiryDate = () => usePurchaseStore((state) => state.expiryDate)
 /**
  * Get whether the subscription is auto-renewing.
  */
-export const useIsAutoRenewing = () =>
-  usePurchaseStore((state) => state.autoRenewing);
+export const useIsAutoRenewing = () => usePurchaseStore((state) => state.autoRenewing);
