@@ -11,11 +11,15 @@
     "format": "npm run format --workspaces --if-present",
     "format:check": "npm run format:check --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "build:all": "./scripts/build-all.sh"
+    "build:all": "./scripts/build-all.sh",
+    "postinstall": "patch-package"
   },
   "overrides": {
     "react": "19.1.0",
     "react-native": "0.81.5",
     "expo": "~54.0.33"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
   }
 }
