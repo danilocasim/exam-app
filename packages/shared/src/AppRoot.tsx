@@ -121,7 +121,7 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
 
         // T251: Signal that phase 2 can start once the user is authenticated
         // TEMP TEST: force FREE tier — remove after testing
-        usePurchaseStore.getState().reset();
+        // usePurchaseStore.getState().reset();
 
         // T251: Signal that phase 2 can start once the user is authenticated
         setIntegrityPassed(true);
