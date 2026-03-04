@@ -14,6 +14,7 @@ import { SyncModule } from './sync/sync.module';
 import { IntegrityModule } from './integrity/integrity.module';
 import { UserStatsModule } from './user-stats/user-stats.module';
 import { UserStreakModule } from './user-streak/user-streak.module';
+import { LegalModule } from './legal';
 import {
   RequestLoggerMiddleware,
   RateLimitMiddleware,
@@ -60,6 +61,7 @@ import {
     IntegrityModule,
     UserStatsModule,
     UserStreakModule,
+    LegalModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
