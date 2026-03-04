@@ -119,8 +119,9 @@ describe('ExamGeneratorService', () => {
 
       const result = await generateExam();
 
-      expect(result.domainDistribution['domain-1']).toBe(50);
-      expect(result.domainDistribution['domain-2']).toBe(50);
+      // With 65-question cap (EXAM_CONFIG.QUESTIONS_PER_EXAM), equal weights yield 32+33=65
+      expect(result.domainDistribution['domain-1']).toBe(32);
+      expect(result.domainDistribution['domain-2']).toBe(33);
     });
 
     it('should handle unequal distribution with rounding', async () => {
@@ -149,7 +150,8 @@ describe('ExamGeneratorService', () => {
       const result = await generateExam();
       const total = Object.values(result.domainDistribution).reduce((a, b) => a + b, 0);
 
-      expect(total).toBe(100);
+      // Capped at EXAM_CONFIG.QUESTIONS_PER_EXAM (65)
+      expect(total).toBe(65);
     });
 
     it('should throw error when no exam config is found', async () => {
