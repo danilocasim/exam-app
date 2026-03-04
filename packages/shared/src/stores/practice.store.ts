@@ -28,6 +28,7 @@ export interface PracticeState {
   // Filters
   selectedDomain: DomainId | null;
   selectedDifficulty: Difficulty | null;
+  selectedSets: string[];
   availableQuestionCount: number;
 
   // Current answer feedback
@@ -50,6 +51,7 @@ export interface PracticeActions {
   // Setup
   setDomain: (domain: DomainId | null) => void;
   setDifficulty: (difficulty: Difficulty | null) => void;
+  setSets: (sets: string[]) => void;
   refreshAvailableCount: () => Promise<void>;
 
   // Session lifecycle
@@ -82,6 +84,7 @@ const initialState: PracticeState = {
   currentIndex: 0,
   selectedDomain: null,
   selectedDifficulty: null,
+  selectedSets: [],
   availableQuestionCount: 0,
   lastResult: null,
   showFeedback: false,
@@ -112,13 +115,25 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
   },
 
   /**
+   * Set question sets filter
+   */
+  setSets: (sets: string[]) => {
+    set({ selectedSets: sets });
+  },
+
+  /**
    * Refresh available question count for current filters
    */
   refreshAvailableCount: async () => {
-    const { selectedDomain, selectedDifficulty } = get();
+    const { selectedDomain, selectedDifficulty, selectedSets } = get();
     const tier = usePurchaseStore.getState().tierLevel;
     try {
-      const count = await getAvailableQuestionCount(selectedDomain, selectedDifficulty, tier);
+      const count = await getAvailableQuestionCount(
+        selectedDomain,
+        selectedDifficulty,
+        tier,
+        selectedSets,
+      );
       set({ availableQuestionCount: count });
     } catch (err) {
       console.warn('Failed to refresh question count:', err);
@@ -129,7 +144,7 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
    * Start a new practice session
    */
   startSession: async () => {
-    const { selectedDomain, selectedDifficulty } = get();
+    const { selectedDomain, selectedDifficulty, selectedSets } = get();
     const tier = usePurchaseStore.getState().tierLevel;
     set({ isLoading: true, error: null, summary: null });
     try {
@@ -137,6 +152,7 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
         selectedDomain,
         selectedDifficulty,
         tier,
+        selectedSets,
       );
       set({
         session: sessionState.session,

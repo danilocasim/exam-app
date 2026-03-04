@@ -2,7 +2,6 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../database';
 import { Question, QuestionRow, QuestionOption, Difficulty, DomainId } from '../schema';
-import { TierLevel, FREE_QUESTION_LIMIT } from '../../config/tiers';
 
 /**
  * Convert a SQLite row to a Question entity
@@ -369,34 +368,6 @@ export const getQuestionCountBySet = async (): Promise<Record<string, number>> =
     result[row.set ?? '_unassigned'] = row.count;
   }
   return result;
-};
-
-/**
- * T252: Get questions for the given tier.
- *
- * FREE tier: returns the first N questions ordered by (domain ASC, id ASC) so
- * free users always see the same consistent set regardless of sync order.
- *
- * PREMIUM tier: returns all questions (no limit).
- *
- * @param tier - The user's current tier level
- * @param limit - Override the default FREE_QUESTION_LIMIT (optional)
- */
-export const getQuestionsForTier = async (tier: TierLevel, limit?: number): Promise<Question[]> => {
-  const db = await getDatabase();
-
-  if (tier === 'PREMIUM') {
-    const rows = await db.getAllAsync<QuestionRow>('SELECT * FROM Question');
-    return rows.map(rowToQuestion);
-  }
-
-  // FREE tier: consistent ordered subset — same 15 questions every time
-  const questionLimit = limit ?? FREE_QUESTION_LIMIT;
-  const rows = await db.getAllAsync<QuestionRow>(
-    'SELECT * FROM Question ORDER BY domain ASC, id ASC LIMIT ?',
-    [questionLimit],
-  );
-  return rows.map(rowToQuestion);
 };
 
 /**

@@ -6,7 +6,6 @@ import {
   getQuestionCountByDomain,
   getQuestionCountByDomainAndSets,
   getTotalQuestionCount,
-  getQuestionsForTier,
   getQuestionsBySet,
   getRandomQuestionsFiltered,
 } from '../storage/repositories';
@@ -19,7 +18,7 @@ import {
   CustomExamOptions,
 } from '../storage/schema';
 import { getCachedExamTypeConfig } from './sync.service';
-import { TierLevel, FREE_QUESTION_LIMIT, DAILY_QUESTION_LIMIT } from '../config/tiers';
+import { TierLevel, DAILY_QUESTION_LIMIT } from '../config/tiers';
 import { EXAM_CONFIG } from '../config/app.config';
 
 /**
@@ -222,7 +221,7 @@ export const generateExam = async (selectedSets?: string[]): Promise<GeneratedEx
  * T253: Generate an exam respecting the user's tier.
  *
  * PREMIUM: delegates to the full weighted generateExam() — all questions, full timer.
- * FREE: generates a mini-exam from the consistent 15 free questions with a
+ * FREE: delegates to generateDiagnosticExam() — diagnostic set questions with
  *       proportionally scaled time limit. Passing score percentage stays the same.
  *
  * @param tier - The user's current tier level
@@ -237,45 +236,8 @@ export const generateExamForTier = async (
     return generateExam(selectedSets);
   }
 
-  // FREE tier — mini-exam from the consistent free question pool
-  const config = examTypeConfig ?? (await getCachedExamTypeConfig());
-  if (!config) {
-    throw new Error('Exam configuration not found. Please sync before starting an exam.');
-  }
-
-  const freeQuestions = await getQuestionsForTier('FREE');
-  if (freeQuestions.length === 0) {
-    throw new Error('No questions available. Please sync or load bundled questions.');
-  }
-
-  // Deduplicate and shuffle for variety across exam attempts
-  const shuffled = shuffleArray(uniqueQuestions(freeQuestions));
-
-  // Build domain distribution from the actual free question set
-  const domainDistribution: Record<DomainId, number> = {};
-  for (const q of shuffled) {
-    domainDistribution[q.domain] = (domainDistribution[q.domain] ?? 0) + 1;
-  }
-
-  // Proportionally scale the time limit (minimum 5 minutes)
-  const timeFraction = shuffled.length / config.questionCount;
-  const miniConfig: ExamTypeConfig = {
-    ...config,
-    questionCount: shuffled.length,
-    timeLimit: Math.max(5, Math.round(config.timeLimit * timeFraction)),
-    // passingScore stays the same percentage
-  };
-
-  console.log(
-    `[ExamGenerator] FREE mini-exam: ${shuffled.length} questions, ${miniConfig.timeLimit} min`,
-  );
-
-  return {
-    questions: shuffled,
-    totalQuestions: shuffled.length,
-    config: miniConfig,
-    domainDistribution,
-  };
+  // FREE tier — use diagnostic set instead of old fixed pool
+  return generateDiagnosticExam();
 };
 
 /**
@@ -422,8 +384,7 @@ export const generateExamFromMissed = async (count: number): Promise<GeneratedEx
  * Generate a custom exam with user-selected domains, question count, and timed/untimed mode.
  *
  * PREMIUM: selects from the full question pool filtered by selected domains.
- * FREE: selects from the consistent free question pool filtered by selected domains,
- *       clamped to FREE_QUESTION_LIMIT.
+ * FREE: selects from the diagnostic question set filtered by selected domains.
  *
  * @param options - Custom exam configuration (questionCount, selectedDomains, isTimed)
  * @param tier    - The user's current tier level
@@ -443,15 +404,13 @@ export const generateCustomExam = async (
   let allQuestions: Question[];
 
   if (tier === 'FREE') {
-    // FREE tier: draw from the consistent free question set filtered by domains and sets
-    const freeQuestions = await getQuestionsForTier('FREE');
-    allQuestions = freeQuestions.filter((q) => {
+    // FREE tier: draw from the diagnostic set filtered by selected domains
+    const diagnosticQuestions = await getQuestionsBySet('diagnostic');
+    allQuestions = diagnosticQuestions.filter((q) => {
       const domainMatch = selectedDomains.length === 0 || selectedDomains.includes(q.domain);
-      const setMatch =
-        selectedSets.length === 0 || (q.set !== null && selectedSets.includes(q.set));
-      return domainMatch && setMatch;
+      return domainMatch;
     });
-    requestedCount = Math.min(requestedCount, FREE_QUESTION_LIMIT, allQuestions.length);
+    requestedCount = Math.min(requestedCount, allQuestions.length);
   } else {
     // PREMIUM tier: draw from the full pool, filtered by selected domains and sets
     if (selectedSets.length > 0 || selectedDomains.length > 0) {

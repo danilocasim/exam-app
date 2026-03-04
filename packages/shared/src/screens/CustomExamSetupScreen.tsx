@@ -22,7 +22,6 @@ import {
   getQuestionCountBySet,
 } from '../storage/repositories/question.repository';
 import { useIsPremium } from '../stores/purchase.store';
-import { FREE_QUESTION_LIMIT } from '../config/tiers';
 import { ExamDomain } from '../storage/schema';
 
 // AWS Modern Color Palette
@@ -100,8 +99,7 @@ export const CustomExamSetupScreen: React.FC = () => {
       (sum, id) => sum + (availableByDomain[id] ?? 0),
       0,
     );
-    if (isPremium) return totalAvailable;
-    return Math.min(FREE_QUESTION_LIMIT, totalAvailable);
+    return totalAvailable;
   })();
 
   // Clamp question count when max changes
@@ -179,7 +177,7 @@ export const CustomExamSetupScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Number of Questions</Text>
           <Text style={styles.sectionHint}>
-            {isPremium ? 'Select any amount' : `Free tier: max ${FREE_QUESTION_LIMIT} questions`}
+            {isPremium ? 'Select any amount' : 'Select your question count'}
           </Text>
           <View style={styles.counterRow}>
             <TouchableOpacity

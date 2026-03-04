@@ -1,4 +1,4 @@
-// T053: PracticeSetupScreen - Domain and difficulty selection for practice mode
+// T053: PracticeSetupScreen - Domain, difficulty, and set selection for practice mode
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -12,13 +12,18 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Play, BookOpen } from 'lucide-react-native';
+import { ArrowLeft, Play, BookOpen, Lock, Crown, CheckSquare } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { usePracticeStore } from '../stores/practice.store';
 import { DomainSelector, DomainOption } from '../components/DomainSelector';
 import { DifficultySelector } from '../components/DifficultySelector';
-import { getQuestionCountByDomain } from '../storage/repositories/question.repository';
-import { getCachedExamTypeConfig } from '../services';
+import {
+  getQuestionCountByDomain,
+  getQuestionCountByDomainAndSets,
+  getQuestionCountBySet,
+} from '../storage/repositories/question.repository';
+import { getCachedExamTypeConfig, getCachedQuestionSets } from '../services';
+import { useIsPremium } from '../stores/purchase.store';
 
 // AWS Modern Color Palette
 const colors = {
@@ -44,14 +49,17 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'PracticeSet
 export const PracticeSetupScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const isPremium = useIsPremium();
   const {
     selectedDomain,
     selectedDifficulty,
+    selectedSets,
     availableQuestionCount,
     isLoading,
     error,
     setDomain,
     setDifficulty,
+    setSets,
     refreshAvailableCount,
     startSession,
     resetPracticeState,
@@ -59,27 +67,50 @@ export const PracticeSetupScreen: React.FC = () => {
   } = usePracticeStore();
 
   const [domains, setDomains] = useState<DomainOption[]>([]);
+  const [availableBySet, setAvailableBySet] = useState<Record<string, number>>({});
+  const [setNames, setSetNames] = useState<Record<string, string>>({});
   const [loadingDomains, setLoadingDomains] = useState(true);
 
   // Reset practice state on focus
   useFocusEffect(
     useCallback(() => {
       resetPracticeState();
+      // Free users are locked to the diagnostic set
+      if (!isPremium) {
+        setSets(['diagnostic']);
+      }
       loadDomains();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [isPremium]),
   );
 
   // Refresh count when filters change
   useEffect(() => {
     refreshAvailableCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDomain, selectedDifficulty]);
+  }, [selectedDomain, selectedDifficulty, selectedSets]);
+
+  // Reload domain counts when selected sets change
+  useEffect(() => {
+    loadDomains();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSets]);
 
   const loadDomains = async () => {
     setLoadingDomains(true);
     try {
-      const countByDomain = await getQuestionCountByDomain();
+      // Use set-filtered domain counts when sets are selected
+      const currentSets = usePracticeStore.getState().selectedSets;
+      const [countByDomain, bySet, cachedSetNames] = await Promise.all([
+        currentSets.length > 0
+          ? getQuestionCountByDomainAndSets(currentSets)
+          : getQuestionCountByDomain(),
+        getQuestionCountBySet(),
+        getCachedQuestionSets(),
+      ]);
+
+      setAvailableBySet(bySet);
+      setSetNames(cachedSetNames);
 
       // Try to get domain names from cached exam type config
       const domainNames: Record<string, string> = {};
@@ -117,6 +148,18 @@ export const PracticeSetupScreen: React.FC = () => {
       .split('-')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  };
+
+  const toggleSet = (setName: string) => {
+    // Free users cannot uncheck the diagnostic set
+    if (!isPremium && setName === 'diagnostic') return;
+
+    const current = selectedSets;
+    if (current.includes(setName)) {
+      setSets(current.filter((s) => s !== setName));
+    } else {
+      setSets([...current, setName]);
+    }
   };
 
   const handleStartPractice = async () => {
@@ -180,6 +223,94 @@ export const PracticeSetupScreen: React.FC = () => {
           <View style={styles.section}>
             <DifficultySelector selectedDifficulty={selectedDifficulty} onSelect={setDifficulty} />
           </View>
+
+          {/* Question Sets (optional filter) */}
+          {Object.keys(availableBySet).length > 0 && (
+            <View style={styles.setSection}>
+              <View style={styles.setSectionHeader}>
+                <View>
+                  <Text style={styles.setSectionTitle}>Question Sets</Text>
+                  <Text style={styles.setSectionHint}>
+                    {!isPremium
+                      ? 'Diagnostic set only (free tier)'
+                      : selectedSets.length === 0
+                        ? 'All sets (no filter)'
+                        : `${selectedSets.length} set${selectedSets.length > 1 ? 's' : ''} selected`}
+                  </Text>
+                </View>
+                {isPremium && selectedSets.length > 0 && (
+                  <TouchableOpacity onPress={() => setSets([])} activeOpacity={0.7}>
+                    <Text style={styles.clearFilterText}>Clear Filter</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {Object.entries(availableBySet)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([setSlug, count]) => {
+                  const isSelected = selectedSets.includes(setSlug);
+                  const isLocked = !isPremium && setSlug !== 'diagnostic';
+                  return (
+                    <TouchableOpacity
+                      key={setSlug}
+                      onPress={() => {
+                        if (isLocked) {
+                          navigation.navigate('Upgrade');
+                          return;
+                        }
+                        toggleSet(setSlug);
+                      }}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.setRow,
+                        isSelected && styles.setRowSelected,
+                        isLocked && styles.setRowLocked,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.setCheckbox,
+                          isSelected && styles.setCheckboxSelected,
+                          isLocked && styles.setCheckboxLocked,
+                        ]}
+                      >
+                        {isLocked ? (
+                          <Lock size={14} color={colors.textMuted} strokeWidth={2} />
+                        ) : (
+                          isSelected && <CheckSquare size={16} color="#fff" strokeWidth={2.5} />
+                        )}
+                      </View>
+                      <View style={styles.setInfo}>
+                        <Text
+                          style={[
+                            styles.setName,
+                            isSelected && styles.setNameSelected,
+                            isLocked && styles.setNameLocked,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {setNames[setSlug] ?? setSlug}
+                        </Text>
+                        <Text style={styles.setCount}>
+                          {isLocked ? 'Premium' : `${count} questions`}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+
+              {!isPremium && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Upgrade')}
+                  activeOpacity={0.7}
+                  style={styles.upgradeHint}
+                >
+                  <Crown size={14} color={colors.primaryOrange} strokeWidth={2} />
+                  <Text style={styles.upgradeHintText}>Upgrade to unlock all sets</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Question count info */}
           <View style={styles.countCard}>
@@ -363,6 +494,103 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     marginTop: 8,
+  },
+
+  // ── Question Sets selector ──
+  setSection: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    marginBottom: 16,
+  },
+  setSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  setSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textHeading,
+  },
+  setSectionHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  clearFilterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primaryOrange,
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+    backgroundColor: 'transparent',
+  },
+  setRowSelected: {
+    backgroundColor: 'rgba(255, 153, 0, 0.06)',
+  },
+  setRowLocked: {
+    opacity: 0.55,
+  },
+  setCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceHover,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setCheckboxSelected: {
+    backgroundColor: colors.primaryOrange,
+    borderColor: colors.primaryOrange,
+  },
+  setCheckboxLocked: {
+    borderColor: colors.surfaceHover,
+    backgroundColor: 'transparent',
+  },
+  setInfo: {
+    flex: 1,
+  },
+  setName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textBody,
+  },
+  setNameSelected: {
+    color: colors.textHeading,
+    fontWeight: '600',
+  },
+  setNameLocked: {
+    color: colors.textMuted,
+  },
+  setCount: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  upgradeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  upgradeHintText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primaryOrange,
   },
 });
 

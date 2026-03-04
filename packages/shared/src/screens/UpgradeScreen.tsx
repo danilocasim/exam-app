@@ -37,7 +37,7 @@ import {
   useIsAutoRenewing,
   usePendingProductId,
 } from '../stores/purchase.store';
-import { FREE_QUESTION_LIMIT, EXAM_TYPE_ID } from '../config';
+import { EXAM_TYPE_ID } from '../config';
 import {
   fetchSubscriptions,
   handleSubscriptionPurchase,
@@ -603,7 +603,7 @@ export const UpgradeScreen: React.FC = () => {
             { feature: 'Missed questions quiz', free: false, premium: true },
             { feature: 'Custom exam builder', free: false, premium: true },
             { feature: 'Mock exams', free: false, premium: 'Full exam' },
-            { feature: 'Question bank', free: `${FREE_QUESTION_LIMIT}`, premium: 'All' },
+            { feature: 'Question bank', free: 'Diagnostic', premium: 'All' },
             { feature: 'Analytics', free: false, premium: true },
             { feature: 'Continuous updates', free: false, premium: true },
           ].map(({ feature, free, premium }) => (

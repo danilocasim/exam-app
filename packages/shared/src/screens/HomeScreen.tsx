@@ -66,7 +66,7 @@ import {
 import { canGenerateExam } from '../services/exam-generator.service';
 import { getUserStats } from '../storage/repositories/user-stats.repository';
 import { getOverallStats, calculateAggregatedDomainPerformance } from '../services/scoring.service';
-import { EXAM_CONFIG, FREE_QUESTION_LIMIT } from '../config';
+import { EXAM_CONFIG } from '../config';
 import { useIsPremium } from '../stores/purchase.store';
 import {
   getDailyExamLastAttempt,
@@ -162,21 +162,22 @@ const WebViewProgressBar: React.FC = () => {
 const TierCard: React.FC<{
   isPremium: boolean;
   questionCount: number;
+  diagnosticCount: number;
   onUpgrade: () => void;
-}> = ({ isPremium, questionCount, onUpgrade }) => {
+}> = ({ isPremium, questionCount, diagnosticCount, onUpgrade }) => {
   const isPremiumRef = useRef(isPremium);
 
-  // Compute initial progress ratio for FREE state
-  const freeRatio = questionCount > 0 ? FREE_QUESTION_LIMIT / questionCount : 0;
+  // Compute initial progress ratio for FREE state (diagnostic set / total)
+  const freeRatio = questionCount > 0 ? diagnosticCount / questionCount : 0;
   const progressAnim = useRef(new Animated.Value(isPremium ? 1 : freeRatio)).current;
   const ctaOpacity = useRef(new Animated.Value(isPremium ? 0 : 1)).current;
 
-  // Sync progress when questionCount loads async (FREE only, instant — not an upgrade)
+  // Sync progress when counts load async (FREE only, instant — not an upgrade)
   useEffect(() => {
     if (!isPremiumRef.current && questionCount > 0) {
-      progressAnim.setValue(FREE_QUESTION_LIMIT / questionCount);
+      progressAnim.setValue(diagnosticCount / questionCount);
     }
-  }, [questionCount]);
+  }, [questionCount, diagnosticCount]);
 
   // Animate only on the FREE → PREMIUM transition
   useEffect(() => {
@@ -189,7 +190,7 @@ const TierCard: React.FC<{
     isPremiumRef.current = isPremium;
   }, [isPremium]);
 
-  const lockedCount = Math.max(0, questionCount - FREE_QUESTION_LIMIT);
+  const lockedCount = Math.max(0, questionCount - diagnosticCount);
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
@@ -215,7 +216,7 @@ const TierCard: React.FC<{
       <Text style={styles.tierCountText}>
         {isPremium
           ? `All ${questionCount} questions unlocked`
-          : `${FREE_QUESTION_LIMIT} of ${questionCount} questions available`}
+          : `${diagnosticCount} of ${questionCount} questions available`}
       </Text>
 
       {/* Progress bar — always rendered, animates to full on upgrade */}
@@ -883,6 +884,7 @@ export const HomeScreen: React.FC = () => {
           <TierCard
             isPremium={isPremium}
             questionCount={questionCount}
+            diagnosticCount={availableBySet['diagnostic'] ?? 0}
             onUpgrade={() => navigation.navigate('Upgrade')}
           />
 

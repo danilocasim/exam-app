@@ -17,7 +17,6 @@ import {
   getQuestionsByDomainAndDifficulty,
   getAllQuestions,
   getQuestionById,
-  getQuestionsForTier,
 } from '../storage/repositories/question.repository';
 import { PracticeSession, PracticeAnswer, Question, Difficulty, DomainId } from '../storage/schema';
 import { incrementPracticeCount } from '../storage/repositories/user-stats.repository';
@@ -82,22 +81,24 @@ const fetchFilteredQuestions = async (
   domain: DomainId | null,
   difficulty: Difficulty | null,
   tier: TierLevel = 'PREMIUM',
+  selectedSets: string[] = [],
 ): Promise<Question[]> => {
   let questions: Question[];
 
   if (tier === 'FREE') {
-    // Get the free question pool first, then apply domain/difficulty filters within it
-    const freePool = await getQuestionsForTier('FREE');
+    // Free users always use the diagnostic set — never the 15-question free pool
+    const freeSets = selectedSets.length > 0 ? selectedSets : ['diagnostic'];
 
     if (domain && difficulty) {
-      questions = freePool.filter((q) => q.domain === domain && q.difficulty === difficulty);
+      questions = await getQuestionsByDomainAndDifficulty(domain, difficulty);
     } else if (domain) {
-      questions = freePool.filter((q) => q.domain === domain);
+      questions = await getQuestionsByDomain(domain);
     } else if (difficulty) {
-      questions = freePool.filter((q) => q.difficulty === difficulty);
+      questions = await getQuestionsByDifficulty(difficulty);
     } else {
-      questions = freePool;
+      questions = await getAllQuestions();
     }
+    questions = questions.filter((q) => q.set && freeSets.includes(q.set));
 
     if (questions.length === 0) {
       throw new TierUpgradeRequiredError(
@@ -114,6 +115,11 @@ const fetchFilteredQuestions = async (
       questions = await getQuestionsByDifficulty(difficulty);
     } else {
       questions = await getAllQuestions();
+    }
+
+    // Apply set filter for PREMIUM too
+    if (selectedSets.length > 0) {
+      questions = questions.filter((q) => q.set && selectedSets.includes(q.set));
     }
   }
 
@@ -133,9 +139,10 @@ export const startPracticeSession = async (
   domain: DomainId | null,
   difficulty: Difficulty | null,
   tier: TierLevel = 'PREMIUM',
+  selectedSets: string[] = [],
 ): Promise<PracticeSessionState> => {
   // Fetch and shuffle questions matching the filters
-  const questions = await fetchFilteredQuestions(domain, difficulty, tier);
+  const questions = await fetchFilteredQuestions(domain, difficulty, tier, selectedSets);
 
   if (questions.length === 0) {
     throw new Error('No questions available for the selected filters');
@@ -266,9 +273,10 @@ export const getAvailableQuestionCount = async (
   domain: DomainId | null,
   difficulty: Difficulty | null,
   tier: TierLevel = 'PREMIUM',
+  selectedSets: string[] = [],
 ): Promise<number> => {
   try {
-    const questions = await fetchFilteredQuestions(domain, difficulty, tier);
+    const questions = await fetchFilteredQuestions(domain, difficulty, tier, selectedSets);
     return questions.length;
   } catch (e) {
     if (e instanceof TierUpgradeRequiredError) return 0;
