@@ -29,7 +29,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-sqlite"],
+    "plugins": ["expo-sqlite", "./plugins/withPlayStoreIap"],
     "scheme": "cloudprep",
     "extra": {
       "googleWebClientId": "75406198346-3q6mqj2g3c2i7g1cvi8kopg7kqgd3np4.apps.googleusercontent.com",
