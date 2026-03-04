@@ -30,7 +30,6 @@ import {
   AlertTriangle,
   BookOpen,
   Flame,
-  Clock,
   CheckCircle2,
   AlertCircle,
   XCircle,
@@ -50,33 +49,9 @@ import { abandonCurrentExam } from '../services';
 import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
 import { ScoreHistoryEntry, StudyStats, WeakDomain } from '../services/analytics.service';
 import { DomainScore } from '../storage/schema';
-
-// AWS Modern Color Palette
-const colors = {
-  background: '#232F3E',
-  surface: '#1F2937',
-  surfaceHover: '#374151',
-  borderDefault: '#374151',
-  trackGray: '#4B5563',
-  textHeading: '#F9FAFB',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  secondaryOrange: '#EC7211',
-  orangeDark: 'rgba(255, 153, 0, 0.2)',
-  orangeLight: '#FFB84D',
-  success: '#10B981',
-  successLight: '#6EE7B7',
-  successDark: 'rgba(16, 185, 129, 0.15)',
-  error: '#EF4444',
-  errorLight: '#FCA5A5',
-  errorDark: 'rgba(239, 68, 68, 0.15)',
-  warning: '#F59E0B',
-  warningDark: 'rgba(245, 158, 11, 0.15)',
-};
+import { colors, spacing, radii } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Analytics'>;
-
 
 /* ────────────────────────────────────────────────────────────
  * Main Screen
@@ -536,112 +511,112 @@ const ScoreChart: React.FC<{ scoreHistory: ScoreHistoryEntry[]; passingScore?: n
 
       {/* Inner wrapper — onLayout fires AFTER card padding, giving exact drawable width */}
       <View onLayout={onLayout} style={st.chartSvgArea}>
-      {innerWidth > 0 && points.length > 0 && (
-        <Svg width={svgW} height={svgH}>
-          <Defs>
-            <SvgGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={colors.primaryOrange} stopOpacity="0.2" />
-              <Stop offset="1" stopColor={colors.primaryOrange} stopOpacity="0" />
-            </SvgGradient>
-          </Defs>
+        {innerWidth > 0 && points.length > 0 && (
+          <Svg width={svgW} height={svgH}>
+            <Defs>
+              <SvgGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={colors.primaryOrange} stopOpacity="0.2" />
+                <Stop offset="1" stopColor={colors.primaryOrange} stopOpacity="0" />
+              </SvgGradient>
+            </Defs>
 
-          {/* Grid lines + Y labels */}
-          {GRID_STEPS.map((val) => {
-            const gy = padTop + CHART_HEIGHT - (val / 100) * CHART_HEIGHT;
-            return (
-              <React.Fragment key={val}>
-                <SvgLine
-                  x1={Y_AXIS_W}
-                  y1={gy}
-                  x2={svgW - padRight}
-                  y2={gy}
-                  stroke={colors.borderDefault}
-                  strokeWidth={1}
-                  strokeOpacity={0.5}
-                />
-                <SvgText
-                  x={Y_AXIS_W - 4}
-                  y={gy + 3.5}
-                  fill={colors.textMuted}
-                  fontSize={9}
-                  fontWeight="500"
-                  textAnchor="end"
-                >
-                  {val}
-                </SvgText>
-              </React.Fragment>
-            );
-          })}
+            {/* Grid lines + Y labels */}
+            {GRID_STEPS.map((val) => {
+              const gy = padTop + CHART_HEIGHT - (val / 100) * CHART_HEIGHT;
+              return (
+                <React.Fragment key={val}>
+                  <SvgLine
+                    x1={Y_AXIS_W}
+                    y1={gy}
+                    x2={svgW - padRight}
+                    y2={gy}
+                    stroke={colors.borderDefault}
+                    strokeWidth={1}
+                    strokeOpacity={0.5}
+                  />
+                  <SvgText
+                    x={Y_AXIS_W - 4}
+                    y={gy + 3.5}
+                    fill={colors.textMuted}
+                    fontSize={9}
+                    fontWeight="500"
+                    textAnchor="end"
+                  >
+                    {val}
+                  </SvgText>
+                </React.Fragment>
+              );
+            })}
 
-          {/* Passing score dashed line */}
-          <SvgLine
-            x1={Y_AXIS_W}
-            y1={passY}
-            x2={svgW - padRight}
-            y2={passY}
-            stroke={colors.primaryOrange}
-            strokeWidth={1}
-            strokeDasharray="4,4"
-            strokeOpacity={0.6}
-          />
-          <SvgText
-            x={svgW - padRight - 2}
-            y={passY - 4}
-            fill={colors.primaryOrange}
-            fontSize={8}
-            fontWeight="600"
-            textAnchor="end"
-          >
-            Pass {passingScore}%
-          </SvgText>
-
-          {/* Gradient area */}
-          <Path d={areaPath} fill="url(#areaFill)" />
-
-          {/* Smooth line */}
-          <Path
-            d={linePath}
-            stroke={colors.primaryOrange}
-            strokeWidth={2.5}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Data dots */}
-          {points.map((pt, i) => (
-            <SvgCircle
-              key={i}
-              cx={pt.x}
-              cy={pt.y}
-              r={DOT_R}
-              fill={pt.passed ? colors.success : colors.error}
-              stroke={colors.surface}
-              strokeWidth={2}
+            {/* Passing score dashed line */}
+            <SvgLine
+              x1={Y_AXIS_W}
+              y1={passY}
+              x2={svgW - padRight}
+              y2={passY}
+              stroke={colors.primaryOrange}
+              strokeWidth={1}
+              strokeDasharray="4,4"
+              strokeOpacity={0.6}
             />
-          ))}
+            <SvgText
+              x={svgW - padRight - 2}
+              y={passY - 4}
+              fill={colors.primaryOrange}
+              fontSize={8}
+              fontWeight="600"
+              textAnchor="end"
+            >
+              Pass {passingScore}%
+            </SvgText>
 
-          {/* X-axis date labels */}
-          {points.map((pt, i) => {
-            if (points.length > 5 && i > 0 && i < points.length - 1 && i % 2 !== 0) return null;
-            const d = new Date(pt.date);
-            const label = `${d.getMonth() + 1}/${d.getDate()}`;
-            return (
-              <SvgText
-                key={`lbl-${i}`}
-                x={pt.x}
-                y={svgH - 3}
-                fill={colors.textMuted}
-                fontSize={8}
-                fontWeight="500"
-                textAnchor="middle"
-              >
-                {label}
-              </SvgText>
-            );
-          })}
-        </Svg>
-      )}
+            {/* Gradient area */}
+            <Path d={areaPath} fill="url(#areaFill)" />
+
+            {/* Smooth line */}
+            <Path
+              d={linePath}
+              stroke={colors.primaryOrange}
+              strokeWidth={2.5}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {/* Data dots */}
+            {points.map((pt, i) => (
+              <SvgCircle
+                key={i}
+                cx={pt.x}
+                cy={pt.y}
+                r={DOT_R}
+                fill={pt.passed ? colors.success : colors.error}
+                stroke={colors.surface}
+                strokeWidth={2}
+              />
+            ))}
+
+            {/* X-axis date labels */}
+            {points.map((pt, i) => {
+              if (points.length > 5 && i > 0 && i < points.length - 1 && i % 2 !== 0) return null;
+              const d = new Date(pt.date);
+              const label = `${d.getMonth() + 1}/${d.getDate()}`;
+              return (
+                <SvgText
+                  key={`lbl-${i}`}
+                  x={pt.x}
+                  y={svgH - 3}
+                  fill={colors.textMuted}
+                  fontSize={8}
+                  fontWeight="500"
+                  textAnchor="middle"
+                >
+                  {label}
+                </SvgText>
+              );
+            })}
+          </Svg>
+        )}
       </View>
 
       {/* Footer: legend + latest score */}
@@ -755,31 +730,25 @@ const DomainCards: React.FC<{ domains: DomainScore[] }> = ({ domains }) => {
               />
             </View>
 
-            {/* 2×2 metrics grid */}
-            <View style={st.domainMetricsGrid}>
-              <View style={st.domainMetric}>
-                <Target size={12} color={colors.textMuted} strokeWidth={1.5} />
+            {/* Compact metrics row: 🎯 total · ✅ correct · ❌ missed */}
+            <View style={st.domainMetricsRow}>
+              <View style={st.domainMetricItem}>
+                <Target size={11} color={colors.textMuted} strokeWidth={1.5} />
                 <Text style={st.domainMetricValue}>{domain.total}</Text>
-                <Text style={st.domainMetricLabel}>Questions</Text>
               </View>
-              <View style={st.domainMetric}>
-                <Clock size={12} color={colors.textMuted} strokeWidth={1.5} />
-                <Text style={st.domainMetricValue}>{domain.correct}</Text>
-                <Text style={st.domainMetricLabel}>Correct</Text>
-              </View>
-              <View style={st.domainMetric}>
-                <CheckCircle2 size={12} color={colors.success} strokeWidth={1.5} />
+              <Text style={st.domainMetricDot}>·</Text>
+              <View style={st.domainMetricItem}>
+                <CheckCircle2 size={11} color={colors.success} strokeWidth={1.5} />
                 <Text style={[st.domainMetricValue, { color: colors.success }]}>
-                  {domain.percentage}%
+                  {domain.correct}
                 </Text>
-                <Text style={st.domainMetricLabel}>Score</Text>
               </View>
-              <View style={st.domainMetric}>
-                <XCircle size={12} color={colors.error} strokeWidth={1.5} />
+              <Text style={st.domainMetricDot}>·</Text>
+              <View style={st.domainMetricItem}>
+                <XCircle size={11} color={colors.error} strokeWidth={1.5} />
                 <Text style={[st.domainMetricValue, { color: colors.error }]}>
                   {domain.total - domain.correct}
                 </Text>
-                <Text style={st.domainMetricLabel}>Missed</Text>
               </View>
             </View>
           </View>
@@ -1120,16 +1089,22 @@ const st = StyleSheet.create({
     marginBottom: 12,
   },
   domainProgressFill: { height: '100%', borderRadius: 3 },
-  domainMetricsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  domainMetric: {
-    width: '50%',
+  domainMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
+    gap: 6,
+  },
+  domainMetricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  domainMetricDot: {
+    fontSize: 12,
+    color: colors.trackGray,
+    fontWeight: '400',
   },
   domainMetricValue: { fontSize: 13, fontWeight: '700', color: colors.textHeading },
-  domainMetricLabel: { fontSize: 11, color: colors.textMuted },
   domainEmptyCard: {
     backgroundColor: colors.surface,
     borderRadius: CARD_RADIUS,

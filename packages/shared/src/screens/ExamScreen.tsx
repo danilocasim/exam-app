@@ -14,6 +14,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { X, Clock } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { colors, spacing, radii } from '../theme';
 import {
   useExamStore,
   selectCurrentQuestion,
@@ -217,7 +218,7 @@ export const ExamScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <View style={styles.loadingIcon}>
-          <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator size="large" color={colors.textHeading} />
         </View>
         <Text style={styles.loadingText}>Loading exam...</Text>
       </SafeAreaView>
@@ -231,7 +232,7 @@ export const ExamScreen: React.FC = () => {
         <View style={styles.header}>
           {/* Exit button */}
           <TouchableOpacity onPress={handleExitPress} activeOpacity={0.7} style={styles.exitButton}>
-            <X size={18} color="#9CA3AF" strokeWidth={2} />
+            <X size={18} color={colors.textMuted} strokeWidth={2} />
           </TouchableOpacity>
 
           {/* Timer */}
@@ -245,7 +246,7 @@ export const ExamScreen: React.FC = () => {
             />
           ) : (
             <View style={styles.untimedBadge}>
-              <Clock size={14} color="#9CA3AF" strokeWidth={2} />
+              <Clock size={14} color={colors.textMuted} strokeWidth={2} />
               <Text style={styles.untimedText}>Untimed</Text>
             </View>
           )}
@@ -295,48 +296,48 @@ export const ExamScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#232F3E', // AWS Deep Navy
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#232F3E',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#232F3E',
+    backgroundColor: colors.background,
   },
   loadingIcon: {
     width: 56,
     height: 56,
-    borderRadius: 12,
-    backgroundColor: '#FF9900',
+    borderRadius: radii.md,
+    backgroundColor: colors.primaryOrange,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   loadingText: {
-    color: '#D1D5DB',
+    color: colors.textBody,
     fontSize: 16,
   },
   header: {
-    backgroundColor: '#1F2937', // Slate
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg - 4,
+    paddingVertical: spacing.md - 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.borderDefault,
   },
   exitButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderDefault,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -345,32 +346,32 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    marginHorizontal: spacing.lg - 4,
+    marginBottom: spacing.md - 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 4,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#EF4444',
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#FCA5A5',
+    color: colors.errorLight,
     fontSize: 14,
   },
   untimedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md - 4,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderDefault,
   },
   untimedText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: colors.textMuted,
   },
 });
 

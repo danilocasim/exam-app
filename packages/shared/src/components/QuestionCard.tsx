@@ -6,6 +6,7 @@ import { Question, QuestionOption, QuestionType } from '../storage/schema';
 import { RichExplanation, ExplanationBlock } from './RichExplanation';
 import { ExplanationModal } from './ExplanationModal';
 import { ImageViewer } from './ImageViewer';
+import { colors, spacing, radii } from '../theme';
 
 export interface QuestionCardProps {
   question: Question;
@@ -26,30 +27,11 @@ export interface QuestionCardProps {
   onLockedPress?: () => void;
 }
 
-// AWS Modern Color Palette
-const colors = {
-  // Backgrounds
-  background: '#232F3E', // AWS Deep Navy
-  surface: '#1F2937', // Slate for cards
-  surfaceHover: '#374151',
+// Status colors used only in this component
+const statusColors = {
   surfaceSelected: '#4A3A1A', // Amber-gold tint for selected state
-  // Borders
-  borderDefault: '#374151', // Gray border
-  borderSubtle: '#4B5563',
-  borderAccent: '#FF9900', // AWS Orange
-  // Text
-  textHeading: '#F9FAFB', // Pure white for headings
-  textBody: '#D1D5DB', // Light Gray for body
-  textMuted: '#9CA3AF',
-  textDisabled: '#6B7280',
-  // Accents
-  primaryOrange: '#FF9900', // AWS Orange
-  secondaryOrange: '#EC7211', // Darker Orange
-  // Status
-  success: '#10B981', // Modern Emerald
   successBg: 'rgba(16, 185, 129, 0.15)',
   successText: '#6EE7B7',
-  error: '#EF4444', // Modern Red
   errorBg: 'rgba(239, 68, 68, 0.15)',
   errorText: '#FCA5A5',
 };
@@ -84,18 +66,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
     if (showResult) {
       if (isCorrectOption) {
-        return { backgroundColor: colors.successBg, borderColor: colors.success };
+        return { backgroundColor: statusColors.successBg, borderColor: colors.success };
       }
       if (isSelected && !isCorrectOption) {
-        return { backgroundColor: colors.errorBg, borderColor: colors.error };
+        return { backgroundColor: statusColors.errorBg, borderColor: colors.error };
       }
       return { backgroundColor: 'transparent', borderColor: colors.borderDefault };
     }
 
     if (isSelected) {
       return {
-        backgroundColor: colors.surfaceSelected,
-        borderColor: colors.borderAccent,
+        backgroundColor: statusColors.surfaceSelected,
+        borderColor: colors.primaryOrange,
         borderWidth: 2, // Thicker border for selected
         // Strong orange glow effect
         shadowColor: colors.primaryOrange,
@@ -115,8 +97,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     const isCorrectOption = question.correctAnswers.includes(option.id);
 
     if (showResult) {
-      if (isCorrectOption) return colors.successText;
-      if (isSelected && !isCorrectOption) return colors.errorText;
+      if (isCorrectOption) return statusColors.successText;
+      if (isSelected && !isCorrectOption) return statusColors.errorText;
     }
     // Selected text is AWS Orange for full orange appearance
     if (isSelected) return '#FF9900'; // AWS Orange text
@@ -138,135 +120,135 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
   return (
     <View style={{ flex: 1 }}>
-    <ScrollView
-      style={[styles.container, isLocked && styles.lockedContainer]}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
-      scrollEnabled={!isLocked}
-    >
-      <View style={[styles.content, isLocked && { opacity: 0.35 }]}>
-        {/* Question type badge */}
-        <View style={styles.badgeRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{getQuestionTypeLabel(question.type)}</Text>
+      <ScrollView
+        style={[styles.container, isLocked && styles.lockedContainer]}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={!isLocked}
+      >
+        <View style={[styles.content, isLocked && { opacity: 0.35 }]}>
+          {/* Question type badge */}
+          <View style={styles.badgeRow}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{getQuestionTypeLabel(question.type)}</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Question text */}
-        <View style={styles.questionBox}>
-          <Text
-            style={[
-              styles.questionText,
-              {
-                fontSize: Math.round(20 * fontScale),
-                lineHeight: Math.round(30 * fontScale),
-              },
-            ]}
-          >
-            {question.text}
-          </Text>
-        </View>
-
-        {/* Options */}
-        <View style={styles.optionsContainer}>
-          {question.options.map((option, index) => (
-            <TouchableOpacity
-              key={option.id}
-              onPress={() => handleOptionPress(option.id)}
-              disabled={disabled}
-              activeOpacity={disabled ? 1 : 0.7}
-              style={[styles.optionButton, getOptionStyle(option)]}
+          {/* Question text */}
+          <View style={styles.questionBox}>
+            <Text
+              style={[
+                styles.questionText,
+                {
+                  fontSize: Math.round(20 * fontScale),
+                  lineHeight: Math.round(30 * fontScale),
+                },
+              ]}
             >
-              {/* Option text */}
-              <View style={styles.optionTextContainer}>
-                <Text
-                  style={[
-                    styles.optionText,
-                    {
-                      color: getOptionTextColor(option),
-                      fontWeight: selectedAnswers.includes(option.id) ? '600' : '400',
-                      fontSize: Math.round(16 * fontScale),
-                      lineHeight: Math.round(24 * fontScale),
-                    },
-                  ]}
-                >
+              {question.text}
+            </Text>
+          </View>
+
+          {/* Options */}
+          <View style={styles.optionsContainer}>
+            {question.options.map((option, index) => (
+              <TouchableOpacity
+                key={option.id}
+                onPress={() => handleOptionPress(option.id)}
+                disabled={disabled}
+                activeOpacity={disabled ? 1 : 0.7}
+                style={[styles.optionButton, getOptionStyle(option)]}
+              >
+                {/* Option text */}
+                <View style={styles.optionTextContainer}>
                   <Text
                     style={[
-                      styles.optionLetter,
+                      styles.optionText,
                       {
-                        color: selectedAnswers.includes(option.id)
-                          ? colors.primaryOrange
-                          : colors.textMuted,
+                        color: getOptionTextColor(option),
+                        fontWeight: selectedAnswers.includes(option.id) ? '600' : '400',
+                        fontSize: Math.round(16 * fontScale),
+                        lineHeight: Math.round(24 * fontScale),
                       },
                     ]}
                   >
-                    {String.fromCharCode(65 + index)}.{' '}
+                    <Text
+                      style={[
+                        styles.optionLetter,
+                        {
+                          color: selectedAnswers.includes(option.id)
+                            ? colors.primaryOrange
+                            : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {String.fromCharCode(65 + index)}.{' '}
+                    </Text>
+                    {option.text}
                   </Text>
-                  {option.text}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        {/* Result indicator */}
-        {showResult && showResultBanner && isCorrect !== null && (
-          <View
-            style={[
-              styles.resultContainer,
-              isCorrect ? styles.resultCorrect : styles.resultIncorrect,
-            ]}
-          >
-            <View style={styles.resultIcon}>
-              {isCorrect ? (
-                <CheckCircle2 size={24} color={colors.success} strokeWidth={2} />
-              ) : (
-                <XCircle size={24} color={colors.error} strokeWidth={2} />
-              )}
-            </View>
-            <Text
+          {/* Result indicator */}
+          {showResult && showResultBanner && isCorrect !== null && (
+            <View
               style={[
-                styles.resultText,
-                { color: isCorrect ? colors.successText : colors.errorText },
+                styles.resultContainer,
+                isCorrect ? styles.resultCorrect : styles.resultIncorrect,
               ]}
             >
-              {isCorrect ? 'Correct!' : 'Incorrect'}
-            </Text>
-          </View>
-        )}
+              <View style={styles.resultIcon}>
+                {isCorrect ? (
+                  <CheckCircle2 size={24} color={colors.success} strokeWidth={2} />
+                ) : (
+                  <XCircle size={24} color={colors.error} strokeWidth={2} />
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.resultText,
+                  { color: isCorrect ? statusColors.successText : statusColors.errorText },
+                ]}
+              >
+                {isCorrect ? 'Correct!' : 'Incorrect'}
+              </Text>
+            </View>
+          )}
 
-        {/* Explanation */}
-        {showResult && showExplanation && question.explanation && (
-          <ExplanationSection
-            explanation={question.explanation}
-            explanationBlocks={(question as any).explanationBlocks}
-          />
-        )}
-      </View>
-    </ScrollView>
-
-    {/* Lock overlay — rendered over the dimmed card when isLocked=true */}
-    {isLocked && (
-      <TouchableOpacity
-        style={[StyleSheet.absoluteFillObject, styles.lockOverlay]}
-        onPress={onLockedPress}
-        activeOpacity={0.9}
-        accessibilityRole="button"
-        accessibilityLabel="Premium question — tap to upgrade"
-      >
-        <View style={styles.lockContent}>
-          <View style={styles.lockIconCircle}>
-            <Lock size={28} color="#F59E0B" strokeWidth={2} />
-          </View>
-          <Text style={styles.lockTitle}>Premium Question</Text>
-          <Text style={styles.lockSubtitle}>Upgrade to access this question</Text>
-          <View style={styles.lockCta}>
-            <Crown size={13} color="#000" strokeWidth={2} />
-            <Text style={styles.lockCtaText}>Unlock All Questions</Text>
-          </View>
+          {/* Explanation */}
+          {showResult && showExplanation && question.explanation && (
+            <ExplanationSection
+              explanation={question.explanation}
+              explanationBlocks={(question as any).explanationBlocks}
+            />
+          )}
         </View>
-      </TouchableOpacity>
-    )}
+      </ScrollView>
+
+      {/* Lock overlay — rendered over the dimmed card when isLocked=true */}
+      {isLocked && (
+        <TouchableOpacity
+          style={[StyleSheet.absoluteFillObject, styles.lockOverlay]}
+          onPress={onLockedPress}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Premium question — tap to upgrade"
+        >
+          <View style={styles.lockContent}>
+            <View style={styles.lockIconCircle}>
+              <Lock size={28} color="#F59E0B" strokeWidth={2} />
+            </View>
+            <Text style={styles.lockTitle}>Premium Question</Text>
+            <Text style={styles.lockSubtitle}>Upgrade to access this question</Text>
+            <View style={styles.lockCta}>
+              <Crown size={13} color="#000" strokeWidth={2} />
+              <Text style={styles.lockCtaText}>Unlock All Questions</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -348,31 +330,29 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg - 4,
+    paddingBottom: spacing.lg,
   },
   badgeRow: {
     flexDirection: 'row',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   badge: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textMuted,
     fontWeight: '500',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   questionBox: {
-    marginBottom: 32,
-    paddingBottom: 28,
+    marginBottom: spacing.xl,
+    paddingBottom: spacing.lg + 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderDefault,
   },
@@ -384,14 +364,14 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
   },
   optionsContainer: {
-    gap: 12,
+    gap: spacing.md - 4,
   },
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16, // Increased touch target
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
     borderWidth: 1,
   },
   optionTextContainer: {
@@ -407,33 +387,33 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   resultContainer: {
-    marginTop: 28,
-    padding: 16,
-    borderRadius: 12,
+    marginTop: spacing.lg + 4,
+    padding: spacing.md,
+    borderRadius: radii.md,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
   },
   resultCorrect: {
-    backgroundColor: colors.successBg,
+    backgroundColor: statusColors.successBg,
     borderColor: colors.success,
   },
   resultIncorrect: {
-    backgroundColor: colors.errorBg,
+    backgroundColor: statusColors.errorBg,
     borderColor: colors.error,
   },
   resultIcon: {
-    marginRight: 12,
+    marginRight: spacing.md - 4,
   },
   resultText: {
     fontSize: 15,
     fontWeight: '600',
   },
   explanationBox: {
-    marginTop: 24,
+    marginTop: spacing.lg,
     backgroundColor: colors.surface,
-    padding: 20,
-    borderRadius: 12,
+    padding: spacing.lg - 4,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.borderDefault,
   },
@@ -441,14 +421,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.md - 4,
   },
   explanationHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   explanationIcon: {
-    marginRight: 10,
+    marginRight: spacing.sm + 2,
   },
   explanationLabel: {
     fontSize: 12,
@@ -479,34 +459,34 @@ const styles = StyleSheet.create({
   lockIconCircle: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: radii.full,
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1.5,
     borderColor: 'rgba(245, 158, 11, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   lockTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.textHeading,
-    marginBottom: 6,
+    marginBottom: spacing.xs,
   },
   lockSubtitle: {
     fontSize: 14,
     color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.lg - 4,
   },
   lockCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
     backgroundColor: '#F59E0B',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: spacing.lg - 4,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radii.md - 2,
   },
   lockCtaText: {
     fontSize: 14,

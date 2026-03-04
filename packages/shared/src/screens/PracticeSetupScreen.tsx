@@ -1,5 +1,5 @@
 // T053: PracticeSetupScreen - Domain, difficulty, and set selection for practice mode
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,39 +12,23 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Play, BookOpen, Lock, Crown, CheckSquare } from 'lucide-react-native';
+import { ArrowLeft, Play, Lock, Crown, CheckSquare } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { usePracticeStore } from '../stores/practice.store';
-import { DomainSelector, DomainOption } from '../components/DomainSelector';
+import { DomainSelector } from '../components/DomainSelector';
 import { DifficultySelector } from '../components/DifficultySelector';
-import {
-  getQuestionCountByDomain,
-  getQuestionCountByDomainAndSets,
-  getQuestionCountBySet,
-} from '../storage/repositories/question.repository';
-import { getCachedExamTypeConfig, getCachedQuestionSets } from '../services';
 import { useIsPremium } from '../stores/purchase.store';
-
-// AWS Modern Color Palette
-const colors = {
-  background: '#232F3E',
-  surface: '#1F2937',
-  surfaceHover: '#374151',
-  borderDefault: '#374151',
-  textHeading: '#F9FAFB',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  secondaryOrange: '#EC7211',
-  orangeDark: 'rgba(255, 153, 0, 0.2)',
-  orangeLight: '#FFB84D',
-  success: '#10B981',
-};
+import { PracticeSetupSkeleton } from '../components/Shimmer';
+import { colors, spacing, radii } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'PracticeSetup'>;
 
 /**
- * PracticeSetupScreen - configure practice session filters
+ * PracticeSetupScreen - configure practice session filters.
+ *
+ * Setup data (domains, sets, set names) is cached in the practice store so
+ * subsequent visits render instantly without a skeleton. A background refresh
+ * keeps the cache fresh after every focus.
  */
 export const PracticeSetupScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -62,93 +46,42 @@ export const PracticeSetupScreen: React.FC = () => {
     setSets,
     refreshAvailableCount,
     startSession,
-    resetPracticeState,
+    resetForNewSession,
+    loadSetupData,
     setError,
+    setupCache,
   } = usePracticeStore();
 
-  const [domains, setDomains] = useState<DomainOption[]>([]);
-  const [availableBySet, setAvailableBySet] = useState<Record<string, number>>({});
-  const [setNames, setSetNames] = useState<Record<string, string>>({});
-  const [loadingDomains, setLoadingDomains] = useState(true);
+  const { domains, availableBySet, setNames, _setupLoaded } = setupCache;
 
-  // Reset practice state on focus
+  // On focus: clear previous session data (not filters/cache),
+  // lock free users to diagnostic, then refresh cache silently.
   useFocusEffect(
     useCallback(() => {
-      resetPracticeState();
-      // Free users are locked to the diagnostic set
+      resetForNewSession();
+      const forcedSets = isPremium ? undefined : ['diagnostic'];
       if (!isPremium) {
         setSets(['diagnostic']);
       }
-      loadDomains();
+      // Background refresh — cache makes UI instant, this keeps data fresh
+      loadSetupData(forcedSets);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isPremium]),
   );
 
-  // Refresh count when filters change
+  // Refresh available count when filters change
   useEffect(() => {
     refreshAvailableCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDomain, selectedDifficulty, selectedSets]);
 
-  // Reload domain counts when selected sets change
+  // Reload domain counts when selected sets change (re-cache)
   useEffect(() => {
-    loadDomains();
+    if (_setupLoaded) {
+      loadSetupData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSets]);
-
-  const loadDomains = async () => {
-    setLoadingDomains(true);
-    try {
-      // Use set-filtered domain counts when sets are selected
-      const currentSets = usePracticeStore.getState().selectedSets;
-      const [countByDomain, bySet, cachedSetNames] = await Promise.all([
-        currentSets.length > 0
-          ? getQuestionCountByDomainAndSets(currentSets)
-          : getQuestionCountByDomain(),
-        getQuestionCountBySet(),
-        getCachedQuestionSets(),
-      ]);
-
-      setAvailableBySet(bySet);
-      setSetNames(cachedSetNames);
-
-      // Try to get domain names from cached exam type config
-      const domainNames: Record<string, string> = {};
-      try {
-        const config = await getCachedExamTypeConfig();
-        if (config?.domains) {
-          for (const d of config.domains) {
-            domainNames[d.id] = d.name;
-          }
-        }
-      } catch {
-        // Ignore - will use domain ID as name
-      }
-
-      const domainOptions: DomainOption[] = Object.entries(countByDomain).map(([id, count]) => ({
-        id,
-        name: domainNames[id] || formatDomainName(id),
-        questionCount: count,
-      }));
-
-      // Sort by question count descending
-      domainOptions.sort((a, b) => b.questionCount - a.questionCount);
-
-      setDomains(domainOptions);
-    } catch (err) {
-      console.error('Failed to load domains:', err);
-    } finally {
-      setLoadingDomains(false);
-    }
-  };
-
-  const formatDomainName = (id: string): string => {
-    // Convert 'cloud-concepts' to 'Cloud Concepts'
-    return id
-      .split('-')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
 
   const toggleSet = (setName: string) => {
     // Free users cannot uncheck the diagnostic set
@@ -182,14 +115,11 @@ export const PracticeSetupScreen: React.FC = () => {
 
   const canStart = availableQuestionCount > 0 && !isLoading;
 
-  if (loadingDomains) {
+  // Only show skeleton on the very first load (no cached data yet)
+  if (!_setupLoaded) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
-        <View style={styles.loadingIcon}>
-          <BookOpen size={32} color={colors.textHeading} strokeWidth={2} />
-        </View>
-        <ActivityIndicator size="large" color={colors.primaryOrange} />
-        <Text style={styles.loadingText}>Loading domains...</Text>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <PracticeSetupSkeleton />
       </SafeAreaView>
     );
   }
@@ -356,7 +286,20 @@ export const PracticeSetupScreen: React.FC = () => {
             )}
           </TouchableOpacity>
           {!canStart && !isLoading && (
-            <Text style={styles.noQuestionsText}>No questions available for selected filters</Text>
+            <View style={styles.noQuestionsRow}>
+              <Text style={styles.noQuestionsText}>No questions match these filters</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setDomain(null);
+                  setDifficulty(null);
+                  if (isPremium) setSets([]);
+                }}
+                activeOpacity={0.7}
+                style={styles.resetFiltersBtn}
+              >
+                <Text style={styles.resetFiltersText}>Reset Filters</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </View>
@@ -372,26 +315,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  loadingIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: colors.primaryOrange,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  loadingText: {
-    color: colors.textMuted,
-    fontSize: 16,
-    marginTop: 12,
   },
   header: {
     backgroundColor: colors.surface,
@@ -489,11 +412,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 17,
   },
+  noQuestionsRow: {
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
   noQuestionsText: {
     color: colors.textMuted,
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 8,
+  },
+  resetFiltersBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceHover,
+  },
+  resetFiltersText: {
+    color: colors.primaryOrange,
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // ── Question Sets selector ──

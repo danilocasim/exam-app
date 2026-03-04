@@ -2,20 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Difficulty } from '../storage/schema';
-
-// AWS Modern Color Palette
-const colors = {
-  surface: '#1F2937',
-  borderDefault: '#374151',
-  textBody: '#D1D5DB',
-  textMuted: '#9CA3AF',
-  primaryOrange: '#FF9900',
-  orangeDark: 'rgba(255, 153, 0, 0.2)',
-  success: '#10B981',
-  successDark: 'rgba(16, 185, 129, 0.15)',
-  error: '#EF4444',
-  errorDark: 'rgba(239, 68, 68, 0.15)',
-};
+import { colors, radii } from '../theme';
 
 /**
  * Difficulty option with styling info

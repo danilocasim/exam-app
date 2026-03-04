@@ -11,9 +11,35 @@ import {
   PracticeAnswerResult,
   PracticeSummary,
 } from '../services/practice.service';
+import {
+  getQuestionCountByDomain,
+  getQuestionCountByDomainAndSets,
+  getQuestionCountBySet,
+} from '../storage/repositories/question.repository';
+import { getCachedExamTypeConfig, getCachedQuestionSets } from '../services';
 import { useAuthStore } from './auth-store';
 import { usePurchaseStore } from './purchase.store';
 import { pushAllStats } from '../services/stats-sync.service';
+
+/**
+ * Domain option for practice setup
+ */
+export interface PracticeDomainOption {
+  id: string;
+  name: string;
+  questionCount: number;
+}
+
+/**
+ * Cached setup data — survives navigation, avoids re-querying SQLite
+ */
+export interface PracticeSetupCache {
+  domains: PracticeDomainOption[];
+  availableBySet: Record<string, number>;
+  setNames: Record<string, string>;
+  /** True once the first successful load completes */
+  _setupLoaded: boolean;
+}
 
 /**
  * Practice store state
@@ -42,6 +68,9 @@ export interface PracticeState {
 
   // Summary (after end session)
   summary: PracticeSummary | null;
+
+  // Setup cache
+  setupCache: PracticeSetupCache;
 }
 
 /**
@@ -53,11 +82,16 @@ export interface PracticeActions {
   setDifficulty: (difficulty: Difficulty | null) => void;
   setSets: (sets: string[]) => void;
   refreshAvailableCount: () => Promise<void>;
+  /** Load domains, sets, set names from SQLite and cache in store */
+  loadSetupData: (forcedSets?: string[]) => Promise<void>;
 
   // Session lifecycle
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
+  /** Reset everything including filters and cache (full teardown) */
   resetPracticeState: () => void;
+  /** Reset only session-related state — preserves filters & setup cache */
+  resetForNewSession: () => void;
 
   // Answering
   submitAnswer: (selectedAnswers: string[]) => Promise<PracticeAnswerResult>;
@@ -77,6 +111,13 @@ export type PracticeStore = PracticeState & PracticeActions;
 /**
  * Initial state
  */
+const initialSetupCache: PracticeSetupCache = {
+  domains: [],
+  availableBySet: {},
+  setNames: {},
+  _setupLoaded: false,
+};
+
 const initialState: PracticeState = {
   session: null,
   questions: [],
@@ -92,7 +133,15 @@ const initialState: PracticeState = {
   isSubmitting: false,
   error: null,
   summary: null,
+  setupCache: { ...initialSetupCache },
 };
+
+/** Convert domain id to readable name */
+const formatDomainName = (id: string): string =>
+  id
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 
 /**
  * Create practice store with Zustand
@@ -119,6 +168,58 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
    */
   setSets: (sets: string[]) => {
     set({ selectedSets: sets });
+  },
+
+  /**
+   * Load domain counts, set counts, and set names from SQLite.
+   * Results are cached in setupCache so subsequent screen focuses are instant.
+   * Pass `forcedSets` to use a specific set filter for domain counts
+   * (e.g. free users locked to ['diagnostic']).
+   */
+  loadSetupData: async (forcedSets?: string[]) => {
+    try {
+      const activeSets = forcedSets ?? get().selectedSets;
+
+      const [countByDomain, bySet, cachedSetNames] = await Promise.all([
+        activeSets.length > 0
+          ? getQuestionCountByDomainAndSets(activeSets)
+          : getQuestionCountByDomain(),
+        getQuestionCountBySet(),
+        getCachedQuestionSets(),
+      ]);
+
+      // Build domain name map from cached exam type config
+      const domainNames: Record<string, string> = {};
+      try {
+        const config = await getCachedExamTypeConfig();
+        if (config?.domains) {
+          for (const d of config.domains) {
+            domainNames[d.id] = d.name;
+          }
+        }
+      } catch {
+        // Fallback to formatted ID
+      }
+
+      const domains: PracticeDomainOption[] = Object.entries(countByDomain)
+        .map(([id, count]) => ({
+          id,
+          name: domainNames[id] || formatDomainName(id),
+          questionCount: count,
+        }))
+        .sort((a, b) => b.questionCount - a.questionCount);
+
+      set({
+        setupCache: {
+          domains,
+          availableBySet: bySet,
+          setNames: cachedSetNames,
+          _setupLoaded: true,
+        },
+      });
+    } catch (err) {
+      console.error('[PracticeStore] Failed to load setup data:', err);
+    }
   },
 
   /**
@@ -281,10 +382,29 @@ export const usePracticeStore = create<PracticeStore>((set, get) => ({
   },
 
   /**
-   * Reset practice state (go back to setup)
+   * Reset practice state (go back to setup) — full teardown including cache
    */
   resetPracticeState: () => {
-    set({ ...initialState });
+    set({ ...initialState, setupCache: { ...initialSetupCache } });
+  },
+
+  /**
+   * Reset only session-related data — preserves filters & setup cache
+   * so re-entering PracticeSetup is instant (no skeleton).
+   */
+  resetForNewSession: () => {
+    set({
+      session: null,
+      questions: [],
+      answers: [],
+      currentIndex: 0,
+      lastResult: null,
+      showFeedback: false,
+      isLoading: false,
+      isSubmitting: false,
+      error: null,
+      summary: null,
+    });
   },
 
   /**
