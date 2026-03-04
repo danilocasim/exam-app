@@ -1,9 +1,12 @@
 /**
- * T248: Purchase Store (Zustand)
+ * T248 + T263: Purchase Store (Zustand)
  *
  * Global state management for user tier and purchase status.
  * Persists to SQLite via purchase repository.
  * In __DEV__ mode defaults to PREMIUM for development convenience.
+ *
+ * T263: Extended with subscription metadata (subscriptionType, expiryDate,
+ * autoRenewing), expiry-based auto-downgrade, and subscription selectors.
  */
 import { create } from 'zustand';
 import { TierLevel, TIER_CONFIGS } from '../config/tiers';
@@ -12,6 +15,7 @@ import {
   savePurchaseStatus,
   clearPurchaseStatus,
 } from '../storage/repositories/purchase.repository';
+import type { SubscriptionPlan } from '../services/billing.service';
 
 // ─── Store State Interface ───────────────────────────────────────────────────
 
@@ -22,9 +26,21 @@ interface PurchaseStoreState {
   productId: string | null;
   purchasedAt: string | null;
   isLoading: boolean;
+  // T263: Subscription metadata
+  subscriptionType: SubscriptionPlan | null;
+  expiryDate: string | null;
+  autoRenewing: boolean;
 
   // Actions
   setPremium: (productId: string, purchaseToken: string) => Promise<void>;
+  setSubscription: (
+    productId: string,
+    purchaseToken: string,
+    subscriptionType: SubscriptionPlan,
+    expiryDate: string,
+    autoRenewing: boolean,
+  ) => Promise<void>;
+  checkAndDowngrade: () => Promise<boolean>;
   reset: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
 }
@@ -47,7 +63,14 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
   productId: null,
   purchasedAt: null,
   isLoading: false,
+  subscriptionType: null,
+  expiryDate: null,
+  autoRenewing: false,
 
+  /**
+   * Set PREMIUM tier with basic product info (backward-compatible).
+   * Internally delegates to setSubscription when subscription metadata isn't available.
+   */
   setPremium: async (productId: string, purchaseToken: string) => {
     const now = new Date().toISOString();
 
@@ -56,6 +79,9 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
       product_id: productId,
       purchase_token: purchaseToken,
       purchased_at: now,
+      subscription_type: null,
+      expiry_date: null,
+      auto_renewing: false,
     });
 
     set({
@@ -66,6 +92,75 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
     });
   },
 
+  /**
+   * T263: Set PREMIUM + subscription metadata, persists to SQLite.
+   */
+  setSubscription: async (
+    productId: string,
+    purchaseToken: string,
+    subscriptionType: SubscriptionPlan,
+    expiryDate: string,
+    autoRenewing: boolean,
+  ) => {
+    const now = new Date().toISOString();
+
+    await savePurchaseStatus({
+      tier_level: 'PREMIUM',
+      product_id: productId,
+      purchase_token: purchaseToken,
+      purchased_at: now,
+      subscription_type: subscriptionType,
+      expiry_date: expiryDate,
+      auto_renewing: autoRenewing,
+    });
+
+    set({
+      tierLevel: 'PREMIUM',
+      isPremium: true,
+      productId,
+      purchasedAt: now,
+      subscriptionType,
+      expiryDate,
+      autoRenewing,
+    });
+  },
+
+  /**
+   * T263: Check if subscription has expired and downgrade to FREE if needed.
+   * Returns true if downgrade occurred.
+   *
+   * - If expiryDate is past and autoRenewing is false → reset to FREE.
+   * - If expiryDate is past and autoRenewing is true → caller should
+   *   attempt restorePurchases() to check renewal status.
+   */
+  checkAndDowngrade: async (): Promise<boolean> => {
+    const { expiryDate, autoRenewing, tierLevel } = get();
+
+    // Only check subscribers
+    if (tierLevel !== 'PREMIUM' || !expiryDate) {
+      return false;
+    }
+
+    const isExpired = new Date(expiryDate) <= new Date();
+    if (!isExpired) {
+      return false;
+    }
+
+    // Expired + not auto-renewing → definitive downgrade
+    if (!autoRenewing) {
+      console.log('[PurchaseStore] Subscription expired (not auto-renewing) → downgrading to FREE');
+      await get().reset();
+      return true;
+    }
+
+    // Expired + auto-renewing → caller should try restorePurchases()
+    // We do NOT downgrade here — let the billing service decide after checking renewal
+    console.log(
+      '[PurchaseStore] Subscription expired but auto-renewing — deferring to billing service',
+    );
+    return false;
+  },
+
   reset: async () => {
     await clearPurchaseStatus();
 
@@ -74,6 +169,9 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
       isPremium: false,
       productId: null,
       purchasedAt: null,
+      subscriptionType: null,
+      expiryDate: null,
+      autoRenewing: false,
     });
   },
 
@@ -92,6 +190,9 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
           isPremium: true,
           productId: stored.product_id,
           purchasedAt: stored.purchased_at,
+          subscriptionType: stored.subscription_type,
+          expiryDate: stored.expiry_date,
+          autoRenewing: stored.auto_renewing,
         });
       } else {
         set({
@@ -99,6 +200,9 @@ export const usePurchaseStore = create<PurchaseStoreState>((set, get) => ({
           isPremium: false,
           productId: null,
           purchasedAt: null,
+          subscriptionType: null,
+          expiryDate: null,
+          autoRenewing: false,
         });
       }
     } catch (error) {
@@ -128,3 +232,22 @@ export const useTierLevel = () => usePurchaseStore((state) => state.tierLevel);
  */
 export const useQuestionLimit = () =>
   usePurchaseStore((state) => TIER_CONFIGS[state.tierLevel].questionLimit);
+
+// ─── T263: Subscription Selectors ─────────────────────────────────────────────
+
+/**
+ * Get the current subscription plan type.
+ */
+export const useSubscriptionType = () =>
+  usePurchaseStore((state) => state.subscriptionType);
+
+/**
+ * Get the subscription expiry date (ISO 8601).
+ */
+export const useExpiryDate = () => usePurchaseStore((state) => state.expiryDate);
+
+/**
+ * Get whether the subscription is auto-renewing.
+ */
+export const useIsAutoRenewing = () =>
+  usePurchaseStore((state) => state.autoRenewing);

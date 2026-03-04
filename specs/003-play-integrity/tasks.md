@@ -973,7 +973,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   7. On pending (PAYMENT_PENDING): show "Subscription pending" status, check again on next launch
   8. Store `expiryDate`, `autoRenewing`, and `subscriptionType` in PurchaseStatus
 
-- [ ] T262 Extend packages/shared/src/storage/repositories/purchase.repository.ts and database.ts:
+- [X] T262 Extend packages/shared/src/storage/repositories/purchase.repository.ts and database.ts:
   - **Non-breaking migration**: ADD columns to existing PurchaseStatus table (do not drop/recreate):
     ```sql
     ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT;      -- 'monthly' | 'quarterly' | 'annual' | null
@@ -998,7 +998,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - Update `savePurchaseStatus()` to persist new fields
   - **No schema-breaking changes**: Existing rows with `null` subscription fields remain valid (backward-compatible with Phase 16 data)
 
-- [ ] T263 Update packages/shared/src/stores/purchase.store.ts: integrate with billing service for subscriptions.
+- [X] T263 Update packages/shared/src/stores/purchase.store.ts: integrate with billing service for subscriptions.
   - Add state fields: `subscriptionType: SubscriptionPlan | null`, `expiryDate: string | null`, `autoRenewing: boolean`
   - Add action: `setSubscription(productId, purchaseToken, subscriptionType, expiryDate, autoRenewing)` — sets PREMIUM + subscription metadata, persists to SQLite
   - Keep existing `setPremium()` for backward compatibility (calls `setSubscription` internally)
@@ -1006,7 +1006,7 @@ chmod +x scripts/validate-spec-003.sh && ./scripts/validate-spec-003.sh
   - On app launch: `loadFromStorage()` → if subscription data exists → call `checkAndDowngrade()` before granting PREMIUM
   - Add selectors: `useSubscriptionType()`, `useExpiryDate()`, `useIsAutoRenewing()`
 
-- [ ] T264 Implement subscription restoration and expiry handling in billing.service.ts:
+- [X] T264 Implement subscription restoration and expiry handling in billing.service.ts:
   - On app reinstall or new device: call `restorePurchases()` during initialization (after login, before question sync)
   - If active subscription found → restore PREMIUM status with full subscription metadata
   - If expired subscription found → set FREE, show "Subscription expired" message

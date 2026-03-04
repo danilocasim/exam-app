@@ -1,5 +1,5 @@
 /**
- * T260 + T261: Billing Service — Subscription billing via Google Play Billing API
+ * T260 + T261 + T264: Billing Service — Subscription billing via Google Play Billing API
  *
  * Core subscription billing service using react-native-iap (v12).
  * Handles connection lifecycle, subscription fetching, purchase flow,
@@ -10,6 +10,11 @@
  * - processPurchaseUpdate(): Handles incoming purchase listener events
  * - checkPendingSubscriptions(): Checks pending purchases on app launch
  * - initBillingWithStore(): Initializes billing with store integration
+ *
+ * T264 adds restoration and expiry handling:
+ * - restoreSubscription(): Restores premium on reinstall/new device
+ * - checkExpiryAndRestore(): App-launch expiry check with auto-restore
+ * - handleRenewalUpdate(): Processes renewal events from Play Store
  *
  * Dev mode (__DEV__) bypasses all billing operations.
  * Offline-first: subscription status is cached locally with expiry check.
@@ -560,7 +565,19 @@ export const handleSubscriptionPurchase = async (
     const expiryDate = calculateExpiryDate(transactionDate, plan);
 
     // Update purchase store to PREMIUM with subscription data
-    await usePurchaseStore.getState().setPremium(result.productId, result.purchaseToken);
+    if (plan && expiryDate) {
+      await usePurchaseStore
+        .getState()
+        .setSubscription(
+          result.productId,
+          result.purchaseToken,
+          plan,
+          expiryDate,
+          result.autoRenewing ?? true,
+        );
+    } else {
+      await usePurchaseStore.getState().setPremium(result.productId, result.purchaseToken);
+    }
 
     console.log('[Billing] Subscription purchase complete:', {
       productId: result.productId,
@@ -628,8 +645,22 @@ export const processPurchaseUpdate = async (
   const status = validateSubscription(purchase);
 
   if (status.isActive && status.productId && status.purchaseToken) {
-    // Update store to PREMIUM
-    await usePurchaseStore.getState().setPremium(status.productId, status.purchaseToken);
+    // Update store to PREMIUM with subscription metadata
+    const plan = getPlanFromProductId(status.productId);
+    if (plan && status.expiryDate) {
+      await usePurchaseStore
+        .getState()
+        .setSubscription(
+          status.productId,
+          status.purchaseToken,
+          plan,
+          status.expiryDate,
+          status.autoRenewing,
+        );
+    } else {
+      // Fallback for non-subscription purchases or unknown plan
+      await usePurchaseStore.getState().setPremium(status.productId, status.purchaseToken);
+    }
 
     console.log('[Billing] Purchase update processed → PREMIUM:', {
       productId: status.productId,
@@ -727,7 +758,20 @@ export const checkPendingSubscriptions = async (
       const status = validateSubscription(purchase);
 
       if (status.isActive && status.productId && status.purchaseToken) {
-        await usePurchaseStore.getState().setPremium(status.productId, status.purchaseToken);
+        const plan = getPlanFromProductId(status.productId);
+        if (plan && status.expiryDate) {
+          await usePurchaseStore
+            .getState()
+            .setSubscription(
+              status.productId,
+              status.purchaseToken,
+              plan,
+              status.expiryDate,
+              status.autoRenewing,
+            );
+        } else {
+          await usePurchaseStore.getState().setPremium(status.productId, status.purchaseToken);
+        }
         console.log('[Billing] Restored pending subscription → PREMIUM:', status.productId);
       }
 
@@ -796,6 +840,215 @@ export const initBillingWithStore = async (
   return async () => {
     await disconnectBilling();
   };
+};
+
+// ─── T264: Subscription Restoration & Expiry Handling ────────────────────────
+
+/**
+ * T264: Restore subscription on reinstall or new device.
+ *
+ * Called during initialization (after login, before question sync).
+ * Queries Play Store for active subscriptions on this account.
+ *
+ * Returns:
+ * - 'restored' if an active subscription was found and PREMIUM granted
+ * - 'expired' if only expired subscriptions found → stays FREE
+ * - 'none' if no subscriptions found → stays FREE
+ *
+ * @param examTypeId - The exam type ID for SKU filtering
+ */
+export const restoreSubscription = async (
+  examTypeId: string,
+): Promise<'restored' | 'expired' | 'none'> => {
+  if (__DEV__) {
+    console.log('[Billing] Restore bypassed in dev mode — already PREMIUM');
+    return 'none';
+  }
+
+  if (!isConnected) {
+    console.warn('[Billing] Cannot restore subscriptions — not connected');
+    return 'none';
+  }
+
+  try {
+    const purchases = await getAvailablePurchases();
+    console.log('[Billing] Restore: found', purchases.length, 'purchases');
+
+    const relevantSkus = getAllSubscriptionSkus(examTypeId);
+    let foundExpired = false;
+
+    for (const purchase of purchases) {
+      if (!relevantSkus.includes(purchase.productId)) {
+        continue;
+      }
+
+      const status = validateSubscription(purchase);
+      const plan = getPlanFromProductId(purchase.productId);
+
+      if (status.isActive && status.productId && status.purchaseToken && plan) {
+        // Active subscription found → restore PREMIUM with full metadata
+        await usePurchaseStore
+          .getState()
+          .setSubscription(
+            status.productId,
+            status.purchaseToken,
+            plan,
+            status.expiryDate!,
+            status.autoRenewing,
+          );
+
+        // Acknowledge if needed
+        const subPurchase = purchase as SubscriptionPurchase;
+        if (!subPurchase.isAcknowledgedAndroid) {
+          try {
+            await acknowledgePurchase(purchase);
+          } catch (err) {
+            console.warn('[Billing] Failed to acknowledge restored purchase:', err);
+          }
+        }
+
+        console.log('[Billing] Subscription restored → PREMIUM:', {
+          productId: status.productId,
+          plan,
+          expiryDate: status.expiryDate,
+          autoRenewing: status.autoRenewing,
+        });
+        return 'restored';
+      } else {
+        foundExpired = true;
+      }
+    }
+
+    if (foundExpired) {
+      console.log('[Billing] Only expired subscriptions found — staying FREE');
+      return 'expired';
+    }
+
+    console.log('[Billing] No subscriptions found for this exam type');
+    return 'none';
+  } catch (error) {
+    console.error('[Billing] Failed to restore subscription:', error);
+    return 'none';
+  }
+};
+
+/**
+ * T264: Check subscription expiry on app launch and attempt restoration if needed.
+ *
+ * Called on each app launch after loadFromStorage().
+ *
+ * Logic:
+ * 1. If expiryDate is past + autoRenewing is false → downgrade to FREE
+ * 2. If expiryDate is past + autoRenewing is true → try restorePurchases() to detect renewal
+ *    - If renewed → update expiry date
+ *    - If not renewed → downgrade to FREE
+ * 3. If expiryDate is in the future → no action (still PREMIUM)
+ *
+ * @param examTypeId - The exam type ID for SKU filtering when restoring
+ * @returns 'active' | 'renewed' | 'expired' | 'downgraded'
+ */
+export const checkExpiryAndRestore = async (
+  examTypeId: string,
+): Promise<'active' | 'renewed' | 'expired' | 'downgraded'> => {
+  if (__DEV__) {
+    return 'active';
+  }
+
+  const store = usePurchaseStore.getState();
+
+  // Not a subscriber — nothing to check
+  if (store.tierLevel !== 'PREMIUM' || !store.expiryDate) {
+    return 'active';
+  }
+
+  const isExpired = new Date(store.expiryDate) <= new Date();
+
+  if (!isExpired) {
+    console.log('[Billing] Subscription still active, expires:', store.expiryDate);
+    return 'active';
+  }
+
+  // Expired + not auto-renewing → definitive downgrade
+  if (!store.autoRenewing) {
+    console.log('[Billing] Subscription expired (not auto-renewing) → downgrading');
+    await store.checkAndDowngrade();
+    return 'downgraded';
+  }
+
+  // Expired + auto-renewing → check Play Store for renewal
+  console.log('[Billing] Subscription expired but auto-renewing — checking Play Store...');
+
+  if (!isConnected) {
+    console.warn('[Billing] Cannot check renewal — not connected. Keeping PREMIUM until online.');
+    return 'active';
+  }
+
+  try {
+    const result = await restoreSubscription(examTypeId);
+
+    if (result === 'restored') {
+      console.log('[Billing] Subscription renewed → keeping PREMIUM');
+      return 'renewed';
+    }
+
+    // Renewal not found despite auto-renewing flag → subscription was cancelled
+    console.log('[Billing] Renewal not found → downgrading to FREE');
+    await store.reset();
+    return 'expired';
+  } catch (error) {
+    console.error('[Billing] Failed to check renewal:', error);
+    // On error, keep PREMIUM — offline-first principle
+    // Next launch will re-check
+    return 'active';
+  }
+};
+
+/**
+ * T264: Process a subscription renewal event from the purchase listener.
+ *
+ * When Play Store sends a renewal event, update the expiry date and
+ * purchase token in the store and SQLite.
+ *
+ * @param purchase - The renewed purchase from Play Store
+ * @returns Updated subscription status, or null if not a valid renewal
+ */
+export const handleRenewalUpdate = async (
+  purchase: Purchase,
+): Promise<SubscriptionStatus | null> => {
+  if (__DEV__) {
+    console.log('[Billing] Mock renewal update in dev mode');
+    return null;
+  }
+
+  const plan = getPlanFromProductId(purchase.productId);
+  if (!plan) {
+    console.warn('[Billing] Renewal for unknown product:', purchase.productId);
+    return null;
+  }
+
+  const status = validateSubscription(purchase);
+
+  if (status.isActive && status.productId && status.purchaseToken && status.expiryDate) {
+    // Update store with new expiry and token
+    await usePurchaseStore
+      .getState()
+      .setSubscription(
+        status.productId,
+        status.purchaseToken,
+        plan,
+        status.expiryDate,
+        status.autoRenewing,
+      );
+
+    console.log('[Billing] Renewal processed → updated expiry:', {
+      productId: status.productId,
+      plan,
+      expiryDate: status.expiryDate,
+      autoRenewing: status.autoRenewing,
+    });
+  }
+
+  return status;
 };
 
 // ─── Internal Helpers ────────────────────────────────────────────────────────
