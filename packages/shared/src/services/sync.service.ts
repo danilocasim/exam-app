@@ -275,72 +275,74 @@ const upsertQuestions = async (
   let added = 0;
   let updated = 0;
 
-  for (const q of questions) {
-    const existing = await db.getFirstAsync<QuestionRow>('SELECT id FROM Question WHERE id = ?', [
-      q.id,
-    ]);
+  await db.withTransactionAsync(async () => {
+    for (const q of questions) {
+      const existing = await db.getFirstAsync<QuestionRow>('SELECT id FROM Question WHERE id = ?', [
+        q.id,
+      ]);
 
-    const row: QuestionRow = {
-      id: q.id,
-      text: q.text,
-      type: mapQuestionType(q.type),
-      domain: q.domain,
-      difficulty: mapDifficulty(q.difficulty),
-      options: JSON.stringify(q.options),
-      correctAnswers: JSON.stringify(q.correctAnswers),
-      explanation: q.explanation,
-      explanationBlocks: q.explanationBlocks ? JSON.stringify(q.explanationBlocks) : null,
-      version: q.version,
-      createdAt: q.createdAt,
-      updatedAt: q.updatedAt,
-    };
+      const row: QuestionRow = {
+        id: q.id,
+        text: q.text,
+        type: mapQuestionType(q.type),
+        domain: q.domain,
+        difficulty: mapDifficulty(q.difficulty),
+        options: JSON.stringify(q.options),
+        correctAnswers: JSON.stringify(q.correctAnswers),
+        explanation: q.explanation,
+        explanationBlocks: q.explanationBlocks ? JSON.stringify(q.explanationBlocks) : null,
+        version: q.version,
+        createdAt: q.createdAt,
+        updatedAt: q.updatedAt,
+      };
 
-    if (existing) {
-      await db.runAsync(
-        `UPDATE Question SET 
-          text = ?, type = ?, domain = ?, difficulty = ?,
-          options = ?, correctAnswers = ?, explanation = ?,
-          explanationBlocks = ?, version = ?, createdAt = ?, updatedAt = ?
-        WHERE id = ?`,
-        [
-          row.text,
-          row.type,
-          row.domain,
-          row.difficulty,
-          row.options,
-          row.correctAnswers,
-          row.explanation,
-          row.explanationBlocks,
-          row.version,
-          row.createdAt,
-          row.updatedAt,
-          row.id,
-        ],
-      );
-      updated++;
-    } else {
-      await db.runAsync(
-        `INSERT INTO Question 
-          (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, version, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          row.id,
-          row.text,
-          row.type,
-          row.domain,
-          row.difficulty,
-          row.options,
-          row.correctAnswers,
-          row.explanation,
-          row.explanationBlocks,
-          row.version,
-          row.createdAt,
-          row.updatedAt,
-        ],
-      );
-      added++;
+      if (existing) {
+        await db.runAsync(
+          `UPDATE Question SET 
+            text = ?, type = ?, domain = ?, difficulty = ?,
+            options = ?, correctAnswers = ?, explanation = ?,
+            explanationBlocks = ?, version = ?, createdAt = ?, updatedAt = ?
+          WHERE id = ?`,
+          [
+            row.text,
+            row.type,
+            row.domain,
+            row.difficulty,
+            row.options,
+            row.correctAnswers,
+            row.explanation,
+            row.explanationBlocks,
+            row.version,
+            row.createdAt,
+            row.updatedAt,
+            row.id,
+          ],
+        );
+        updated++;
+      } else {
+        await db.runAsync(
+          `INSERT INTO Question 
+            (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, version, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            row.id,
+            row.text,
+            row.type,
+            row.domain,
+            row.difficulty,
+            row.options,
+            row.correctAnswers,
+            row.explanation,
+            row.explanationBlocks,
+            row.version,
+            row.createdAt,
+            row.updatedAt,
+          ],
+        );
+        added++;
+      }
     }
-  }
+  });
 
   return { added, updated };
 };
@@ -381,12 +383,15 @@ export const syncQuestions = async (examTypeId: string = EXAM_TYPE_ID): Promise<
     );
     const db = await getDatabase();
     // Clear all tables that reference Question to avoid foreign key constraint violations
-    await db.runAsync('DELETE FROM PracticeAnswer');
-    await db.runAsync('DELETE FROM PracticeSession');
-    await db.runAsync('DELETE FROM ExamAnswer');
-    await db.runAsync('DELETE FROM ExamSubmission');
-    await db.runAsync('DELETE FROM ExamAttempt');
-    await db.runAsync('DELETE FROM Question');
+    // Wrapped in a transaction to prevent "database is locked" errors
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM PracticeAnswer');
+      await db.runAsync('DELETE FROM PracticeSession');
+      await db.runAsync('DELETE FROM ExamAnswer');
+      await db.runAsync('DELETE FROM ExamSubmission');
+      await db.runAsync('DELETE FROM ExamAttempt');
+      await db.runAsync('DELETE FROM Question');
+    });
 
     let totalAdded = 0;
     let hasMore = true;
