@@ -1,9 +1,11 @@
 /**
- * T249: PurchaseRepository for SQLite CRUD operations
+ * T249 + T262: PurchaseRepository for SQLite CRUD operations
  * Manages local purchase/tier status using singleton pattern (one row per DB).
+ * T262: Extended with subscription fields (subscription_type, expiry_date, auto_renewing).
  */
 import { getDatabase } from '../database';
 import { TierLevel } from '../../config/tiers';
+import type { SubscriptionPlan } from '../../services/billing.service';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -13,6 +15,9 @@ export interface PurchaseStatus {
   product_id: string | null;
   purchase_token: string | null;
   purchased_at: string | null;
+  subscription_type: SubscriptionPlan | null; // T262
+  expiry_date: string | null; // T262: ISO 8601
+  auto_renewing: boolean; // T262
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +28,9 @@ interface PurchaseStatusRow {
   product_id: string | null;
   purchase_token: string | null;
   purchased_at: string | null;
+  subscription_type: string | null;
+  expiry_date: string | null;
+  auto_renewing: number | null; // SQLite stores booleans as 0/1
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +43,9 @@ const rowToPurchaseStatus = (row: PurchaseStatusRow): PurchaseStatus => ({
   product_id: row.product_id,
   purchase_token: row.purchase_token,
   purchased_at: row.purchased_at,
+  subscription_type: (row.subscription_type as SubscriptionPlan) ?? null,
+  expiry_date: row.expiry_date ?? null,
+  auto_renewing: row.auto_renewing === 1,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -56,21 +67,38 @@ export const getPurchaseStatus = async (): Promise<PurchaseStatus | null> => {
 /**
  * Save or update the purchase status.
  * Uses INSERT OR REPLACE to handle both create and update.
+ * T262: Extended to persist subscription_type, expiry_date, auto_renewing.
  */
 export const savePurchaseStatus = async (
-  status: Pick<PurchaseStatus, 'tier_level' | 'product_id' | 'purchase_token' | 'purchased_at'>,
+  status: Pick<
+    PurchaseStatus,
+    | 'tier_level'
+    | 'product_id'
+    | 'purchase_token'
+    | 'purchased_at'
+    | 'subscription_type'
+    | 'expiry_date'
+    | 'auto_renewing'
+  >,
 ): Promise<PurchaseStatus> => {
   const db = await getDatabase();
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT OR REPLACE INTO PurchaseStatus (id, tier_level, product_id, purchase_token, purchased_at, created_at, updated_at)
-     VALUES ('singleton', ?, ?, ?, ?, COALESCE((SELECT created_at FROM PurchaseStatus WHERE id = 'singleton'), ?), ?)`,
+    `INSERT OR REPLACE INTO PurchaseStatus
+       (id, tier_level, product_id, purchase_token, purchased_at,
+        subscription_type, expiry_date, auto_renewing,
+        created_at, updated_at)
+     VALUES ('singleton', ?, ?, ?, ?, ?, ?, ?,
+       COALESCE((SELECT created_at FROM PurchaseStatus WHERE id = 'singleton'), ?), ?)`,
     [
       status.tier_level,
       status.product_id ?? null,
       status.purchase_token ?? null,
       status.purchased_at ?? null,
+      status.subscription_type ?? null,
+      status.expiry_date ?? null,
+      status.auto_renewing ? 1 : 0,
       now,
       now,
     ],

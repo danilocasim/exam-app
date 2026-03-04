@@ -175,9 +175,10 @@ DELETE /admin/uploads/explanation-image/:filename  # Delete image from S3
   - Phase 13 (Admin ExamType CRUD Frontend) — ✅ Complete (T229–T236)
   - Phase 14 (Template & Scaffold Script) — ✅ Complete (T237–T240)
   - Phase 15 (Final Validation) — 🔄 In progress (T241–T246)
-- **Phase 5** (`specs/003-play-integrity/`): Monetization — Login-Gated Free Tier + One-Time Purchase — 📋 Planned
+- **Phase 5** (`specs/003-play-integrity/`): Monetization — Login-Gated Free Tier + Subscription Model — 📋 Planned
   - Phase 16 (Login-Gated Free Tier, 15 questions) — 📋 Not started (T247–T258)
-  - Phase 17 (Play Billing One-Time Purchase) — 📋 Ready (T259–T270, Play Console access granted)
+  - Phase 17 (Play Billing Subscription Model) — 📋 Ready (T259–T270, Play Console access granted)
+    - Monthly $2.99, Quarterly $6.99 (recommended), Annual $19.99
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

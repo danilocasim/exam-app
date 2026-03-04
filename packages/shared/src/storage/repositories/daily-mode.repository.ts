@@ -4,8 +4,9 @@
  * Tracks last-attempt timestamps for Daily Mode (timed) and Daily Practice
  * (untimed) using the existing SyncMeta key-value table.
  *
- * Keys are device-local and not synced to the backend — daily resets are
- * intentionally per-device and do not need cloud coordination.
+ * Keys are cached locally in SyncMeta and synced to the backend via
+ * UserStats.dailyQuizLastCompletedAt / missedQuizLastCompletedAt fields
+ * so that cooldowns persist at account level even if app data is cleared.
  */
 import { getDatabase } from '../database';
 
@@ -58,3 +59,13 @@ export const getMissedExamLastAttempt = (): Promise<string | null> => readSyncMe
 /** Record that a Missed Questions Quiz attempt was completed right now. */
 export const setMissedExamLastAttempt = (): Promise<void> =>
   writeSyncMeta(MISSED_EXAM_KEY, new Date().toISOString());
+
+// ─── Backend-restore helpers ──────────────────────────────────────────────────
+
+/** Restore the Daily Mode last-attempt timestamp from a backend value. */
+export const restoreDailyExamLastAttempt = (iso: string): Promise<void> =>
+  writeSyncMeta(DAILY_EXAM_KEY, iso);
+
+/** Restore the Missed Quiz last-attempt timestamp from a backend value. */
+export const restoreMissedExamLastAttempt = (iso: string): Promise<void> =>
+  writeSyncMeta(MISSED_EXAM_KEY, iso);

@@ -422,7 +422,7 @@ As an admin, I want to edit an existing exam type's configuration (domains, pass
 
 - Advanced monorepo tooling (Turborepo, Nx, Lerna) — npm workspaces is sufficient for this project size
 - Automated Play Store deployment (manual upload of AAB per app)
-- Cross-app shared user accounts (each app is independent; users purchase separately)
+- Cross-app shared user accounts (each app is independent; users subscribe separately)
 - White-labeling or runtime theme switching (branding is set at build time only)
 - Shared analytics dashboard across apps (each app tracks independently)
 - iOS App Store deployment (Android/Play Store only in current scope)
@@ -430,27 +430,32 @@ As an admin, I want to edit an existing exam type's configuration (domains, pass
 - Monorepo CI/CD with app-specific change detection (all apps rebuild on shared code changes)
 ---
 
-## Phase 5: Monetization — Login-Gated Free Tier & One-Time Purchase
+## Phase 5: Monetization — Login-Gated Free Tier & Subscription Model
 
 **Status**: 📋 Planned  
 **Prerequisites**: Phase 4 (Multi-App Monorepo Architecture — Phases 10-15) substantially complete  
-**Input**: Implement a two-tier access model where unauthenticated users get a limited free preview (15 questions), Google-authenticated users get the same 15-question free tier, and a one-time in-app purchase ("Forever Access") unlocks the full question bank permanently.
+**Input**: Implement a two-tier access model where unauthenticated users get a limited free preview (15 questions), Google-authenticated users get the same 15-question free tier, and a subscription (Monthly $2.99, Quarterly $6.99, Annual $19.99) unlocks the full question bank for the subscription duration.
 
 ### Overview
 
 The current app requires Google login for cloud sync but otherwise gives full access to all questions. Phase 5 introduces a monetization layer:
 
-1. **Free Tier (Login-Gated)**: Users must sign in with Google to access the app. Without purchase, they can access only 15 questions across all modes (practice, mock exam, review). This gives users a taste of the product before buying.
+1. **Free Tier (Login-Gated)**: Users must sign in with Google to access the app. Without a subscription, they can access only 15 questions across all modes (practice, mock exam, review). This gives users a taste of the product before subscribing.
 
-2. **Forever Access (One-Time Purchase)**: A single in-app purchase via Google Play Billing unlocks the entire question bank permanently. The purchase is tied to the user's Google Play account and can be restored on any device or after reinstalling.
+2. **Premium Access (Subscription)**: A subscription via Google Play Billing unlocks the entire question bank for the subscription duration. Three plans are available:
+   - **Monthly**: $2.99/month — positioned under $3, ideal for short-term prep users
+   - **Quarterly**: $6.99/quarter ($2.33/mo effective, 22% savings) — **recommended default**, aligns with typical 2-3 month exam study cycle
+   - **Annual**: $19.99/year ($1.67/mo effective, 44% savings) — best value anchor for multi-cert learners
+   The subscription is tied to the user's Google Play account and can be restored on any device or after reinstalling. When a subscription expires, the user is automatically downgraded to the free tier.
 
-3. **Per-App Purchases**: Each exam app (AWS CLP, SAA, etc.) has its own product ID in the Play Store. Purchasing one exam does not unlock another. This aligns with the monorepo architecture where each app is a separate Play Store listing.
+3. **Per-App Subscriptions**: Each exam app (AWS CLP, SAA, etc.) has its own set of subscription product IDs in the Play Store (3 per app: monthly, quarterly, annual). Subscribing to one exam does not unlock another. This aligns with the monorepo architecture where each app is a separate Play Store listing.
 
 **Key Design Decisions**:
-- Login is mandatory — no anonymous access at all. This simplifies the tier system and enables server-side purchase validation.
+- Login is mandatory — no anonymous access at all. This simplifies the tier system and enables server-side subscription validation.
 - The free tier limit (15 questions) is enforced client-side with a `FREE_TIER_QUESTION_LIMIT` constant in shared config. The full question bank is still synced to SQLite; the limit is applied at the UI/service layer.
-- Purchase validation happens server-side via a new `POST /api/billing/verify` endpoint that calls Google Play Developer API to verify receipt authenticity.
-- The existing `UpgradeScreen.tsx` (currently static UI) will be connected to real Play Billing flow.
+- Subscription validation can happen server-side via a new `POST /api/billing/verify-subscription` endpoint that calls Google Play Developer API to verify subscription authenticity and active status.
+- The existing `UpgradeScreen.tsx` (currently static UI) will be reimplemented with a 3-plan subscription selector connected to real Play Billing flow.
+- Subscription expiry is checked on every app launch. Expired + non-renewing subscriptions auto-downgrade to FREE. TierLevel remains `FREE | PREMIUM` — no new tier levels.
 
 ### Dependencies
 
@@ -463,16 +468,16 @@ The current app requires Google login for cloud sync but otherwise gives full ac
 
 #### External Services
 
-- **Google Play Billing Library**: Via `react-native-iap` (React Native In-App Purchases) — mature, Expo-compatible with config plugin
-- **Google Play Developer API**: Server-side receipt verification via `googleapis` npm package
-- **Google Play Console**: Required for creating in-app products (managed products / one-time purchases). **Note**: Play Console access is not yet available; Phase 17 tasks are blocked until access is granted.
+- **Google Play Billing Library**: Via `react-native-iap` (React Native In-App Purchases) — mature, Expo-compatible with config plugin. Supports subscriptions via `getSubscriptions()` and `requestSubscription()` APIs.
+- **Google Play Developer API**: Server-side subscription verification via `googleapis` npm package (`purchases.subscriptionsv2.get`)
+- **Google Play Console**: Required for creating subscription products (3 per app: monthly, quarterly, annual). **Note**: Play Console monetization access has been granted; Phase 17 tasks are ready.
 
 #### No Changes Required
 
 - **Play Integrity Guard**: Integrity check is independent of purchase status
 - **Question Sync**: Full question bank still syncs to device; tier gating is applied at the service/UI layer
-- **Exam Attempt Cloud Sync**: Continues to work for both free and paid users (only purchased users will generate meaningful exam data)
-- **Offline-First Architecture**: Purchase status is cached locally; works fully offline after initial verification
+- **Exam Attempt Cloud Sync**: Continues to work for both free and subscribed users (only subscribed users will generate meaningful exam data)
+- **Offline-First Architecture**: Subscription status is cached locally with expiry date; works fully offline after initial verification. Expiry check uses local clock.
 
 ### User Scenarios & Testing
 
@@ -494,64 +499,64 @@ As a new user who discovers the app on Google Play, I want to sign in with Googl
 
 ---
 
-#### User Story 11 - User Purchases Forever Access (Priority: P1)
+#### User Story 11 - User Subscribes for Premium Access (Priority: P1)
 
-As a free-tier user who likes the content, I want to make a one-time purchase to unlock all questions permanently, so that I don't worry about subscriptions or recurring charges.
+As a free-tier user who likes the content, I want to subscribe to unlock all questions, so that I can prepare for my exam with the full question bank.
 
-**Why this priority**: This is the core revenue flow. The purchase must be seamless, fast, and immediately unlock content without requiring app restart.
+**Why this priority**: This is the core revenue flow. The subscription must be seamless, fast, and immediately unlock content without requiring app restart.
 
-**Independent Test**: As a free-tier user → navigate to UpgradeScreen → tap "Purchase Forever Access" → complete Google Play purchase flow → verify all questions immediately unlock → close and reopen app → verify access persists → toggle airplane mode → verify access still works offline.
-
-**Acceptance Scenarios**:
-
-1. **Given** a free-tier user taps "Upgrade" or navigates to the UpgradeScreen, **When** the screen loads, **Then** they see the "Forever Access" product with the price fetched from Google Play (not hardcoded).
-2. **Given** the user taps "Purchase", **When** the Google Play purchase sheet appears, **Then** the purchase flow completes natively via Google Play Billing.
-3. **Given** the purchase succeeds, **When** the receipt is verified server-side, **Then** the app immediately transitions to full access — all questions unlock without app restart.
-4. **Given** the user has purchased, **When** they navigate to any screen, **Then** no free-tier limits, lock icons, or upgrade prompts are shown.
-5. **Given** the purchase succeeds, **When** the app is closed and reopened offline, **Then** full access persists (purchase status cached locally).
-
----
-
-#### User Story 12 - User Restores Purchase on New Device (Priority: P1)
-
-As a user who previously purchased the app and is now using a new device (or reinstalled the app), I want my purchase to be automatically restored, so that I don't have to pay again.
-
-**Why this priority**: Purchase restoration is a Google Play policy requirement and a top source of 1-star reviews if broken. Users must never be asked to re-purchase.
-
-**Independent Test**: Purchase on Device A → install app on Device B (same Google account) → sign in → verify purchase is detected and full access is granted automatically → alternatively: uninstall and reinstall on Device A → sign in → verify purchase restored.
+**Independent Test**: As a free-tier user → navigate to UpgradeScreen → select Quarterly plan → tap "Subscribe" → complete Google Play subscription flow → verify all questions immediately unlock → close and reopen app → verify access persists → toggle airplane mode → verify access still works offline.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user who previously purchased signs in on a new device, **When** the app initializes, **Then** it checks Google Play for existing purchases and automatically restores full access.
-2. **Given** purchase restoration succeeds, **When** the user reaches the home screen, **Then** they see the full question bank with no upgrade prompts.
-3. **Given** the user is offline during restoration, **When** they sign in, **Then** the app shows free-tier access with a "Restore Purchase" button that retries when online.
-4. **Given** a user taps "Restore Purchase" manually, **When** the restoration completes, **Then** they see a confirmation message and immediate full access.
+1. **Given** a free-tier user taps "Upgrade" or navigates to the UpgradeScreen, **When** the screen loads, **Then** they see 3 subscription plans (Monthly, Quarterly, Annual) with prices fetched from Google Play (not hardcoded). Quarterly is pre-selected and highlighted as "MOST POPULAR".
+2. **Given** the user selects a plan and taps "Subscribe", **When** the Google Play subscription sheet appears, **Then** the subscription flow completes natively via Google Play Billing.
+3. **Given** the subscription succeeds, **When** the receipt is verified (locally or server-side), **Then** the app immediately transitions to full access — all questions unlock without app restart.
+4. **Given** the user has an active subscription, **When** they navigate to any screen, **Then** no free-tier limits, lock icons, or upgrade prompts are shown.
+5. **Given** the subscription succeeds, **When** the app is closed and reopened offline, **Then** full access persists until expiry date (subscription status cached locally with expiry).
 
 ---
 
-#### User Story 13 - Each App Has Independent Purchase (Priority: P2)
+#### User Story 12 - User Restores Subscription on New Device (Priority: P1)
 
-As a user who purchased the AWS CLP exam app, I expect that purchase to apply only to that app, and that other exam apps (AWS SAA, etc.) require separate purchases.
+As a user who previously subscribed and is now using a new device (or reinstalled the app), I want my active subscription to be automatically restored, so that I don't have to pay again.
+
+**Why this priority**: Subscription restoration is a Google Play policy requirement and a top source of 1-star reviews if broken. Users must never lose their active subscription access.
+
+**Independent Test**: Subscribe on Device A → install app on Device B (same Google account) → sign in → verify subscription is detected and full access is granted automatically → alternatively: uninstall and reinstall on Device A → sign in → verify subscription restored.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user with an active subscription signs in on a new device, **When** the app initializes, **Then** it checks Google Play for existing subscriptions and automatically restores full access.
+2. **Given** subscription restoration succeeds, **When** the user reaches the home screen, **Then** they see the full question bank with no upgrade prompts.
+3. **Given** the user is offline during restoration, **When** they sign in, **Then** the app shows free-tier access with a "Restore Subscription" button that retries when online.
+4. **Given** a user taps "Restore Subscription" manually, **When** the restoration completes, **Then** they see a confirmation message and immediate full access.
+
+---
+
+#### User Story 13 - Each App Has Independent Subscription (Priority: P2)
+
+As a user who subscribed to the AWS CLP exam app, I expect that subscription to apply only to that app, and that other exam apps (AWS SAA, etc.) require separate subscriptions.
 
 **Why this priority**: Important for business model clarity but lower priority since multi-app is a Phase 4 concern. The architecture must support this from day one even if only one app exists initially.
 
-**Independent Test**: Purchase AWS CLP app → install AWS SAA app (same Google account) → sign in → verify SAA shows free tier (purchase not shared) → purchase SAA separately → verify both apps show full access independently.
+**Independent Test**: Subscribe to AWS CLP app → install AWS SAA app (same Google account) → sign in → verify SAA shows free tier (subscription not shared) → subscribe to SAA separately → verify both apps show full access independently.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user has purchased AWS CLP, **When** they install and sign in to AWS SAA, **Then** the SAA app shows free-tier access (15 questions).
-2. **Given** each app has a unique product ID in Google Play, **When** the app checks purchase status, **Then** it only looks for its own product ID.
-3. **Given** the user purchases both apps, **When** they check either app, **Then** each app independently shows full access.
+1. **Given** a user has subscribed to AWS CLP, **When** they install and sign in to AWS SAA, **Then** the SAA app shows free-tier access (15 questions).
+2. **Given** each app has unique subscription product IDs in Google Play (3 per app), **When** the app checks subscription status, **Then** it only looks for its own product IDs.
+3. **Given** the user subscribes to both apps, **When** they check either app, **Then** each app independently shows full access.
 
 ### Requirements
 
 #### Functional Requirements: Tier System
 
 - **FR-046**: The app MUST enforce a mandatory Google Sign-In before granting any access. There MUST be no anonymous/guest mode or skip option.
-- **FR-047**: The app MUST define two access tiers: `FREE` (15 questions) and `FULL` (all questions). The tier is determined by purchase status.
+- **FR-047**: The app MUST define two access tiers: `FREE` (15 questions) and `PREMIUM` (all questions). The tier is determined by active subscription status. TierLevel = `'FREE' | 'PREMIUM'` — no additional tier levels.
 - **FR-048**: The free-tier question limit MUST be defined as a constant `FREE_TIER_QUESTION_LIMIT = 15` in `packages/shared/src/config/`. This value MUST be configurable per exam type (via `ExamType` entity or app config) in future phases.
-- **FR-049**: The tier system MUST be managed by a Zustand store (`useTierStore`) that exposes: `tier: 'FREE' | 'FULL'`, `isPurchased: boolean`, `purchaseDate: string | null`, `setTier()`, `restorePurchase()`.
-- **FR-050**: The tier status MUST be persisted in SQLite (via a `purchase_status` table or key-value store) so it survives app restarts and works offline.
+- **FR-049**: The tier system MUST be managed by a Zustand store (`usePurchaseStore`) that exposes: `tierLevel: 'FREE' | 'PREMIUM'`, `isPremium: boolean`, `subscriptionType: 'monthly' | 'quarterly' | 'annual' | null`, `expiryDate: string | null`, `autoRenewing: boolean`, `setSubscription()`, `checkAndDowngrade()`, `reset()`.
+- **FR-050**: The tier and subscription status MUST be persisted in SQLite (via the `PurchaseStatus` table) so it survives app restarts and works offline. The table MUST include `subscription_type`, `expiry_date`, and `auto_renewing` columns (added via ALTER TABLE, backward-compatible with Phase 16 schema).
 - **FR-051**: The full question bank MUST still sync to the device regardless of tier. Tier gating is applied at the service/UI layer, NOT at the sync/storage layer.
 
 #### Functional Requirements: Question & Exam Gating
@@ -562,71 +567,81 @@ As a user who purchased the AWS CLP exam app, I expect that purchase to apply on
 - **FR-055**: The review/history screen MUST show results only for questions the user has actually answered (no restriction on viewing past results).
 - **FR-056**: The `QuestionService` (or equivalent gating service) MUST filter accessible questions based on tier and return both the accessible questions and total count for UI display (e.g., "15 / 320 questions available").
 
-#### Functional Requirements: Play Billing Integration
+#### Functional Requirements: Play Billing Subscription Integration
 
-- **FR-057**: The app MUST use `react-native-iap` library for Google Play Billing integration. The library MUST be configured via Expo config plugin (no manual native code edits).
-- **FR-058**: Each app MUST define its product ID in per-app config (`apps/{app-name}/src/config/app.config.ts`). Product IDs follow the pattern: `forever_access_{exam_type_id}` (e.g., `forever_access_clf_c02`).
-- **FR-059**: The UpgradeScreen MUST fetch the product price from Google Play at runtime (not hardcoded). If the price cannot be fetched, display the fallback price from app config.
-- **FR-060**: Upon successful purchase, the app MUST send the purchase token to `POST /api/billing/verify` for server-side validation before granting full access.
-- **FR-061**: The backend `POST /api/billing/verify` endpoint MUST validate the purchase token against Google Play Developer API, verify the product ID matches the requesting app's exam type, and return a verification result.
-- **FR-062**: The backend MUST NOT store purchase tokens or user purchase history beyond logging. Verification is stateless — the mobile app is the source of truth for purchase status (cached in SQLite).
-- **FR-063**: If server-side verification fails (network error, API down), the app MUST grant provisional access and retry verification on next app launch. Users MUST NOT be blocked by transient server issues.
+- **FR-057**: The app MUST use `react-native-iap` library for Google Play Billing subscription integration. The library MUST be configured via Expo config plugin (no manual native code edits). Use `getSubscriptions()` and `requestSubscription()` APIs.
+- **FR-058**: Each app MUST define its subscription product IDs in per-app config (`apps/{app-name}/src/config/app.config.ts`). Product IDs follow the pattern: `{plan}_{exam_type_id}` (e.g., `monthly_clf_c02`, `quarterly_clf_c02`, `annual_clf_c02`). 3 SKUs per app.
+- **FR-059**: The UpgradeScreen MUST fetch subscription prices from Google Play at runtime (not hardcoded). If prices cannot be fetched, display fallback prices from app config ($2.99/$6.99/$19.99). The screen MUST display all 3 plans with the Quarterly plan pre-selected and highlighted as "MOST POPULAR".
+- **FR-060**: Upon successful subscription, the app MUST acknowledge the subscription and store the subscription metadata (plan type, expiry date, auto-renewing status) in SQLite. Server-side validation via `POST /api/billing/verify-subscription` is optional but recommended.
+- **FR-061**: If server-side verification is implemented, the `POST /api/billing/verify-subscription` endpoint MUST validate the subscription token against Google Play Developer API (`purchases.subscriptionsv2.get`), verify the product ID matches the requesting app's exam type, and return expiry/renewal status.
+- **FR-062**: The backend MUST NOT store subscription tokens or user subscription history beyond logging. Verification is stateless — the mobile app is the source of truth for subscription status (cached in SQLite with expiry date).
+- **FR-063**: If server-side verification fails (network error, API down), the app MUST rely on locally cached subscription status. Users MUST NOT be blocked by transient server issues.
+- **FR-063.1**: The app MUST check subscription expiry (`expiryDate`) on every app launch. If the subscription has expired and `autoRenewing` is false, the app MUST automatically downgrade the user to FREE tier. If expired and `autoRenewing` is true, the app MUST attempt `restorePurchases()` to check for renewal before downgrading.
+- **FR-063.2**: The app MUST support Google Play subscription lifecycle states: active, grace period, account hold, paused, cancelled, expired. During grace period, maintain PREMIUM access. During account hold, downgrade to FREE with a "Update payment method" prompt.
 
-#### Functional Requirements: Purchase Restoration
+#### Functional Requirements: Subscription Restoration
 
-- **FR-064**: On app initialization (after Google Sign-In), the app MUST automatically check for existing purchases via `react-native-iap`'s `getAvailablePurchases()` and restore access if a valid purchase is found.
-- **FR-065**: The UpgradeScreen MUST include a "Restore Purchase" button that manually triggers purchase restoration for users whose automatic restoration failed.
-- **FR-066**: Purchase restoration MUST work across devices — a user who purchased on Device A and signs into Device B with the same Google account MUST have their purchase restored.
+- **FR-064**: On app initialization (after Google Sign-In), the app MUST automatically check for existing active subscriptions via `react-native-iap`'s `getAvailablePurchases()` and restore access if a valid active subscription is found. If the subscription is expired, downgrade to FREE.
+- **FR-065**: The UpgradeScreen MUST include a "Restore Subscription" button that manually triggers subscription restoration for users whose automatic restoration failed.
+- **FR-066**: Subscription restoration MUST work across devices — a user who subscribed on Device A and signs into Device B with the same Google account MUST have their active subscription restored.
 
 #### Functional Requirements: UI Updates
 
 - **FR-067**: The HomeScreen MUST display the current tier status (e.g., "Free — 15 questions" or "Full Access") and a prominent CTA to upgrade for free-tier users.
-- **FR-068**: The existing `UpgradeScreen.tsx` MUST be updated to connect to real Play Billing (currently static UI with hardcoded $14.99 price).
+- **FR-068**: The existing `UpgradeScreen.tsx` MUST be updated to show a 3-plan subscription selector (Monthly $2.99, Quarterly $6.99, Annual $19.99) with Quarterly pre-selected as default. Replace "Forever Access" branding with "Premium Access" subscription branding. Connected to real Play Billing subscription flow.
 - **FR-069**: The `QuestionCard` component MUST render a lock overlay for questions beyond the free tier limit.
-- **FR-070**: All tier-related UI (limits, locks, upgrade prompts) MUST immediately update when the user purchases — no app restart required.
+- **FR-070**: All tier-related UI (limits, locks, upgrade prompts) MUST immediately update when the user subscribes — no app restart required.
+- **FR-070.1**: When a user has an active subscription, the UpgradeScreen MUST show subscription status: current plan, renewal date, auto-renew status, and a "Manage Subscription" link that opens Play Store subscription management.
 
 ### Key Entities (Phase 5 additions)
 
-- **TierStatus**: Enum `'FREE' | 'FULL'` representing the user's current access level. Stored in Zustand (`useTierStore`) and persisted in SQLite.
+- **TierStatus**: Value `'FREE' | 'PREMIUM'` representing the user's current access level. Stored in Zustand (`usePurchaseStore`) and persisted in SQLite. Determined by active subscription status.
 
-- **PurchaseRecord**: Stored in SQLite `purchase_status` table. Fields: `product_id` (TEXT), `purchase_token` (TEXT), `purchase_date` (TEXT ISO8601), `verified` (INTEGER 0/1), `tier` (TEXT 'FREE'|'FULL'). One row per app.
+- **PurchaseRecord**: Stored in SQLite `PurchaseStatus` table. Fields: `id` (TEXT, singleton), `tier_level` (TEXT 'FREE'|'PREMIUM'), `product_id` (TEXT), `purchase_token` (TEXT), `purchased_at` (TEXT ISO8601), `subscription_type` (TEXT 'monthly'|'quarterly'|'annual'|null), `expiry_date` (TEXT ISO8601|null), `auto_renewing` (INTEGER 0/1), `created_at` (TEXT), `updated_at` (TEXT). One row per app. New subscription columns added via ALTER TABLE (backward-compatible with Phase 16 schema).
 
-- **BillingService**: New service in `packages/shared/src/services/billing.service.ts`. Wraps `react-native-iap` for purchase flow, restoration, and price fetching. Methods: `initialize()`, `getProduct(productId)`, `purchase(productId)`, `restorePurchases()`, `finishTransaction(purchase)`.
+- **BillingService**: New service in `packages/shared/src/services/billing.service.ts`. Wraps `react-native-iap` for subscription flow, restoration, expiry checking, and price fetching. Methods: `initBilling()`, `getSubscriptions(skus)`, `subscribe(sku)`, `restorePurchases()`, `validateSubscription(token)`, `checkExpiry()`, `handleRenewal(purchase)`, `finishTransaction(purchase)`, `cancelSubscription()`.
 
 - **TierGatingService**: New service in `packages/shared/src/services/tier-gating.service.ts`. Determines which questions are accessible based on tier. Methods: `getAccessibleQuestions(allQuestions, tier)`, `canStartExam(questionCount, tier)`, `getRemainingFreeQuestions(usedCount)`.
+
+- **SubscriptionPlan**: Type `'monthly' | 'quarterly' | 'annual'` representing which subscription plan the user is on. Used for display purposes only — does not affect tier level (all plans grant PREMIUM).
 
 ### Success Criteria (Phase 5)
 
 - **SC-015**: A new user signing in for the first time sees exactly 15 accessible questions, with remaining questions showing lock overlays.
-- **SC-016**: The one-time purchase flow completes end-to-end (tap Purchase → Google Play sheet → server validation → full access) in under 10 seconds on stable network.
-- **SC-017**: After purchase, the app immediately shows full access — all lock icons disappear and all questions become interactive without app restart.
-- **SC-018**: Purchase persists across app restarts, device reboots, and offline usage (cached in SQLite).
-- **SC-019**: Purchase restores automatically on a new device or reinstall when the user signs in with the same Google account.
-- **SC-020**: Each exam app's purchase is independent — purchasing AWS CLP does not unlock AWS SAA.
-- **SC-021**: If server-side verification is unavailable, the user still gets provisional access (no blocking on transient server errors).
+- **SC-016**: The subscription flow completes end-to-end (select plan → tap Subscribe → Google Play sheet → verification → full access) in under 10 seconds on stable network.
+- **SC-017**: After subscribing, the app immediately shows full access — all lock icons disappear and all questions become interactive without app restart.
+- **SC-018**: Active subscription persists across app restarts, device reboots, and offline usage (subscription status cached in SQLite with expiry date).
+- **SC-019**: Active subscription restores automatically on a new device or reinstall when the user signs in with the same Google account.
+- **SC-020**: Each exam app's subscription is independent — subscribing to AWS CLP does not unlock AWS SAA (3 independent SKUs per app).
+- **SC-021**: If server-side verification is unavailable, the user retains access based on locally cached subscription status (no blocking on transient server errors).
 - **SC-022**: Free-tier users cannot bypass the question limit through any combination of practice mode, domain selection, or review mode.
+- **SC-023**: When a subscription expires, the user is automatically downgraded to FREE tier on the next app launch — no manual intervention required.
+- **SC-024**: Quarterly plan is presented as the default pre-selected option on the UpgradeScreen.
 
 ### Assumptions (Phase 5)
 
-- Google Play Console access will be granted before Phase 17 tasks begin. Phase 16 (free-tier gating) can proceed without Play Console access.
+- Google Play Console access has been granted. Phase 17 tasks are ready for implementation.
 - The `react-native-iap` library supports Expo SDK 54 via config plugin (no bare workflow ejection needed).
-- Google Play Billing Library v5+ is used (supports one-time purchases and `queryPurchasesAsync` for restoration).
-- The `googleapis` npm package (already available in Node.js) can be used server-side for receipt verification via the Google Play Developer API.
-- Product prices are set in Google Play Console and fetched at runtime — the app does not hardcode prices.
-- One in-app product per exam app (managed product, non-consumable / one-time purchase).
-- The existing `UpgradeScreen.tsx` UI design (benefits list, "Forever Access" branding, $14.99 default price) is the target design; only the billing integration is new.
+- Google Play Billing Library v6+ is used (supports subscriptions via `requestSubscription()` and `getSubscriptions()` APIs).
+- The `googleapis` npm package (already available in Node.js) can be used server-side for subscription verification via the Google Play Developer API (`purchases.subscriptionsv2.get`).
+- Subscription prices are set in Google Play Console and fetched at runtime — the app does not hardcode prices. Fallback prices: Monthly $2.99, Quarterly $6.99, Annual $19.99.
+- Three subscription products per exam app (monthly, quarterly, annual). Each is a separate Google Play subscription with its own base plan.
+- The existing `UpgradeScreen.tsx` will be extended with a 3-plan selector — Quarterly is pre-selected and highlighted as "MOST POPULAR".
 - Free tier of 15 questions is sufficient for user evaluation. This number may be adjusted based on conversion data post-launch.
+- PurchaseStatus SQLite table is extended (ALTER TABLE) not replaced — new columns (`subscription_type`, `expiry_date`, `auto_renewing`) are nullable and backward-compatible with Phase 16 data.
+- TierLevel stays `FREE | PREMIUM` — all subscription plans grant PREMIUM access. The `subscriptionType` field tracks *which* plan, not *which* tier.
 
 ### Phase 5 Out of Scope
 
-- Subscription-based monetization (recurring payments) — one-time purchase only
-- Server-side purchase history storage or user purchase database — verification is stateless
+- One-time (non-consumable) purchase model — subscription-only monetization
+- Server-side subscription history storage or user purchase database — verification is stateless
 - Promotional pricing, coupons, or discount codes
-- Family Library sharing (Google Play family purchase sharing)
-- Refund handling or purchase revocation detection
+- Family Library sharing (Google Play family subscription sharing)
 - A/B testing different free-tier limits or pricing
-- Web-based purchase flow (app-only via Google Play Billing)
-- Cross-app bundle pricing (e.g., "buy 3 exam apps for a discount")
+- Web-based subscription flow (app-only via Google Play Billing)
+- Cross-app bundle pricing (e.g., "subscribe to 3 exam apps for a discount")
 - iOS App Store In-App Purchase (Android/Google Play only in current scope)
-- Analytics for conversion rates or purchase funnel tracking (future enhancement)
-- Admin portal UI for managing product IDs or pricing (product setup is in Google Play Console)
+- Analytics for conversion rates or subscription funnel tracking (future enhancement)
+- Admin portal UI for managing subscription product IDs or pricing (product setup is in Google Play Console)
+- Subscription pause/resume handling (Google Play handles this; app checks active state)
+- New TierLevel values beyond FREE | PREMIUM

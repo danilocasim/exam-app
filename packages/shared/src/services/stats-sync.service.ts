@@ -30,6 +30,12 @@ import { getQuestionsByIds } from '../storage/repositories/question.repository';
 import { calculateDomainBreakdown } from './scoring.service';
 import { getCachedExamTypeConfig } from './sync.service';
 import { getDatabase } from '../storage/database';
+import {
+  getDailyExamLastAttempt,
+  getMissedExamLastAttempt,
+  restoreDailyExamLastAttempt,
+  restoreMissedExamLastAttempt,
+} from '../storage/repositories/daily-mode.repository';
 import { getAPIURL, EXAM_TYPE_ID } from '../config';
 
 // ─── Types matching backend responses ───────────────────────────────────────
@@ -40,6 +46,8 @@ interface RemoteUserStats {
   totalQuestions: number;
   totalTimeSpentMs: number;
   lastActivityAt: string | null;
+  dailyQuizLastCompletedAt: string | null;
+  missedQuizLastCompletedAt: string | null;
 }
 
 interface RemoteStreak {
@@ -61,6 +69,10 @@ interface RemoteStreak {
 export const pushUserStats = async (accessToken: string): Promise<RemoteUserStats | null> => {
   try {
     const local = await getUserStats();
+    const [dailyCooldown, missedCooldown] = await Promise.all([
+      getDailyExamLastAttempt(),
+      getMissedExamLastAttempt(),
+    ]);
     const axios = getAxios();
     const response = await axios.put(
       `${getAPIURL()}/user-stats/me`,
@@ -70,6 +82,8 @@ export const pushUserStats = async (accessToken: string): Promise<RemoteUserStat
         totalQuestions: local.totalQuestions,
         totalTimeSpentMs: local.totalTimeSpentMs,
         lastActivityAt: local.lastActivityAt,
+        dailyQuizLastCompletedAt: dailyCooldown,
+        missedQuizLastCompletedAt: missedCooldown,
       },
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
@@ -93,7 +107,8 @@ export const pushUserStats = async (accessToken: string): Promise<RemoteUserStat
  * Pull UserStats from the server and merge into local SQLite.
  *
  * Merge rule: for each counter take MAX(local, remote) so that
- * whichever device has more data wins.
+ * whichever device has more data wins. Cooldown timestamps use
+ * most-recent-wins so backend can restore cooldowns after data clear.
  *
  * @param accessToken  JWT access token
  */
@@ -131,6 +146,25 @@ export const pullAndMergeUserStats = async (accessToken: string): Promise<void> 
        WHERE id = 1`,
       [mergedExams, mergedPractice, mergedQuestions, mergedTimeMs, mergedActivity],
     );
+
+    // ── Restore cooldown timestamps from backend (most-recent-wins) ──
+    // This is the key mechanism that prevents cooldown bypass via app data clear:
+    // on login, backend cooldown values overwrite local (empty) SyncMeta if more recent.
+    const [localDaily, localMissed] = await Promise.all([
+      getDailyExamLastAttempt(),
+      getMissedExamLastAttempt(),
+    ]);
+
+    if (remote.dailyQuizLastCompletedAt) {
+      if (!localDaily || remote.dailyQuizLastCompletedAt > localDaily) {
+        await restoreDailyExamLastAttempt(remote.dailyQuizLastCompletedAt);
+      }
+    }
+    if (remote.missedQuizLastCompletedAt) {
+      if (!localMissed || remote.missedQuizLastCompletedAt > localMissed) {
+        await restoreMissedExamLastAttempt(remote.missedQuizLastCompletedAt);
+      }
+    }
 
     console.log('[StatsSync] UserStats merged from server', {
       totalExams: mergedExams,

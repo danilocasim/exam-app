@@ -1,4 +1,11 @@
-import { Controller, Get, Put, Body, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsISO8601, Min } from 'class-validator';
 import { UserStatsService } from '../services/user-stats.service';
@@ -34,6 +41,14 @@ export class UpsertUserStatsBody {
   @IsOptional()
   @IsISO8601()
   lastActivityAt?: string | null; // ISO string from mobile
+
+  @IsOptional()
+  @IsISO8601()
+  dailyQuizLastCompletedAt?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  missedQuizLastCompletedAt?: string | null;
 }
 
 export class UserStatsResponse {
@@ -42,6 +57,8 @@ export class UserStatsResponse {
   totalQuestions: number;
   totalTimeSpentMs: number;
   lastActivityAt: string | null;
+  dailyQuizLastCompletedAt: string | null;
+  missedQuizLastCompletedAt: string | null;
 }
 
 /**
@@ -58,7 +75,9 @@ export class UserStatsController {
   constructor(private userStatsService: UserStatsService) {}
 
   @Get('me')
-  async getMyStats(@CurrentUser('userId') userId: string): Promise<UserStatsResponse> {
+  async getMyStats(
+    @CurrentUser('userId') userId: string,
+  ): Promise<UserStatsResponse> {
     let stats = await this.userStatsService.getByUserId(userId);
     if (!stats) {
       // Lazily initialise stats row for this user with zeros so that the
@@ -69,6 +88,8 @@ export class UserStatsController {
         totalQuestions: 0,
         totalTimeSpentMs: 0,
         lastActivityAt: null,
+        dailyQuizLastCompletedAt: null,
+        missedQuizLastCompletedAt: null,
       });
     }
     return {
@@ -77,6 +98,10 @@ export class UserStatsController {
       totalQuestions: stats.totalQuestions,
       totalTimeSpentMs: Number(stats.totalTimeSpentMs),
       lastActivityAt: stats.lastActivityAt?.toISOString() ?? null,
+      dailyQuizLastCompletedAt:
+        stats.dailyQuizLastCompletedAt?.toISOString() ?? null,
+      missedQuizLastCompletedAt:
+        stats.missedQuizLastCompletedAt?.toISOString() ?? null,
     };
   }
 
@@ -90,7 +115,15 @@ export class UserStatsController {
       totalPractice: body.totalPractice ?? 0,
       totalQuestions: body.totalQuestions ?? 0,
       totalTimeSpentMs: body.totalTimeSpentMs ?? 0,
-      lastActivityAt: body.lastActivityAt ? new Date(body.lastActivityAt) : null,
+      lastActivityAt: body.lastActivityAt
+        ? new Date(body.lastActivityAt)
+        : null,
+      dailyQuizLastCompletedAt: body.dailyQuizLastCompletedAt
+        ? new Date(body.dailyQuizLastCompletedAt)
+        : null,
+      missedQuizLastCompletedAt: body.missedQuizLastCompletedAt
+        ? new Date(body.missedQuizLastCompletedAt)
+        : null,
     });
     return {
       totalExams: stats.totalExams,
@@ -98,6 +131,10 @@ export class UserStatsController {
       totalQuestions: stats.totalQuestions,
       totalTimeSpentMs: Number(stats.totalTimeSpentMs),
       lastActivityAt: stats.lastActivityAt?.toISOString() ?? null,
+      dailyQuizLastCompletedAt:
+        stats.dailyQuizLastCompletedAt?.toISOString() ?? null,
+      missedQuizLastCompletedAt:
+        stats.missedQuizLastCompletedAt?.toISOString() ?? null,
     };
   }
 }

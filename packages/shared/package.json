@@ -13,6 +13,14 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\""
   },
+  "peerDependencies": {
+    "react-native-iap": "^12.16.4"
+  },
+  "peerDependenciesMeta": {
+    "react-native-iap": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.7.0",
     "@types/react": "~19.1.0",

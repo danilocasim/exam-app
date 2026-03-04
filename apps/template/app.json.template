@@ -29,7 +29,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-sqlite"],
+    "plugins": ["expo-sqlite", "./plugins/withPlayStoreIap"],
     "scheme": "__APP_SLUG__",
     "extra": {
       "eas": {
