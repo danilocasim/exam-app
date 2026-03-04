@@ -20,6 +20,7 @@ export class AdminQuestionDto {
   type: string;
   domain: string;
   difficulty: string;
+  set: string | null;
   options: AdminQuestionOptionDto[];
   correctAnswers: string[];
   explanation: string;

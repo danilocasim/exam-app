@@ -10,6 +10,7 @@ interface BundledQuestion {
   type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE';
   domain: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  set?: string | null;
   options: Array<{ id: string; text: string }>;
   correctAnswers: string[];
   explanation: string;
@@ -101,6 +102,7 @@ export const loadBundledQuestions = async (
       correctAnswers: JSON.stringify(q.correctAnswers),
       explanation: q.explanation,
       explanationBlocks: q.explanationBlocks ? JSON.stringify(q.explanationBlocks) : null,
+      set: q.set ?? null,
       version: q.version,
       createdAt: q.createdAt,
       updatedAt: q.updatedAt,
@@ -108,8 +110,8 @@ export const loadBundledQuestions = async (
 
     await db.runAsync(
       `INSERT OR IGNORE INTO Question 
-        (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, version, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, "set", version, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         row.id,
         row.text,
@@ -120,6 +122,7 @@ export const loadBundledQuestions = async (
         row.correctAnswers,
         row.explanation,
         row.explanationBlocks,
+        row.set,
         row.version,
         row.createdAt,
         row.updatedAt,

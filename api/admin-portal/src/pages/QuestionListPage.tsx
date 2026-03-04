@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import type { AdminQuestion } from '../services/api';
+import type { AdminQuestion, QuestionSet } from '../services/api';
 import { useSelectedExamType } from '../components/Layout';
 import { QuestionCard } from '../components/QuestionCard';
 import { colors, radius } from '../theme';
@@ -17,8 +17,20 @@ export function QuestionListPage() {
   const [status, setStatus] = useState('');
   const [domain, setDomain] = useState('');
   const [difficulty, setDifficulty] = useState('');
+  const [setFilter, setSetFilter] = useState('');
+  const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]);
+  const [approving, setApproving] = useState(false);
   const currentExamType = examTypes.find((et) => et.id === selectedExamType);
   const domains = currentExamType?.domains || [];
+
+  // Fetch question sets for the filter dropdown
+  useEffect(() => {
+    if (!selectedExamType) return;
+    api
+      .getQuestionSets(selectedExamType)
+      .then(setQuestionSets)
+      .catch(() => setQuestionSets([]));
+  }, [selectedExamType]);
 
   const fetchQuestions = useCallback(async () => {
     if (!selectedExamType) return;
@@ -29,6 +41,7 @@ export function QuestionListPage() {
         status: status || undefined,
         domain: domain || undefined,
         difficulty: difficulty || undefined,
+        set: setFilter !== '' ? setFilter : undefined,
         page,
         limit: 20,
       });
@@ -39,14 +52,44 @@ export function QuestionListPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedExamType, status, domain, difficulty, page]);
+  }, [selectedExamType, status, domain, difficulty, setFilter, page]);
 
   useEffect(() => {
     fetchQuestions();
   }, [fetchQuestions]);
   useEffect(() => {
     setPage(1);
-  }, [selectedExamType, status, domain, difficulty]);
+  }, [selectedExamType, status, domain, difficulty, setFilter]);
+
+  const pendingOrDraftCount = questions.filter(
+    (q) => q.status === 'DRAFT' || q.status === 'PENDING',
+  ).length;
+
+  const handleBulkApprove = useCallback(async () => {
+    if (!selectedExamType) return;
+    const msg =
+      domain || difficulty || setFilter
+        ? 'Approve all DRAFT and PENDING questions matching the current filters?'
+        : 'Approve ALL DRAFT and PENDING questions for this exam type?';
+    if (!window.confirm(msg)) return;
+    setApproving(true);
+    try {
+      const result = await api.bulkApproveQuestions({
+        examTypeId: selectedExamType,
+        domain: domain || undefined,
+        difficulty: difficulty || undefined,
+        set: setFilter || undefined,
+      });
+      alert(
+        `${result.approved} question${result.approved !== 1 ? 's' : ''} approved.`,
+      );
+      await fetchQuestions();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Bulk approve failed');
+    } finally {
+      setApproving(false);
+    }
+  }, [selectedExamType, domain, difficulty, setFilter, fetchQuestions]);
 
   const selectStyle: React.CSSProperties = {
     padding: '8px 12px',
@@ -143,11 +186,45 @@ export function QuestionListPage() {
           <option value="MEDIUM">Medium</option>
           <option value="HARD">Hard</option>
         </select>
+        <select
+          title="Select Set"
+          value={setFilter}
+          onChange={(e) => setSetFilter(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="">All Sets</option>
+          <option value="__none__">No Set</option>
+          {questionSets.map((s) => (
+            <option key={s.id} value={s.slug}>
+              {s.name}
+              {s.archivedAt ? ' (archived)' : ''}
+            </option>
+          ))}
+        </select>
         <span
           style={{ fontSize: 13, color: colors.subtle, marginLeft: 'auto' }}
         >
           {total} question{total !== 1 ? 's' : ''}
         </span>
+        {pendingOrDraftCount > 0 && (
+          <button
+            onClick={handleBulkApprove}
+            disabled={approving}
+            style={{
+              padding: '7px 16px',
+              background: '#22c55e',
+              color: '#fff',
+              border: 'none',
+              borderRadius: radius.sm,
+              cursor: approving ? 'wait' : 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+              opacity: approving ? 0.6 : 1,
+            }}
+          >
+            {approving ? 'Approving…' : '✓ Approve All'}
+          </button>
+        )}
       </div>
 
       {loading ? (

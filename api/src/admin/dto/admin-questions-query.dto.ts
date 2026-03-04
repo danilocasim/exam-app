@@ -26,6 +26,10 @@ export class AdminQuestionsQueryDto {
   difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
 
   @IsOptional()
+  @IsString()
+  set?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

@@ -16,8 +16,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Minus, Plus, Clock, CheckSquare, Play } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useExamStore } from '../stores';
-import { getCachedExamTypeConfig } from '../services/sync.service';
-import { getQuestionCountByDomain } from '../storage/repositories/question.repository';
+import { getCachedExamTypeConfig, getCachedQuestionSets } from '../services/sync.service';
+import {
+  getQuestionCountByDomain,
+  getQuestionCountBySet,
+} from '../storage/repositories/question.repository';
 import { useIsPremium } from '../stores/purchase.store';
 import { FREE_QUESTION_LIMIT } from '../config/tiers';
 import { ExamDomain } from '../storage/schema';
@@ -50,7 +53,10 @@ export const CustomExamSetupScreen: React.FC = () => {
 
   const [domains, setDomains] = useState<ExamDomain[]>([]);
   const [availableByDomain, setAvailableByDomain] = useState<Record<string, number>>({});
+  const [availableBySet, setAvailableBySet] = useState<Record<string, number>>({});
+  const [setNames, setSetNames] = useState<Record<string, string>>({});
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
+  const [selectedSets, setSelectedSets] = useState<string[]>([]);
   const [questionCount, setQuestionCount] = useState(MIN_QUESTIONS);
   const [isTimed, setIsTimed] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -64,16 +70,21 @@ export const CustomExamSetupScreen: React.FC = () => {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const [config, byDomain] = await Promise.all([
+      const [config, byDomain, bySet, cachedSetNames] = await Promise.all([
         getCachedExamTypeConfig(),
         getQuestionCountByDomain(),
+        getQuestionCountBySet(),
+        getCachedQuestionSets(),
       ]);
       if (config) {
         setDomains(config.domains);
         setAvailableByDomain(byDomain);
-        // Default: all domains selected
+        setAvailableBySet(bySet);
+        setSetNames(cachedSetNames);
+        // Default: all domains selected, no set filter (all sets)
         const allIds = config.domains.map((d) => d.id);
         setSelectedDomains(allIds);
+        setSelectedSets([]);
       }
     } catch {
       Alert.alert('Error', 'Failed to load exam configuration.');
@@ -106,6 +117,12 @@ export const CustomExamSetupScreen: React.FC = () => {
     );
   };
 
+  const toggleSet = (setName: string) => {
+    setSelectedSets((prev) =>
+      prev.includes(setName) ? prev.filter((s) => s !== setName) : [...prev, setName],
+    );
+  };
+
   const selectAllDomains = () => {
     setSelectedDomains(domains.map((d) => d.id));
   };
@@ -119,6 +136,7 @@ export const CustomExamSetupScreen: React.FC = () => {
       await startCustomExam({
         questionCount: Math.min(questionCount, maxQuestions),
         selectedDomains,
+        selectedSets,
         isTimed,
       });
       navigation.navigate('ExamScreen', {});
@@ -274,6 +292,54 @@ export const CustomExamSetupScreen: React.FC = () => {
             );
           })}
         </View>
+
+        {/* ── Question Sets (optional filter) ── */}
+        {Object.keys(availableBySet).length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Question Sets</Text>
+                <Text style={styles.sectionHint}>
+                  {selectedSets.length === 0
+                    ? 'All sets (no filter)'
+                    : `${selectedSets.length} set${selectedSets.length > 1 ? 's' : ''} selected`}
+                </Text>
+              </View>
+              {selectedSets.length > 0 && (
+                <TouchableOpacity onPress={() => setSelectedSets([])} activeOpacity={0.7}>
+                  <Text style={styles.selectAllText}>Clear Filter</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {Object.entries(availableBySet)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([setName, count]) => {
+                const isSelected = selectedSets.includes(setName);
+                return (
+                  <TouchableOpacity
+                    key={setName}
+                    onPress={() => toggleSet(setName)}
+                    activeOpacity={0.7}
+                    style={[styles.domainRow, isSelected && styles.domainRowSelected]}
+                  >
+                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                      {isSelected && <CheckSquare size={16} color="#fff" strokeWidth={2.5} />}
+                    </View>
+                    <View style={styles.domainInfo}>
+                      <Text
+                        style={[styles.domainName, isSelected && styles.domainNameSelected]}
+                        numberOfLines={1}
+                      >
+                        {setNames[setName] ?? setName}
+                      </Text>
+                      <Text style={styles.domainCount}>{count} questions</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+          </View>
+        )}
 
         {/* ── Timed / Untimed ── */}
         <View style={styles.section}>

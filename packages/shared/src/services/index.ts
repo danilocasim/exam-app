@@ -10,6 +10,8 @@ export {
   getLastSyncVersion,
   saveExamTypeConfig,
   getCachedExamTypeConfig,
+  fetchAndCacheQuestionSets,
+  getCachedQuestionSets,
   syncQuestions,
   isSyncNeeded,
   performFullSync,
@@ -32,6 +34,7 @@ export {
   getQuestionDistribution,
   generateExamFromMissed,
   generateCustomExam,
+  generateDailyQuiz,
 } from './exam-generator.service';
 export type { GeneratedExam } from './exam-generator.service';
 
@@ -40,6 +43,7 @@ export {
   startExam,
   startMissedExam,
   startCustomExam,
+  startDiagnosticExam,
   resumeExam,
   hasInProgressExam,
   getRemainingTime,

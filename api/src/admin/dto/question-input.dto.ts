@@ -50,6 +50,10 @@ export class QuestionInputDto {
   })
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
 
+  @IsOptional()
+  @IsString()
+  set?: string;
+
   @IsArray()
   @ArrayMinSize(2, { message: 'At least 2 options are required' })
   @ValidateNested({ each: true })

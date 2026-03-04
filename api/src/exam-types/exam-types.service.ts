@@ -7,6 +7,7 @@ import {
   QuestionDto,
   QuestionOptionDto,
   VersionResponseDto,
+  QuestionSetPublicDto,
 } from './dto';
 import { QuestionType, Difficulty, QuestionStatus } from '@prisma/client';
 
@@ -73,6 +74,28 @@ export class ExamTypesService {
   }
 
   /**
+   * Get all question sets for an exam type (public endpoint for mobile sync)
+   */
+  async getSets(examTypeId: string): Promise<{ sets: QuestionSetPublicDto[] }> {
+    // Verify exam type exists and is active
+    await this.findOne(examTypeId);
+
+    const sets = await this.prisma.questionSet.findMany({
+      where: { examTypeId, archivedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      sets: sets.map((s) => ({
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        description: s.description,
+      })),
+    };
+  }
+
+  /**
    * Get questions for an exam type with pagination
    * T031: GET /exam-types/{examTypeId}/questions
    * Version = total count of approved questions
@@ -81,15 +104,27 @@ export class ExamTypesService {
     examTypeId: string,
     since?: number,
     limit: number = 100,
+    sets?: string,
   ): Promise<QuestionBankResponseDto> {
     // Verify exam type exists and is active
     await this.findOne(examTypeId);
 
     // Build query conditions - fetch all approved questions
-    const whereCondition = {
+    const whereCondition: any = {
       examTypeId,
       status: QuestionStatus.APPROVED,
     };
+
+    // Filter by sets if provided
+    if (sets) {
+      const setSlugs = sets
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (setSlugs.length > 0) {
+        whereCondition.set = { in: setSlugs };
+      }
+    }
 
     // Get questions ordered by createdAt (oldest first for sync)
     const questions = await this.prisma.question.findMany({
@@ -170,6 +205,7 @@ export class ExamTypesService {
     correctAnswers: string[];
     explanation: string;
     explanationBlocks?: unknown;
+    set?: string | null;
     version: number;
     createdAt: Date;
     updatedAt: Date;
@@ -184,6 +220,7 @@ export class ExamTypesService {
       correctAnswers: question.correctAnswers,
       explanation: question.explanation,
       explanationBlocks: (question.explanationBlocks as any) ?? null,
+      set: question.set ?? null,
       version: 1,
       createdAt: question.createdAt.toISOString(),
       updatedAt: question.updatedAt.toISOString(),

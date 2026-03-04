@@ -87,7 +87,6 @@ export const DifficultySelector: React.FC<DifficultySelectorProps> = ({
                 },
               ]}
             >
-              <View style={[styles.dot, { backgroundColor: option.color }]} />
               <Text
                 style={[styles.chipText, isSelected && { color: option.color, fontWeight: '600' }]}
               >
@@ -143,11 +142,6 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.primaryOrange,
     fontWeight: '600',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
 });
 

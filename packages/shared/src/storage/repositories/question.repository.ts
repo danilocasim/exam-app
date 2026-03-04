@@ -17,6 +17,7 @@ const rowToQuestion = (row: QuestionRow): Question => ({
   correctAnswers: JSON.parse(row.correctAnswers) as string[],
   explanation: row.explanation,
   explanationBlocks: row.explanationBlocks ? JSON.parse(row.explanationBlocks) : null,
+  set: row.set ?? null,
   version: row.version,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -35,6 +36,7 @@ const questionToRow = (question: Question): QuestionRow => ({
   correctAnswers: JSON.stringify(question.correctAnswers),
   explanation: question.explanation,
   explanationBlocks: question.explanationBlocks ? JSON.stringify(question.explanationBlocks) : null,
+  set: question.set ?? null,
   version: question.version,
   createdAt: question.createdAt,
   updatedAt: question.updatedAt,
@@ -124,12 +126,48 @@ export const getRandomQuestionsByDomain = async (
 };
 
 /**
+ * Get a random sample of questions from a specific domain, filtered by sets
+ */
+export const getRandomQuestionsByDomainAndSets = async (
+  domain: DomainId,
+  limit: number,
+  sets: string[],
+): Promise<Question[]> => {
+  const db = await getDatabase();
+  const placeholders = sets.map(() => '?').join(',');
+  const rows = await db.getAllAsync<QuestionRow>(
+    `SELECT * FROM Question WHERE domain = ? AND "set" IN (${placeholders}) ORDER BY RANDOM() LIMIT ?`,
+    [domain, ...sets, limit],
+  );
+  return rows.map(rowToQuestion);
+};
+
+/**
  * Get question count by domain
  */
 export const getQuestionCountByDomain = async (): Promise<Record<string, number>> => {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ domain: string; count: number }>(
     'SELECT domain, COUNT(*) as count FROM Question GROUP BY domain',
+  );
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    result[row.domain] = row.count;
+  }
+  return result;
+};
+
+/**
+ * Get question count by domain, filtered by sets
+ */
+export const getQuestionCountByDomainAndSets = async (
+  sets: string[],
+): Promise<Record<string, number>> => {
+  const db = await getDatabase();
+  const placeholders = sets.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{ domain: string; count: number }>(
+    `SELECT domain, COUNT(*) as count FROM Question WHERE "set" IN (${placeholders}) GROUP BY domain`,
+    sets,
   );
   const result: Record<string, number> = {};
   for (const row of rows) {
@@ -155,8 +193,8 @@ export const insertQuestion = async (question: Question): Promise<void> => {
   const row = questionToRow(question);
   await db.runAsync(
     `INSERT INTO Question 
-      (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, version, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, "set", version, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       row.id,
       row.text,
@@ -167,6 +205,7 @@ export const insertQuestion = async (question: Question): Promise<void> => {
       row.correctAnswers,
       row.explanation,
       row.explanationBlocks,
+      row.set,
       row.version,
       row.createdAt,
       row.updatedAt,
@@ -184,7 +223,7 @@ export const updateQuestion = async (question: Question): Promise<void> => {
     `UPDATE Question SET 
       text = ?, type = ?, domain = ?, difficulty = ?,
       options = ?, correctAnswers = ?, explanation = ?,
-      explanationBlocks = ?, version = ?, createdAt = ?, updatedAt = ?
+      explanationBlocks = ?, "set" = ?, version = ?, createdAt = ?, updatedAt = ?
     WHERE id = ?`,
     [
       row.text,
@@ -195,6 +234,7 @@ export const updateQuestion = async (question: Question): Promise<void> => {
       row.correctAnswers,
       row.explanation,
       row.explanationBlocks,
+      row.set,
       row.version,
       row.createdAt,
       row.updatedAt,
@@ -211,8 +251,8 @@ export const upsertQuestion = async (question: Question): Promise<void> => {
   const row = questionToRow(question);
   await db.runAsync(
     `INSERT OR REPLACE INTO Question 
-      (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, version, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, text, type, domain, difficulty, options, correctAnswers, explanation, explanationBlocks, "set", version, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       row.id,
       row.text,
@@ -223,6 +263,7 @@ export const upsertQuestion = async (question: Question): Promise<void> => {
       row.correctAnswers,
       row.explanation,
       row.explanationBlocks,
+      row.set,
       row.version,
       row.createdAt,
       row.updatedAt,
@@ -261,6 +302,76 @@ export const getQuestionsByIds = async (ids: string[]): Promise<Question[]> => {
 };
 
 /**
+ * Get questions by set slug
+ */
+export const getQuestionsBySet = async (set: string): Promise<Question[]> => {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<QuestionRow>('SELECT * FROM Question WHERE "set" = ?', [set]);
+  return rows.map(rowToQuestion);
+};
+
+/**
+ * Get a random sample of questions from a specific set
+ */
+export const getRandomQuestionsBySet = async (set: string, limit: number): Promise<Question[]> => {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<QuestionRow>(
+    'SELECT * FROM Question WHERE "set" = ? ORDER BY RANDOM() LIMIT ?',
+    [set, limit],
+  );
+  return rows.map(rowToQuestion);
+};
+
+/**
+ * Get random questions filtered by sets and optionally domains
+ */
+export const getRandomQuestionsFiltered = async (
+  limit: number,
+  sets?: string[],
+  domains?: string[],
+): Promise<Question[]> => {
+  const db = await getDatabase();
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (sets && sets.length > 0) {
+    const placeholders = sets.map(() => '?').join(',');
+    conditions.push(`"set" IN (${placeholders})`);
+    params.push(...sets);
+  }
+
+  if (domains && domains.length > 0) {
+    const placeholders = domains.map(() => '?').join(',');
+    conditions.push(`domain IN (${placeholders})`);
+    params.push(...domains);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(limit);
+
+  const rows = await db.getAllAsync<QuestionRow>(
+    `SELECT * FROM Question ${where} ORDER BY RANDOM() LIMIT ?`,
+    params,
+  );
+  return rows.map(rowToQuestion);
+};
+
+/**
+ * Get question count by set
+ */
+export const getQuestionCountBySet = async (): Promise<Record<string, number>> => {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ set: string | null; count: number }>(
+    'SELECT "set", COUNT(*) as count FROM Question GROUP BY "set"',
+  );
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    result[row.set ?? '_unassigned'] = row.count;
+  }
+  return result;
+};
+
+/**
  * T252: Get questions for the given tier.
  *
  * FREE tier: returns the first N questions ordered by (domain ASC, id ASC) so
@@ -271,10 +382,7 @@ export const getQuestionsByIds = async (ids: string[]): Promise<Question[]> => {
  * @param tier - The user's current tier level
  * @param limit - Override the default FREE_QUESTION_LIMIT (optional)
  */
-export const getQuestionsForTier = async (
-  tier: TierLevel,
-  limit?: number,
-): Promise<Question[]> => {
+export const getQuestionsForTier = async (tier: TierLevel, limit?: number): Promise<Question[]> => {
   const db = await getDatabase();
 
   if (tier === 'PREMIUM') {

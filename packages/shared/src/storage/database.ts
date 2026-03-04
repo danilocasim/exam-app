@@ -91,6 +91,7 @@ export const initializeDatabase = async (): Promise<void> => {
       correctAnswers TEXT NOT NULL,
       explanation TEXT NOT NULL,
       explanationBlocks TEXT,
+      "set" TEXT,
       version INTEGER NOT NULL DEFAULT 1,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
@@ -98,6 +99,7 @@ export const initializeDatabase = async (): Promise<void> => {
     CREATE INDEX IF NOT EXISTS idx_question_domain ON Question(domain);
     CREATE INDEX IF NOT EXISTS idx_question_difficulty ON Question(difficulty);
     CREATE INDEX IF NOT EXISTS idx_question_version ON Question(version);
+    CREATE INDEX IF NOT EXISTS idx_question_set ON Question("set");
 
     CREATE TABLE IF NOT EXISTS ExamAttempt (
       id TEXT PRIMARY KEY,
@@ -231,6 +233,7 @@ export const initializeDatabase = async (): Promise<void> => {
     `ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT`,
     `ALTER TABLE PurchaseStatus ADD COLUMN expiry_date TEXT`,
     `ALTER TABLE PurchaseStatus ADD COLUMN auto_renewing INTEGER DEFAULT 0`,
+    `ALTER TABLE Question ADD COLUMN "set" TEXT`,
   ];
   for (const migration of migrations) {
     try {
@@ -537,8 +540,8 @@ export const switchUserDatabase = async (email: string | null): Promise<void> =>
     await database.withTransactionAsync(async () => {
       for (const q of questionsToCopy) {
         await database.runAsync(
-          `INSERT OR IGNORE INTO Question (id, text, type, domain, difficulty, options, correctAnswers, explanation, version, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT OR IGNORE INTO Question (id, text, type, domain, difficulty, options, correctAnswers, explanation, "set", version, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             q.id,
             q.text,
@@ -548,6 +551,7 @@ export const switchUserDatabase = async (email: string | null): Promise<void> =>
             q.options,
             q.correctAnswers,
             q.explanation,
+            q.set ?? null,
             q.version,
             q.createdAt,
             q.updatedAt,

@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, Min, Max } from 'class-validator';
+import { IsInt, IsOptional, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
@@ -17,6 +17,11 @@ export class GetQuestionsQueryDto {
   @Min(1)
   @Max(500)
   limit?: number = 100;
+
+  /** Comma-separated set slugs to filter by (e.g. "diagnostic,set-1") */
+  @IsOptional()
+  @IsString()
+  sets?: string;
 }
 
 /**
@@ -41,6 +46,7 @@ export class QuestionDto {
   correctAnswers: string[];
   explanation: string;
   explanationBlocks?: ExplanationBlockDto[] | null;
+  set?: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -79,4 +85,14 @@ export class VersionResponseDto {
   latestVersion: number;
   questionCount: number;
   lastUpdatedAt?: string;
+}
+
+/**
+ * Public DTO for question sets (mobile sync)
+ */
+export class QuestionSetPublicDto {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
 }

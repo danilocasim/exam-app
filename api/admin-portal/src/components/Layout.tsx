@@ -157,10 +157,22 @@ export function Layout({ children }: { children: ReactNode }) {
             </SideLink>
             <SideLink
               to="/questions"
-              active={isActive('/questions') && !location.pathname.includes('bulk-import')}
+              active={
+                isActive('/questions') &&
+                !location.pathname.includes('bulk-import') &&
+                !location.pathname.includes('/sets')
+              }
               onClick={() => setMenuOpen(false)}
             >
               Questions
+            </SideLink>
+            <SideLink
+              to="/questions/sets"
+              active={location.pathname.includes('/sets')}
+              onClick={() => setMenuOpen(false)}
+              indent
+            >
+              Question Sets
             </SideLink>
             <SideLink
               to="/questions/bulk-import"

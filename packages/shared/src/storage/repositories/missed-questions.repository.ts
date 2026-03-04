@@ -22,6 +22,7 @@ const rowToQuestion = (row: QuestionRow): Question => ({
   correctAnswers: JSON.parse(row.correctAnswers),
   explanation: row.explanation,
   explanationBlocks: row.explanationBlocks ? JSON.parse(row.explanationBlocks) : null,
+  set: row.set ?? null,
   version: row.version,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -30,11 +31,43 @@ const rowToQuestion = (row: QuestionRow): Question => ({
 /**
  * Get the count of distinct missed question IDs.
  *
- * A question is "missed" when the user's most recent answered attempt for
- * that question was incorrect. If they later got it right, it drops off.
+ * A question is "missed" when the user answered it incorrectly in ANY
+ * completed exam (mock, custom, diagnostic, daily, or missed quiz).
+ * If they later answered it correctly in any mode, it drops off.
  */
 export const getMissedQuestionCount = async (): Promise<number> => {
   const db = await getDatabase();
+
+  // Debug: check raw data availability
+  const attemptStats = await db.getFirstAsync<{
+    total: number;
+    completed: number;
+    inProgress: number;
+  }>(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+      SUM(CASE WHEN status = 'in-progress' THEN 1 ELSE 0 END) AS inProgress
+    FROM ExamAttempt
+  `);
+  console.warn('[MissedQ] ExamAttempt stats:', JSON.stringify(attemptStats));
+
+  const answerStats = await db.getFirstAsync<{
+    total: number;
+    answered: number;
+    correct: number;
+    incorrect: number;
+  }>(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN answeredAt IS NOT NULL THEN 1 ELSE 0 END) AS answered,
+      SUM(CASE WHEN isCorrect = 1 THEN 1 ELSE 0 END) AS correct,
+      SUM(CASE WHEN isCorrect = 0 THEN 1 ELSE 0 END) AS incorrect
+    FROM ExamAnswer ea
+    INNER JOIN ExamAttempt et ON et.id = ea.examAttemptId
+    WHERE et.status = 'completed'
+  `);
+  console.warn('[MissedQ] ExamAnswer stats (completed exams):', JSON.stringify(answerStats));
 
   const row = await db.getFirstAsync<{ count: number }>(`
     SELECT COUNT(*) AS count
@@ -50,6 +83,7 @@ export const getMissedQuestionCount = async (): Promise<number> => {
     )
   `);
 
+  console.warn(`[MissedQ] Missed question count: ${row?.count ?? 0}`);
   return row?.count ?? 0;
 };
 
@@ -80,5 +114,6 @@ export const getMissedQuestions = async (limit: number): Promise<Question[]> => 
     [limit],
   );
 
+  console.warn(`[MissedQ] getMissedQuestions: requested=${limit}, found=${rows.length}`);
   return rows.map(rowToQuestion);
 };

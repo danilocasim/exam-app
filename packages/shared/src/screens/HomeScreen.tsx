@@ -47,6 +47,7 @@ import {
   Sun,
   Pencil,
   CircleX,
+  Activity,
   Minus,
   Plus,
   SlidersHorizontal,
@@ -58,11 +59,14 @@ import { useAuthStore } from '../stores/auth-store';
 import { useStreakStore } from '../stores/streak.store';
 import { hasInProgressExam, abandonCurrentExam } from '../services';
 import { getInProgressExamAttempt } from '../storage/repositories/exam-attempt.repository';
-import { getTotalQuestionCount } from '../storage/repositories/question.repository';
+import {
+  getTotalQuestionCount,
+  getQuestionCountBySet,
+} from '../storage/repositories/question.repository';
 import { canGenerateExam } from '../services/exam-generator.service';
 import { getUserStats } from '../storage/repositories/user-stats.repository';
 import { getOverallStats, calculateAggregatedDomainPerformance } from '../services/scoring.service';
-import { EXAM_CONFIG, FREE_QUESTION_LIMIT, DAILY_QUESTION_LIMIT } from '../config';
+import { EXAM_CONFIG, FREE_QUESTION_LIMIT } from '../config';
 import { useIsPremium } from '../stores/purchase.store';
 import {
   getDailyExamLastAttempt,
@@ -71,6 +75,7 @@ import {
 import { getMissedQuestionCount } from '../storage/repositories/missed-questions.repository';
 import { CalendarStrip } from '../components/CalendarStrip';
 import { DatePickerModal } from '../components/DatePickerModal';
+import { getCachedQuestionSets } from '../services/sync.service';
 
 // AWS Modern Color Palette
 const colors = {
@@ -254,6 +259,7 @@ export const HomeScreen: React.FC = () => {
   const [hasInProgressMock, setHasInProgressMock] = useState(false);
   const [hasInProgressMissed, setHasInProgressMissed] = useState(false);
   const [hasInProgressCustom, setHasInProgressCustom] = useState(false);
+  const [hasInProgressDiagnostic, setHasInProgressDiagnostic] = useState(false);
   const [questionCount, setQuestionCount] = useState(0);
   const [canStart, setCanStart] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
@@ -275,6 +281,12 @@ export const HomeScreen: React.FC = () => {
   const [missedLastAttempt, setMissedLastAttempt] = useState<string | null>(null);
   const [showMissedPicker, setShowMissedPicker] = useState(false);
   const [selectedMissedCount, setSelectedMissedCount] = useState(10);
+
+  // Mock Exam set picker state
+  const [availableBySet, setAvailableBySet] = useState<Record<string, number>>({});
+  const [setNames, setSetNames] = useState<Record<string, string>>({});
+  const [showMockSetPicker, setShowMockSetPicker] = useState(false);
+  const [selectedMockSets, setSelectedMockSets] = useState<string[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -298,32 +310,41 @@ export const HomeScreen: React.FC = () => {
         inProgressMock,
         inProgressMissed,
         inProgressCustom,
+        inProgressDiagnostic,
         count,
         canGen,
         examLast,
         missedLast,
         missedQCount,
+        bySet,
+        cachedSetNames,
       ] = await Promise.all([
         hasInProgressExam('daily'),
         hasInProgressExam('mock'),
         hasInProgressExam('missed'),
         hasInProgressExam('custom'),
+        hasInProgressExam('diagnostic'),
         getTotalQuestionCount(),
         canGenerateExam(),
         getDailyExamLastAttempt(),
         getMissedExamLastAttempt(),
         getMissedQuestionCount(),
+        getQuestionCountBySet(),
+        getCachedQuestionSets(),
       ]);
       setHasInProgressDaily(inProgressDaily);
       setHasInProgressMock(inProgressMock);
       setHasInProgressMissed(inProgressMissed);
       setHasInProgressCustom(inProgressCustom);
+      setHasInProgressDiagnostic(inProgressDiagnostic);
       setQuestionCount(count);
       setCanStart(canGen.canGenerate);
       setDailyLastAttempt(examLast);
       setMissedLastAttempt(missedLast);
       setMissedCount(missedQCount);
       setSelectedMissedCount((prev) => Math.min(prev, missedQCount || 10));
+      setAvailableBySet(bySet);
+      setSetNames(cachedSetNames);
 
       // Non-critical analytics data
       try {
@@ -352,11 +373,11 @@ export const HomeScreen: React.FC = () => {
 
   // ── Handlers ──
   // mode: 'daily' (always FREE tier, 15 questions) or 'mock' (user's tier)
-  const handleStartExam = async (mode: 'daily' | 'mock' = 'mock') => {
+  const handleStartExam = async (mode: 'daily' | 'mock' = 'mock', sets?: string[]) => {
     try {
       setError(null);
       const tier = mode === 'daily' ? 'FREE' : undefined;
-      await startExam(tier, mode);
+      await startExam(tier, mode, sets && sets.length > 0 ? sets : undefined);
       navigation.navigate('ExamScreen', {});
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
@@ -365,7 +386,7 @@ export const HomeScreen: React.FC = () => {
           const inProgress = await getInProgressExamAttempt(mode);
           if (inProgress) await abandonCurrentExam(inProgress.id);
           const tier = mode === 'daily' ? 'FREE' : undefined;
-          await startExam(tier, mode);
+          await startExam(tier, mode, sets && sets.length > 0 ? sets : undefined);
           navigation.navigate('ExamScreen', {});
           return;
         } catch {
@@ -376,7 +397,33 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const handleResumeExam = async (mode: 'daily' | 'mock' | 'missed' | 'custom' = 'mock') => {
+  const handleStartDiagnosticExam = async () => {
+    try {
+      setError(null);
+      const { startDiagnosticExam } = useExamStore.getState();
+      await startDiagnosticExam();
+      navigation.navigate('ExamScreen', {});
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('already in progress')) {
+        try {
+          const ip = await getInProgressExamAttempt('diagnostic');
+          if (ip) await abandonCurrentExam(ip.id);
+          const { startDiagnosticExam } = useExamStore.getState();
+          await startDiagnosticExam();
+          navigation.navigate('ExamScreen', {});
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      Alert.alert('Error', message || 'Failed to start diagnostic test');
+    }
+  };
+
+  const handleResumeExam = async (
+    mode: 'daily' | 'mock' | 'missed' | 'custom' | 'diagnostic' = 'mock',
+  ) => {
     try {
       setError(null);
       const resumed = await resumeExam(mode);
@@ -392,7 +439,9 @@ export const HomeScreen: React.FC = () => {
   };
 
   // Accepts mode for starting a new exam (abandons existing of SAME mode only)
-  const handleStartNewExam = (mode: 'daily' | 'mock' | 'missed' | 'custom' = 'mock') => {
+  const handleStartNewExam = (
+    mode: 'daily' | 'mock' | 'missed' | 'custom' | 'diagnostic' = 'mock',
+  ) => {
     Alert.alert(
       'Start New Exam',
       'You have an exam in progress. Do you want to abandon it and start a new one?',
@@ -418,6 +467,8 @@ export const HomeScreen: React.FC = () => {
               await handleStartMissedExam(selectedMissedCount);
             } else if (mode === 'custom') {
               navigation.navigate('CustomExamSetup');
+            } else if (mode === 'diagnostic') {
+              await handleStartDiagnosticExam();
             } else {
               await handleStartExam(mode);
             }
@@ -468,6 +519,22 @@ export const HomeScreen: React.FC = () => {
     } else {
       navigation.navigate('CustomExamSetup');
     }
+  };
+
+  const handleMockCardPress = () => {
+    if (hasInProgressMock) {
+      handleResumeExam('mock');
+    } else {
+      // Open set picker for mock exam
+      setSelectedMockSets([]);
+      setShowMockSetPicker(true);
+    }
+  };
+
+  const toggleMockSet = (slug: string) => {
+    setSelectedMockSets((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
   };
 
   // ── Loading splash ──
@@ -529,32 +596,22 @@ export const HomeScreen: React.FC = () => {
   // Cards always visible for both tiers — only lock/cooldown state changes.
   // Cooldown (FREE only): computed from SQLite via getDailyExamLastAttempt() / getMissedExamLastAttempt().
   // Cooldown is recorded on exam SUBMISSION in exam.store.ts, not on start.
-  const dailyCooldownActive = !isPremium && remainingMs(dailyLastAttempt) > 0;
   const missedCooldownActive = !isPremium && remainingMs(missedLastAttempt) > 0;
   const missedEmpty = missedCount === 0;
   const missedDisabled =
     (missedCooldownActive && !hasInProgressMissed) || (missedEmpty && !hasInProgressMissed);
 
-  const dailyCard = {
-    key: 'daily',
-    label: 'Daily Quiz',
-    sub: hasInProgressDaily
-      ? 'In progress'
-      : dailyCooldownActive
-        ? formatCooldown(dailyLastAttempt)
-        : `${DAILY_QUESTION_LIMIT} questions · timed`,
-    icon: (
-      <Sun
-        size={22}
-        color={dailyCooldownActive && !hasInProgressDaily ? colors.textMuted : colors.success}
-        strokeWidth={1.8}
-      />
-    ),
-    iconBg:
-      dailyCooldownActive && !hasInProgressDaily ? colors.surfaceHover : 'rgba(16, 185, 129, 0.15)',
+  const diagnosticCard = {
+    key: 'diagnostic',
+    label: 'Diagnostic Test',
+    sub: hasInProgressDiagnostic ? 'In progress' : 'Assess your readiness',
+    icon: <Activity size={22} color={colors.success} strokeWidth={1.8} />,
+    iconBg: 'rgba(16, 185, 129, 0.15)',
     locked: false,
-    cooldown: dailyCooldownActive && !hasInProgressDaily,
-    onPress: hasInProgressDaily ? () => handleResumeExam('daily') : () => handleStartExam('daily'),
+    cooldown: false,
+    onPress: hasInProgressDiagnostic
+      ? () => handleResumeExam('diagnostic')
+      : () => handleStartDiagnosticExam(),
   };
 
   const missedCard = {
@@ -615,14 +672,10 @@ export const HomeScreen: React.FC = () => {
     iconBg: isPremium ? 'rgba(255, 153, 0, 0.15)' : colors.surfaceHover,
     locked: !isPremium,
     cooldown: false,
-    onPress: !isPremium
-      ? () => navigation.navigate('Upgrade')
-      : hasInProgressMock
-        ? () => handleResumeExam('mock')
-        : () => handleStartExam('mock'),
+    onPress: !isPremium ? () => navigation.navigate('Upgrade') : () => handleMockCardPress(),
   };
 
-  const gridModes = [dailyCard, missedCard, mockCard, customCard];
+  const gridModes = [diagnosticCard, missedCard, mockCard, customCard];
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -702,13 +755,13 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.content}>
           {/* ── Primary CTA ──
                Shows the most relevant action: resume an in-progress exam, start a new one, or cooldown notice.
-               Daily Quiz and Mock Exam are independent — each mode card handles its own resume/start.
+               Diagnostic Test and Mock Exam are independent — each mode card handles its own resume/start.
                The primary CTA is for the "best next action" convenience button. */}
-          {hasInProgressDaily || hasInProgressMock ? (
+          {hasInProgressDiagnostic || hasInProgressMock ? (
             /* ── Resume Exam (strongest CTA) ── */
             <View style={styles.ctaSection}>
               <TouchableOpacity
-                onPress={() => handleResumeExam(hasInProgressDaily ? 'daily' : 'mock')}
+                onPress={() => handleResumeExam(hasInProgressDiagnostic ? 'diagnostic' : 'mock')}
                 disabled={isLoading}
                 activeOpacity={0.85}
                 style={styles.ctaWrapper}
@@ -734,7 +787,7 @@ export const HomeScreen: React.FC = () => {
                         </View>
                         <View>
                           <Text style={styles.ctaTitle}>
-                            Resume {hasInProgressDaily ? 'Daily Quiz' : 'Mock Exam'}
+                            Resume {hasInProgressDiagnostic ? 'Diagnostic Test' : 'Mock Exam'}
                           </Text>
                           <Text style={styles.ctaSub}>Continue where you left off</Text>
                         </View>
@@ -745,7 +798,7 @@ export const HomeScreen: React.FC = () => {
                 </LinearGradient>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => handleStartNewExam(hasInProgressDaily ? 'daily' : 'mock')}
+                onPress={() => handleStartNewExam(hasInProgressDiagnostic ? 'diagnostic' : 'mock')}
                 disabled={isLoading}
                 activeOpacity={0.7}
                 style={styles.secondaryAction}
@@ -753,34 +806,10 @@ export const HomeScreen: React.FC = () => {
                 <Text style={styles.secondaryActionText}>or start a new exam</Text>
               </TouchableOpacity>
             </View>
-          ) : !isPremium && dailyCooldownActive ? (
-            /* ── FREE + Daily Quiz completed today ── */
-            <View style={[styles.ctaWrapper, styles.ctaDisabled]}>
-              <LinearGradient
-                colors={[colors.surfaceHover, colors.surface]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.ctaGradient}
-              >
-                <View style={styles.ctaContent}>
-                  <View style={styles.ctaLeft}>
-                    <View style={[styles.ctaIconCircle, { backgroundColor: colors.trackGray }]}>
-                      <CheckCircle2 size={18} color={colors.textMuted} strokeWidth={2.5} />
-                    </View>
-                    <View>
-                      <Text style={[styles.ctaTitle, { color: colors.textMuted }]}>
-                        Daily Quiz Completed
-                      </Text>
-                      <Text style={styles.ctaSub}>{formatCooldown(dailyLastAttempt)}</Text>
-                    </View>
-                  </View>
-                </View>
-              </LinearGradient>
-            </View>
           ) : (
-            /* ── Start CTA: "Start Daily Quiz" (FREE) or "Start Exam" (PREMIUM) ── */
+            /* ── Start CTA: "Start Diagnostic Test" (FREE) or "Start Exam" (PREMIUM) ── */
             <TouchableOpacity
-              onPress={() => handleStartExam(isPremium ? 'mock' : 'daily')}
+              onPress={() => (isPremium ? handleMockCardPress() : handleStartDiagnosticExam())}
               disabled={isLoading || !canStart}
               activeOpacity={0.85}
               style={[styles.ctaWrapper, !canStart && styles.ctaDisabled]}
@@ -809,17 +838,17 @@ export const HomeScreen: React.FC = () => {
                         {isPremium ? (
                           <Zap size={18} color={colors.textHeading} strokeWidth={2.5} />
                         ) : (
-                          <Sun size={18} color={colors.textHeading} strokeWidth={2.5} />
+                          <Activity size={18} color={colors.textHeading} strokeWidth={2.5} />
                         )}
                       </View>
                       <View>
                         <Text style={styles.ctaTitle}>
-                          {isPremium ? 'Start Exam' : 'Start Daily Quiz'}
+                          {isPremium ? 'Start Exam' : 'Start Diagnostic Test'}
                         </Text>
                         <Text style={styles.ctaSub}>
                           {isPremium
                             ? `${EXAM_CONFIG.QUESTIONS_PER_EXAM} questions · ${EXAM_CONFIG.TIME_LIMIT_MINUTES} min`
-                            : `${DAILY_QUESTION_LIMIT} questions · timed`}
+                            : 'Assess your readiness'}
                         </Text>
                       </View>
                     </View>
@@ -835,7 +864,7 @@ export const HomeScreen: React.FC = () => {
           )}
 
           {/* Warning */}
-          {!canStart && !hasInProgressDaily && !hasInProgressMock && (
+          {!canStart && !hasInProgressDiagnostic && !hasInProgressMock && (
             <View style={styles.warningRow}>
               <AlertTriangle size={14} color={colors.errorLight} strokeWidth={2} />
               <Text style={styles.warningText}>
@@ -1165,6 +1194,95 @@ export const HomeScreen: React.FC = () => {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ── Mock Exam Set Picker ── */}
+      <Modal
+        visible={showMockSetPicker}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowMockSetPicker(false)}
+      >
+        <Pressable style={styles.pickerOverlay} onPress={() => setShowMockSetPicker(false)}>
+          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.pickerHeader}>
+              <Target size={20} color={colors.primaryOrange} strokeWidth={2} />
+              <Text style={styles.pickerTitle}>Mock Exam</Text>
+            </View>
+            <Text style={styles.pickerDescription}>
+              Select question sets to include, or start with all sets.
+            </Text>
+
+            {/* Set list */}
+            <ScrollView style={styles.mockSetList} showsVerticalScrollIndicator={false}>
+              {Object.entries(availableBySet)
+                .filter(([slug]) => slug !== '_unassigned')
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([slug, count]) => {
+                  const isSelected = selectedMockSets.includes(slug);
+                  return (
+                    <TouchableOpacity
+                      key={slug}
+                      onPress={() => toggleMockSet(slug)}
+                      activeOpacity={0.7}
+                      style={[styles.mockSetRow, isSelected && styles.mockSetRowSelected]}
+                    >
+                      <View
+                        style={[
+                          styles.mockSetCheckbox,
+                          isSelected && styles.mockSetCheckboxSelected,
+                        ]}
+                      >
+                        {isSelected && <CheckCircle2 size={16} color="#fff" strokeWidth={2.5} />}
+                      </View>
+                      <View style={styles.mockSetInfo}>
+                        <Text
+                          style={[styles.mockSetName, isSelected && styles.mockSetNameSelected]}
+                          numberOfLines={1}
+                        >
+                          {setNames[slug] ?? slug}
+                        </Text>
+                        <Text style={styles.mockSetCount}>{count} questions</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+
+            <Text style={styles.mockSetHint}>
+              {selectedMockSets.length === 0
+                ? `All sets · ${EXAM_CONFIG.QUESTIONS_PER_EXAM} questions`
+                : `${selectedMockSets.length} set${selectedMockSets.length > 1 ? 's' : ''} selected · ${EXAM_CONFIG.QUESTIONS_PER_EXAM} questions`}
+            </Text>
+
+            {/* Actions */}
+            <View style={styles.pickerActions}>
+              <TouchableOpacity
+                onPress={() => setShowMockSetPicker(false)}
+                activeOpacity={0.7}
+                style={styles.pickerCancelBtn}
+              >
+                <Text style={styles.pickerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowMockSetPicker(false);
+                  // If no sets explicitly selected, pass all available set slugs
+                  // so questions are drawn from named sets only (not unassigned)
+                  const setsToUse =
+                    selectedMockSets.length > 0
+                      ? selectedMockSets
+                      : Object.keys(availableBySet).filter((s) => s !== '_unassigned');
+                  handleStartExam('mock', setsToUse);
+                }}
+                activeOpacity={0.85}
+                style={styles.pickerStartBtn}
+              >
+                <Text style={styles.pickerStartText}>Start Exam</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1482,6 +1600,62 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#fff',
+  },
+
+  // Mock Exam Set Picker
+  mockSetList: {
+    maxHeight: 280,
+    marginVertical: 16,
+  },
+  mockSetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 6,
+    backgroundColor: colors.surfaceHover,
+  },
+  mockSetRowSelected: {
+    backgroundColor: 'rgba(255, 153, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 153, 0, 0.3)',
+  },
+  mockSetCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.trackGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mockSetCheckboxSelected: {
+    backgroundColor: colors.primaryOrange,
+    borderColor: colors.primaryOrange,
+  },
+  mockSetInfo: {
+    flex: 1,
+  },
+  mockSetName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textBody,
+  },
+  mockSetNameSelected: {
+    color: colors.textHeading,
+  },
+  mockSetCount: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  mockSetHint: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 16,
   },
 
   // Tier Card — unified FREE/PREMIUM surface, no gold border

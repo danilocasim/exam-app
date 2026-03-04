@@ -6,6 +6,7 @@ import {
   startExam as startExamService,
   startMissedExam as startMissedExamService,
   startCustomExam as startCustomExamService,
+  startDiagnosticExam as startDiagnosticExamService,
   resumeExam as resumeExamService,
   hasInProgressExam,
   saveAnswer as saveAnswerService,
@@ -71,9 +72,10 @@ export interface ExamState {
  */
 export interface ExamActions {
   // Session lifecycle
-  startExam: (tierOverride?: TierLevel, mode?: ExamMode) => Promise<void>;
+  startExam: (tierOverride?: TierLevel, mode?: ExamMode, selectedSets?: string[]) => Promise<void>;
   startMissedExam: (count: number) => Promise<void>;
   startCustomExam: (options: CustomExamOptions) => Promise<void>;
+  startDiagnosticExam: () => Promise<void>;
   resumeExam: (mode?: ExamMode) => Promise<boolean>;
   abandonExam: () => Promise<void>;
   submitExam: () => Promise<ExamResult>;
@@ -135,12 +137,12 @@ export const useExamStore = create<ExamStore>((set, get) => ({
   /**
    * Start a new exam
    */
-  startExam: async (tierOverride?: TierLevel, mode: ExamMode = 'mock') => {
+  startExam: async (tierOverride?: TierLevel, mode: ExamMode = 'mock', selectedSets?: string[]) => {
     console.warn(`[ExamStore] startExam called (mode=${mode})`);
     set({ isLoading: true, error: null, result: null });
     try {
       const tier = tierOverride ?? usePurchaseStore.getState().tierLevel;
-      const session = await startExamService(tier, mode);
+      const session = await startExamService(tier, mode, selectedSets);
       console.warn(
         `[ExamStore] Exam started with ${session.questions.length} questions (mode=${mode})`,
       );
@@ -210,6 +212,34 @@ export const useExamStore = create<ExamStore>((set, get) => ({
     } catch (err) {
       console.error('[ExamStore] startCustomExam failed:', err);
       const message = err instanceof Error ? err.message : 'Failed to start custom exam';
+      set({ error: message, isLoading: false });
+      throw err;
+    }
+  },
+
+  /**
+   * Start a Diagnostic Test
+   */
+  startDiagnosticExam: async () => {
+    console.warn(`[ExamStore] startDiagnosticExam called`);
+    set({ isLoading: true, error: null, result: null });
+    try {
+      const session = await startDiagnosticExamService();
+      console.warn(
+        `[ExamStore] Diagnostic exam started with ${session.questions.length} questions`,
+      );
+      set({
+        session,
+        examMode: 'diagnostic',
+        currentIndex: 0,
+        remainingTimeMs: session.attempt.remainingTimeMs,
+        answeredCount: 0,
+        flaggedCount: 0,
+        isLoading: false,
+      });
+    } catch (err) {
+      console.error('[ExamStore] startDiagnosticExam failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to start diagnostic test';
       set({ error: message, isLoading: false });
       throw err;
     }

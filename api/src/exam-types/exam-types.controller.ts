@@ -5,6 +5,7 @@ import {
   GetQuestionsQueryDto,
   QuestionBankResponseDto,
   VersionResponseDto,
+  QuestionSetPublicDto,
 } from './dto';
 
 @Controller('exam-types')
@@ -14,6 +15,17 @@ export class ExamTypesController {
   @Get(':id')
   async getExamType(@Param('id') id: string): Promise<ExamTypeResponseDto> {
     return this.examTypesService.findOne(id);
+  }
+
+  /**
+   * GET /exam-types/{examTypeId}/sets
+   * Get all question sets for a given exam type (public, for mobile sync)
+   */
+  @Get(':examTypeId/sets')
+  async getSets(
+    @Param('examTypeId') examTypeId: string,
+  ): Promise<{ sets: QuestionSetPublicDto[] }> {
+    return this.examTypesService.getSets(examTypeId);
   }
 
   /**
@@ -29,6 +41,7 @@ export class ExamTypesController {
       examTypeId,
       query.since,
       query.limit,
+      query.sets,
     );
   }
 
