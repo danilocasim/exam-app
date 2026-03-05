@@ -31,9 +31,7 @@ import { calculateDomainBreakdown } from './scoring.service';
 import { getCachedExamTypeConfig } from './sync.service';
 import { getDatabase } from '../storage/database';
 import {
-  getDailyExamLastAttempt,
   getMissedExamLastAttempt,
-  restoreDailyExamLastAttempt,
   restoreMissedExamLastAttempt,
 } from '../storage/repositories/daily-mode.repository';
 import { getAPIURL, EXAM_TYPE_ID } from '../config';
@@ -46,7 +44,7 @@ interface RemoteUserStats {
   totalQuestions: number;
   totalTimeSpentMs: number;
   lastActivityAt: string | null;
-  dailyQuizLastCompletedAt: string | null;
+  dailyQuizLastCompletedAt: string | null; // deprecated — kept for API compat
   missedQuizLastCompletedAt: string | null;
 }
 
@@ -69,10 +67,7 @@ interface RemoteStreak {
 export const pushUserStats = async (accessToken: string): Promise<RemoteUserStats | null> => {
   try {
     const local = await getUserStats();
-    const [dailyCooldown, missedCooldown] = await Promise.all([
-      getDailyExamLastAttempt(),
-      getMissedExamLastAttempt(),
-    ]);
+    const missedCooldown = await getMissedExamLastAttempt();
     const axios = getAxios();
     const response = await axios.put(
       `${getAPIURL()}/user-stats/me`,
@@ -82,7 +77,7 @@ export const pushUserStats = async (accessToken: string): Promise<RemoteUserStat
         totalQuestions: local.totalQuestions,
         totalTimeSpentMs: local.totalTimeSpentMs,
         lastActivityAt: local.lastActivityAt,
-        dailyQuizLastCompletedAt: dailyCooldown,
+        dailyQuizLastCompletedAt: null, // deprecated — no longer tracked
         missedQuizLastCompletedAt: missedCooldown,
       },
       { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -150,16 +145,8 @@ export const pullAndMergeUserStats = async (accessToken: string): Promise<void> 
     // ── Restore cooldown timestamps from backend (most-recent-wins) ──
     // This is the key mechanism that prevents cooldown bypass via app data clear:
     // on login, backend cooldown values overwrite local (empty) SyncMeta if more recent.
-    const [localDaily, localMissed] = await Promise.all([
-      getDailyExamLastAttempt(),
-      getMissedExamLastAttempt(),
-    ]);
+    const localMissed = await getMissedExamLastAttempt();
 
-    if (remote.dailyQuizLastCompletedAt) {
-      if (!localDaily || remote.dailyQuizLastCompletedAt > localDaily) {
-        await restoreDailyExamLastAttempt(remote.dailyQuizLastCompletedAt);
-      }
-    }
     if (remote.missedQuizLastCompletedAt) {
       if (!localMissed || remote.missedQuizLastCompletedAt > localMissed) {
         await restoreMissedExamLastAttempt(remote.missedQuizLastCompletedAt);

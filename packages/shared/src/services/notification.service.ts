@@ -2,7 +2,6 @@
 import * as Notifications from 'expo-notifications';
 
 // Notification identifiers for cancellation
-const DAILY_NOTIFICATION_ID = 'daily-quiz-available';
 const MISSED_NOTIFICATION_ID = 'missed-question-available';
 
 // 24-hour cooldown in seconds
@@ -37,33 +36,22 @@ async function ensurePermissions(): Promise<boolean> {
 }
 
 /**
- * Schedule a local notification for when a cooldown expires.
- * Cancels any existing notification for the same mode before scheduling.
- *
- * @param mode - 'daily' or 'missed'
+ * Schedule a local notification for when the missed questions cooldown expires.
+ * Cancels any existing notification before scheduling.
  */
-export async function scheduleCooldownNotification(mode: 'daily' | 'missed'): Promise<void> {
+export async function scheduleCooldownNotification(_mode: 'missed'): Promise<void> {
   try {
     const hasPermission = await ensurePermissions();
     if (!hasPermission) return;
 
-    const notificationId = mode === 'daily' ? DAILY_NOTIFICATION_ID : MISSED_NOTIFICATION_ID;
-
-    // Cancel any previously scheduled notification for this mode
-    await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
-
-    const title = mode === 'daily' ? 'Daily Quiz Available!' : 'Missed Questions Ready!';
-
-    const body =
-      mode === 'daily'
-        ? "Your Daily Quiz has refreshed — keep your streak alive and sharpen your skills. Let's go!"
-        : 'Your Missed Questions quiz is ready. Revisit the ones you got wrong and turn them into strengths!';
+    // Cancel any previously scheduled notification
+    await Notifications.cancelScheduledNotificationAsync(MISSED_NOTIFICATION_ID).catch(() => {});
 
     await Notifications.scheduleNotificationAsync({
-      identifier: notificationId,
+      identifier: MISSED_NOTIFICATION_ID,
       content: {
-        title,
-        body,
+        title: 'Missed Questions Ready!',
+        body: 'Your Missed Questions quiz is ready. Revisit the ones you got wrong and turn them into strengths!',
         sound: 'default',
       },
       trigger: {
@@ -74,17 +62,16 @@ export async function scheduleCooldownNotification(mode: 'daily' | 'missed'): Pr
     });
   } catch (err) {
     // Non-blocking — notification is a nice-to-have
-    console.warn(`[Notifications] Failed to schedule ${mode} notification:`, err);
+    console.warn(`[Notifications] Failed to schedule missed notification:`, err);
   }
 }
 
 /**
- * Cancel a scheduled cooldown notification (e.g. when user is upgraded to premium).
+ * Cancel a scheduled cooldown notification.
  */
-export async function cancelCooldownNotification(mode: 'daily' | 'missed'): Promise<void> {
+export async function cancelCooldownNotification(_mode: 'missed'): Promise<void> {
   try {
-    const notificationId = mode === 'daily' ? DAILY_NOTIFICATION_ID : MISSED_NOTIFICATION_ID;
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    await Notifications.cancelScheduledNotificationAsync(MISSED_NOTIFICATION_ID);
   } catch {
     // Ignore — notification may not exist
   }
@@ -94,6 +81,5 @@ export async function cancelCooldownNotification(mode: 'daily' | 'missed'): Prom
  * Cancel all scheduled cooldown notifications.
  */
 export async function cancelAllCooldownNotifications(): Promise<void> {
-  await cancelCooldownNotification('daily');
   await cancelCooldownNotification('missed');
 }

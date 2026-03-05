@@ -34,7 +34,6 @@ export {
   getQuestionDistribution,
   generateExamFromMissed,
   generateCustomExam,
-  generateDailyQuiz,
 } from './exam-generator.service';
 export type { GeneratedExam } from './exam-generator.service';
 

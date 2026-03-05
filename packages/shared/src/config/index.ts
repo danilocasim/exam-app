@@ -18,7 +18,7 @@ export type {
 
 export type { AppConfig } from './types';
 
-export { DAILY_QUESTION_LIMIT, TIER_CONFIGS } from './tiers';
+export { TIER_CONFIGS } from './tiers';
 
 export type { TierLevel, TierConfig } from './tiers';
 

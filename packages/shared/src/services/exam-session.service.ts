@@ -37,7 +37,6 @@ import {
   GeneratedExam,
   generateExamFromMissed,
   generateCustomExam,
-  generateDailyQuiz,
   generateDiagnosticExam,
 } from './exam-generator.service';
 import { getCachedExamTypeConfig } from './sync.service';
@@ -75,7 +74,7 @@ export interface NavigationResult {
  * 3. Create answer placeholders for all questions
  * 4. Return initial session state
  *
- * mode determines the exam slot: 'daily' and 'mock' are independent.
+ * mode determines the exam slot: each mode is independent.
  */
 export const startExam = async (
   tier: TierLevel = 'PREMIUM',
@@ -98,12 +97,8 @@ export const startExam = async (
   // Also handle any other expired exams
   await handleExpiredExams();
 
-  // Generate exam: daily mode picks random questions from full bank;
-  // other modes use tier-aware weighted generation.
-  const generated: GeneratedExam =
-    mode === 'daily'
-      ? await generateDailyQuiz()
-      : await generateExamForTier(tier, undefined, selectedSets);
+  // Generate exam using tier-aware weighted generation.
+  const generated: GeneratedExam = await generateExamForTier(tier, undefined, selectedSets);
   const { questions, config } = generated;
 
   if (questions.length === 0) {
@@ -617,11 +612,11 @@ export const abandonCurrentExam = async (examAttemptId: string): Promise<void> =
 /**
  * Check and handle expired exams
  * Called on app launch to clean up any expired in-progress exams.
- * Checks both daily, mock, and missed slots independently.
+ * Checks mock, missed, custom, and diagnostic slots independently.
  */
 export const handleExpiredExams = async (): Promise<number> => {
   let abandoned = 0;
-  for (const mode of ['daily', 'mock', 'missed', 'custom'] as ExamMode[]) {
+  for (const mode of ['mock', 'missed', 'custom', 'diagnostic'] as ExamMode[]) {
     const attempt = await getInProgressExamAttempt(mode);
     if (attempt) {
       const expiresAt = new Date(attempt.expiresAt).getTime();

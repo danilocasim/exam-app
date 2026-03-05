@@ -148,10 +148,10 @@ interface BenefitItem {
 
 const benefits: BenefitItem[] = [
   {
-    key: 'daily',
+    key: 'fullExams',
     icon: <Infinity size={20} color={colors.primaryOrange} strokeWidth={2} />,
-    title: 'Unlimited Daily Quizzes',
-    description: 'No cooldowns — take daily quizzes as often as you want',
+    title: 'Full-Length Mock Exams',
+    description: 'Access the complete question bank with timed exam simulations',
   },
   {
     key: 'missed',
@@ -488,8 +488,8 @@ export const UpgradeScreen: React.FC = () => {
 
                 <Text style={styles.heroTitle}>Premium Access</Text>
                 <Text style={styles.heroSubtitle}>
-                  Unlock the full power of Dojo Exam. Unlimited daily quizzes, missed-question
-                  drills, custom exams, and full mock tests.
+                  Unlock the full power of Dojo Exam. Full mock tests, missed-question drills,
+                  custom exams, and advanced analytics.
                 </Text>
               </LinearGradient>
             </View>
@@ -599,7 +599,7 @@ export const UpgradeScreen: React.FC = () => {
           </View>
           {/* Rows */}
           {[
-            { feature: 'Daily quiz attempts', free: '1 / 24h', premium: 'Unlimited' },
+            { feature: 'Exam attempts', free: 'Diagnostic only', premium: 'Unlimited' },
             { feature: 'Missed questions quiz', free: false, premium: true },
             { feature: 'Custom exam builder', free: false, premium: true },
             { feature: 'Mock exams', free: false, premium: 'Full exam' },

@@ -21,9 +21,9 @@ export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 export type ExamStatus = 'in-progress' | 'completed' | 'abandoned';
 
 /**
- * Exam mode — distinguishes Daily Quiz, Mock Exam, Missed Questions Quiz, and Custom Exam
+ * Exam mode — distinguishes Mock Exam, Missed Questions Quiz, Custom Exam, and Diagnostic Test
  */
-export type ExamMode = 'daily' | 'mock' | 'missed' | 'custom' | 'diagnostic';
+export type ExamMode = 'mock' | 'missed' | 'custom' | 'diagnostic';
 
 /**
  * Configuration for a Custom Exam (selected before starting)
@@ -130,7 +130,7 @@ export interface QuestionRow {
 export interface ExamAttempt {
   /** UUID generated locally */
   id: string;
-  /** Exam mode: daily quiz or mock exam */
+  /** Exam mode: mock, missed, custom, or diagnostic */
   mode: ExamMode;
   /** ISO timestamp when exam started */
   startedAt: string;

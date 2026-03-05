@@ -18,10 +18,7 @@ import {
   ExamSession,
 } from '../services';
 import { getAnswersByExamAttemptId } from '../storage/repositories/exam-answer.repository';
-import {
-  setDailyExamLastAttempt,
-  setMissedExamLastAttempt,
-} from '../storage/repositories/daily-mode.repository';
+import { setMissedExamLastAttempt } from '../storage/repositories/daily-mode.repository';
 import { useExamAttemptStore } from './exam-attempt.store';
 import { useStreakStore } from './streak.store';
 import { useAuthStore } from './auth-store';
@@ -40,7 +37,7 @@ export interface ExamState {
   currentIndex: number;
   remainingTimeMs: number;
 
-  // Current exam mode (daily vs mock vs custom etc.)
+  // Current exam mode (mock vs custom vs diagnostic etc.)
   examMode: ExamMode | null;
 
   // Whether the current exam has a countdown timer (false for untimed custom exams)
@@ -375,19 +372,13 @@ export const useExamStore = create<ExamStore>((set, get) => ({
         // Non-blocking — local data is always safe
       }
 
-      // Record daily quiz completion for FREE tier cooldown.
+      // Record missed quiz completion for FREE tier cooldown.
       // Must happen on successful SUBMISSION (not on start) so that abandoning
-      // the exam does not consume the user's daily attempt.
-      // Only record for daily mode, not mock exams.
+      // the exam does not consume the user's attempt.
       try {
         const currentMode = get().examMode;
         const tier = usePurchaseStore.getState().tier;
-        if (currentMode === 'daily') {
-          setDailyExamLastAttempt().catch(() => {});
-          if (tier === 'FREE') {
-            scheduleCooldownNotification('daily').catch(() => {});
-          }
-        } else if (currentMode === 'missed') {
+        if (currentMode === 'missed') {
           setMissedExamLastAttempt().catch(() => {});
           if (tier === 'FREE') {
             scheduleCooldownNotification('missed').catch(() => {});

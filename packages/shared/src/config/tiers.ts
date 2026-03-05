@@ -1,5 +1,3 @@
-export const DAILY_QUESTION_LIMIT = 15;
-
 export type TierLevel = 'FREE' | 'PREMIUM';
 
 export interface TierConfig {

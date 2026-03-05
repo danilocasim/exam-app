@@ -24,7 +24,9 @@ import {
 import { TokenRefreshService } from './services/token-refresh-service';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { IntegrityBlockedScreen } from './components/IntegrityBlockedScreen';
+import { OnboardingScreen } from './screens/OnboardingScreen';
 import { useAuthStore } from './stores/auth-store';
+import { useOnboardingStore } from './stores/onboarding-store';
 import { checkIntegrity } from './services/play-integrity.service';
 import { configureNotifications } from './services/notification.service';
 import { initBillingWithStore, disconnectBilling } from './services/billing.service';
@@ -55,6 +57,10 @@ export function AppRoot({ examTypeId, appName, branding, androidPackageName }: A
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const phase2Started = useRef(false);
+
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
 
   // T251: Subscribe to auth state for phase 2 trigger
   const isSignedIn = useAuthStore((state) => state.isSignedIn);
@@ -251,6 +257,11 @@ export function AppRoot({ examTypeId, appName, branding, androidPackageName }: A
           () => useAuthStore.getState().accessToken,
         );
 
+        // Show onboarding on first-time sign-in
+        if (!useOnboardingStore.getState().hasCompletedOnboarding) {
+          setShowOnboarding(true);
+        }
+
         setIsReady(true);
       } catch (e) {
         console.error('[App] Phase 2 initialization failed:', e);
@@ -429,6 +440,16 @@ export function AppRoot({ examTypeId, appName, branding, androidPackageName }: A
         <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: 16 }} />
         <Text style={{ marginTop: 16, color: '#94a3b8', fontWeight: '500' }}>{syncStatus}</Text>
       </View>
+    );
+  }
+
+  // First-time onboarding carousel
+  if (showOnboarding && !hasCompletedOnboarding) {
+    return (
+      <SafeAreaProvider>
+        <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+        <StatusBar style="light" />
+      </SafeAreaProvider>
     );
   }
 

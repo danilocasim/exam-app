@@ -18,7 +18,7 @@ import {
   CustomExamOptions,
 } from '../storage/schema';
 import { getCachedExamTypeConfig } from './sync.service';
-import { TierLevel, DAILY_QUESTION_LIMIT } from '../config/tiers';
+import { TierLevel } from '../config/tiers';
 import { EXAM_CONFIG } from '../config/app.config';
 
 /**
@@ -241,59 +241,11 @@ export const generateExamForTier = async (
 };
 
 /**
- * Generate a Daily Quiz — DAILY_QUESTION_LIMIT random questions from the
- * full question bank, deduplicated and shuffled.
- *
- * Unlike the FREE mini-exam (which always returns the same deterministic set),
- * the daily quiz picks a fresh random sample each day so users see new
- * questions on every attempt.
- */
-export const generateDailyQuiz = async (): Promise<GeneratedExam> => {
-  const config = await getCachedExamTypeConfig();
-  if (!config) {
-    throw new Error('Exam configuration not found. Please sync before starting an exam.');
-  }
-
-  // Pick DAILY_QUESTION_LIMIT random questions from the full bank
-  const rawQuestions = await getRandomQuestions(DAILY_QUESTION_LIMIT);
-  const questions = shuffleArray(uniqueQuestions(rawQuestions));
-
-  if (questions.length === 0) {
-    throw new Error('No questions available. Please sync or load bundled questions.');
-  }
-
-  // Build domain distribution
-  const domainDistribution: Record<DomainId, number> = {};
-  for (const q of questions) {
-    domainDistribution[q.domain] = (domainDistribution[q.domain] ?? 0) + 1;
-  }
-
-  // Proportionally scale the time limit (minimum 5 minutes)
-  const timeFraction = questions.length / config.questionCount;
-  const dailyConfig: ExamTypeConfig = {
-    ...config,
-    questionCount: questions.length,
-    timeLimit: Math.max(5, Math.round(config.timeLimit * timeFraction)),
-  };
-
-  console.log(
-    `[ExamGenerator] Daily quiz: ${questions.length} questions, ${dailyConfig.timeLimit} min`,
-  );
-
-  return {
-    questions,
-    totalQuestions: questions.length,
-    config: dailyConfig,
-    domainDistribution,
-  };
-};
-
-/**
  * Generate a Diagnostic Test from the 'diagnostic' question set.
  *
  * Pulls all questions assigned to the 'diagnostic' set, shuffles them,
  * and builds a proportionally-timed config. This is the primary free-tier
- * exam mode replacing the Daily Quiz.
+ * exam mode.
  */
 export const generateDiagnosticExam = async (): Promise<GeneratedExam> => {
   const config = await getCachedExamTypeConfig();

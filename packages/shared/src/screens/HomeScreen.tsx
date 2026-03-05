@@ -59,10 +59,7 @@ import { getUserStats } from '../storage/repositories/user-stats.repository';
 import { getOverallStats, calculateAggregatedDomainPerformance } from '../services/scoring.service';
 import { EXAM_CONFIG } from '../config';
 import { useIsPremium } from '../stores/purchase.store';
-import {
-  getDailyExamLastAttempt,
-  getMissedExamLastAttempt,
-} from '../storage/repositories/daily-mode.repository';
+import { getMissedExamLastAttempt } from '../storage/repositories/daily-mode.repository';
 import { getMissedQuestionCount } from '../storage/repositories/missed-questions.repository';
 import { CalendarStrip } from '../components/CalendarStrip';
 import { DatePickerModal } from '../components/DatePickerModal';
@@ -139,7 +136,6 @@ export const HomeScreen: React.FC = () => {
   const { streak, motivation, completedToday, daysUntilExam, loadStreak, saveExamDate } =
     useStreakStore();
 
-  const [hasInProgressDaily, setHasInProgressDaily] = useState(false);
   const [hasInProgressMock, setHasInProgressMock] = useState(false);
   const [hasInProgressMissed, setHasInProgressMissed] = useState(false);
   const [hasInProgressCustom, setHasInProgressCustom] = useState(false);
@@ -157,7 +153,6 @@ export const HomeScreen: React.FC = () => {
   const [webViewUrl, setWebViewUrl] = useState<string | null>(null);
   const [webViewLoading, setWebViewLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [dailyLastAttempt, setDailyLastAttempt] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
   // Missed Questions Quiz state
@@ -190,40 +185,34 @@ export const HomeScreen: React.FC = () => {
     setCheckingStatus(true);
     try {
       const [
-        inProgressDaily,
         inProgressMock,
         inProgressMissed,
         inProgressCustom,
         inProgressDiagnostic,
         count,
         canGen,
-        examLast,
         missedLast,
         missedQCount,
         bySet,
         cachedSetNames,
       ] = await Promise.all([
-        hasInProgressExam('daily'),
         hasInProgressExam('mock'),
         hasInProgressExam('missed'),
         hasInProgressExam('custom'),
         hasInProgressExam('diagnostic'),
         getTotalQuestionCount(),
         canGenerateExam(),
-        getDailyExamLastAttempt(),
         getMissedExamLastAttempt(),
         getMissedQuestionCount(),
         getQuestionCountBySet(),
         getCachedQuestionSets(),
       ]);
-      setHasInProgressDaily(inProgressDaily);
       setHasInProgressMock(inProgressMock);
       setHasInProgressMissed(inProgressMissed);
       setHasInProgressCustom(inProgressCustom);
       setHasInProgressDiagnostic(inProgressDiagnostic);
       setQuestionCount(count);
       setCanStart(canGen.canGenerate);
-      setDailyLastAttempt(examLast);
       setMissedLastAttempt(missedLast);
       setMissedCount(missedQCount);
       setSelectedMissedCount((prev) => Math.min(prev, missedQCount || 10));
@@ -256,21 +245,18 @@ export const HomeScreen: React.FC = () => {
   };
 
   // ── Handlers ──
-  // mode: 'daily' (always FREE tier, 15 questions) or 'mock' (user's tier)
-  const handleStartExam = async (mode: 'daily' | 'mock' = 'mock', sets?: string[]) => {
+  const handleStartExam = async (sets?: string[]) => {
     try {
       setError(null);
-      const tier = mode === 'daily' ? 'FREE' : undefined;
-      await startExam(tier, mode, sets && sets.length > 0 ? sets : undefined);
+      await startExam(undefined, 'mock', sets && sets.length > 0 ? sets : undefined);
       navigation.navigate('ExamScreen', {});
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('already in progress')) {
         try {
-          const inProgress = await getInProgressExamAttempt(mode);
+          const inProgress = await getInProgressExamAttempt('mock');
           if (inProgress) await abandonCurrentExam(inProgress.id);
-          const tier = mode === 'daily' ? 'FREE' : undefined;
-          await startExam(tier, mode, sets && sets.length > 0 ? sets : undefined);
+          await startExam(undefined, 'mock', sets && sets.length > 0 ? sets : undefined);
           navigation.navigate('ExamScreen', {});
           return;
         } catch {
@@ -305,9 +291,7 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const handleResumeExam = async (
-    mode: 'daily' | 'mock' | 'missed' | 'custom' | 'diagnostic' = 'mock',
-  ) => {
+  const handleResumeExam = async (mode: 'mock' | 'missed' | 'custom' | 'diagnostic' = 'mock') => {
     try {
       setError(null);
       const resumed = await resumeExam(mode);
@@ -323,9 +307,7 @@ export const HomeScreen: React.FC = () => {
   };
 
   // Accepts mode for starting a new exam (abandons existing of SAME mode only)
-  const handleStartNewExam = (
-    mode: 'daily' | 'mock' | 'missed' | 'custom' | 'diagnostic' = 'mock',
-  ) => {
+  const handleStartNewExam = (mode: 'mock' | 'missed' | 'custom' | 'diagnostic' = 'mock') => {
     Alert.alert(
       'Start New Exam',
       'You have an exam in progress. Do you want to abandon it and start a new one?',
@@ -354,7 +336,7 @@ export const HomeScreen: React.FC = () => {
             } else if (mode === 'diagnostic') {
               await handleStartDiagnosticExam();
             } else {
-              await handleStartExam(mode);
+              await handleStartExam();
             }
           },
         },
@@ -474,7 +456,7 @@ export const HomeScreen: React.FC = () => {
 
   // ── Tier-aware mode definitions ──
   // Cards always visible for both tiers — only lock/cooldown state changes.
-  // Cooldown (FREE only): computed from SQLite via getDailyExamLastAttempt() / getMissedExamLastAttempt().
+  // Cooldown (FREE only): computed from SQLite via getMissedExamLastAttempt().
   // Cooldown is recorded on exam SUBMISSION in exam.store.ts, not on start.
   const missedCooldownActive = !isPremium && remainingMs(missedLastAttempt) > 0;
   const missedEmpty = missedCount === 0;
@@ -671,7 +653,7 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.sectionLabel}>Modes</Text>
         </View>
 
-        {/* ── Modes grid (Daily Quiz · Mock Exam · Missed Question) ── */}
+        {/* ── Modes grid (Diagnostic · Missed · Mock · Custom) ── */}
         <View style={styles.actionsGrid}>
           {gridModes.map((mode) => (
             <TouchableOpacity
@@ -1053,7 +1035,7 @@ export const HomeScreen: React.FC = () => {
                     selectedMockSets.length > 0
                       ? selectedMockSets
                       : Object.keys(availableBySet).filter((s) => s !== '_unassigned');
-                  handleStartExam('mock', setsToUse);
+                  handleStartExam(setsToUse);
                 }}
                 activeOpacity={0.85}
                 style={styles.pickerStartBtn}
@@ -1178,7 +1160,7 @@ const styles = StyleSheet.create({
   // Locked card (Premium gate) — disabled look with subtle amber border
   actionCardLocked: { opacity: 0.55 },
   actionCardInnerLocked: { borderColor: 'rgba(245, 158, 11, 0.18)' },
-  // Cooldown state (daily quiz already completed today — FREE only)
+  // Cooldown state (missed quiz cooldown — FREE only)
   actionCardDisabled: { opacity: 0.58 },
   actionTitleMuted: { color: colors.textMuted },
   actionSubCooldown: { color: '#F59E0B' }, // cooldown countdown timer
