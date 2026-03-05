@@ -184,3 +184,12 @@ export type {
   SubscriptionStatus,
   SubscriptionPurchaseResult,
 } from './billing.service';
+
+// Subscription verification — server-side subscription validation
+export {
+  verifySubscriptionWithServer,
+  isVerificationNeeded,
+  verifyIfNeeded,
+  startPeriodicVerification,
+  stopPeriodicVerification,
+} from './subscription-verification.service';

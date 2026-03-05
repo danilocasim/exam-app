@@ -23,4 +23,10 @@ export interface AppConfig {
     quarterly: string;
     annual: string;
   };
+
+  /**
+   * Android package name for server-side subscription verification.
+   * Must match the "package" field in app.json (e.g. "com.danilocasim.dojoexam.clfc02").
+   */
+  androidPackageName: string;
 }

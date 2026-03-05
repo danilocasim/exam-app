@@ -9,4 +9,5 @@ export const APP_CONFIG: AppConfig = {
     quarterly: 'quarterly_clf_c02',
     annual: 'annual_clf_c02',
   },
+  androidPackageName: 'com.danilocasim.dojoexam.clfc02',
 };

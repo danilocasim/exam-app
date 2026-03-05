@@ -9,4 +9,5 @@ export const APP_CONFIG: AppConfig = {
     quarterly: 'quarterly_saa_c03',
     annual: 'annual_saa_c03',
   },
+  androidPackageName: 'com.danilocasim.dojoexam.saac03',
 };

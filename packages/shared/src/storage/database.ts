@@ -218,6 +218,7 @@ export const initializeDatabase = async (): Promise<void> => {
       subscription_type TEXT,
       expiry_date TEXT,
       auto_renewing INTEGER DEFAULT 0,
+      last_server_verified TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -233,6 +234,7 @@ export const initializeDatabase = async (): Promise<void> => {
     `ALTER TABLE PurchaseStatus ADD COLUMN subscription_type TEXT`,
     `ALTER TABLE PurchaseStatus ADD COLUMN expiry_date TEXT`,
     `ALTER TABLE PurchaseStatus ADD COLUMN auto_renewing INTEGER DEFAULT 0`,
+    `ALTER TABLE PurchaseStatus ADD COLUMN last_server_verified TEXT`,
     `ALTER TABLE Question ADD COLUMN "set" TEXT`,
   ];
   for (const migration of migrations) {

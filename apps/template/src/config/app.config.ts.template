@@ -9,4 +9,5 @@ export const APP_CONFIG: AppConfig = {
     quarterly: 'quarterly___EXAM_TYPE_SKU__',
     annual: 'annual___EXAM_TYPE_SKU__',
   },
+  androidPackageName: '__PACKAGE_NAME__',
 };

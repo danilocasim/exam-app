@@ -25,10 +25,13 @@ import { TokenRefreshService } from './services/token-refresh-service';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { IntegrityBlockedScreen } from './components/IntegrityBlockedScreen';
 import { useAuthStore } from './stores/auth-store';
-import { usePurchaseStore } from './stores/purchase.store';
 import { checkIntegrity } from './services/play-integrity.service';
 import { configureNotifications } from './services/notification.service';
 import { initBillingWithStore, disconnectBilling } from './services/billing.service';
+import {
+  startPeriodicVerification,
+  stopPeriodicVerification,
+} from './services/subscription-verification.service';
 
 export interface AppRootProps {
   examTypeId: string;
@@ -36,9 +39,10 @@ export interface AppRootProps {
   branding?: {
     primaryColor?: string;
   };
+  androidPackageName: string;
 }
 
-export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
+export function AppRoot({ examTypeId, appName, branding, androidPackageName }: AppRootProps) {
   const [isReady, setIsReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState('Initializing...');
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +125,6 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
 
         // T251: Signal that phase 2 can start once the user is authenticated
         // TEMP TEST: force FREE tier — remove after testing
-        usePurchaseStore.getState().reset();
 
         // T251: Signal that phase 2 can start once the user is authenticated
         setIntegrityPassed(true);
@@ -141,6 +144,8 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
       disconnectBilling().catch((err) => {
         console.warn('[App] Billing disconnect failed:', err);
       });
+      // Clean up subscription verification timers
+      stopPeriodicVerification();
     };
   }, [retryCount]);
 
@@ -231,6 +236,11 @@ export function AppRoot({ examTypeId, appName, branding }: AppRootProps) {
           console.warn('[App] Billing error:', error.code, error.message);
         }).catch((err) => {
           console.warn('[App] Billing initialization failed (non-fatal):', err);
+        });
+
+        // Start periodic server-side subscription verification (launch + every 24h)
+        await startPeriodicVerification(androidPackageName).catch((err) => {
+          console.warn('[App] Subscription verification setup failed (non-fatal):', err);
         });
 
         // Initialize persistence service (exam attempt sync + stats push)
